@@ -29,7 +29,7 @@ def java_source(metadata):
     values = dict(re.findall(r'^([A-Z_]+)="([^"\r\n]*)"$', metadata, re.M))
     version = values.get('SEMANTIC_VERSION', '')
     if (values.get('IMPLEMENTOR') != 'Eclipse Adoptium'
-            or not re.fullmatch(r'21\.0\.[0-9]+\+[0-9]+', version)
+            or not re.fullmatch(r'21\.0\.[0-9]+(?:\.[0-9]+)?\+[0-9]+', version)
             or values.get('JAVA_RUNTIME_VERSION') not in (version, version + '-LTS')
             or values.get('IMPLEMENTOR_VERSION') != 'Temurin-' + version):
         raise ValueError('Only an exact stable Temurin 21 runtime can be released')

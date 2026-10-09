@@ -111,7 +111,7 @@ Java is included. Close Ruleblend and its active MCP sessions before updating.
 The release also provides corresponding Java sources and `SHA256SUMS`; checksums detect damaged
 downloads and are not digital signatures.
 
-- **macOS:** open the DMG, drag Ruleblend into Applications, then launch it. The alpha is unsigned
+- **macOS (Apple Silicon):** open the DMG, drag Ruleblend into Applications, then launch it. The alpha is unsigned
   and not notarized. If macOS blocks it, open System Settings → Privacy & Security → Open Anyway
   for Ruleblend and confirm. Use this exception only for a download you trust; see
   [Apple's instructions](https://support.apple.com/en-us/102445).

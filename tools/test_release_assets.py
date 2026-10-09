@@ -40,6 +40,12 @@ class ReleaseAssetsTest(unittest.TestCase):
         self.assertEqual('OpenJDK21U-jdk-sources_21.0.7_6.tar.gz', name)
         self.assertIn('/jdk-21.0.7%2B6/', url)
 
+    def test_java_source_accepts_patch_release(self):
+        metadata = METADATA.replace('21.0.7+6', '21.0.12.1+1').replace('JAVA_VERSION="21.0.7"', 'JAVA_VERSION="21.0.12.1"')
+        _, _, name, url = java_source(metadata)
+        self.assertEqual('OpenJDK21U-jdk-sources_21.0.12.1_1.tar.gz', name)
+        self.assertIn('/jdk-21.0.12.1%2B1/', url)
+
     def test_unknown_or_inconsistent_runtime_is_rejected(self):
         for old, new in [('Eclipse Adoptium', 'Other vendor'), ('21.0.7+6-LTS', '21.0.7+7-LTS'),
                          ('Temurin-21.0.7+6', 'Temurin-21.0.7+7'), ('Windows', 'Linux'),
