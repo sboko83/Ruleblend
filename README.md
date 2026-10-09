@@ -99,6 +99,8 @@ Third-party components retain their own licenses: see [NOTICE](NOTICE) and
 
 ## Status
 
+Alpha: `0.5.0` is the first public build (`v0.5.0-alpha.1`), unsigned; expect rough edges.
+
 Working macOS app — library, local and Git-backed skills, integration into five agents, adoption of
 existing rules, MCP blocks, export/import, two-way Git synchronization, and the MCP server all ship.
 Windows MSI packaging is available.
