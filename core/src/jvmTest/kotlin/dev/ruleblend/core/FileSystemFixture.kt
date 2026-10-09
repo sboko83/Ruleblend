@@ -2,8 +2,12 @@ package dev.ruleblend.core
 
 import com.sun.nio.file.ExtendedOpenOption.NOSHARE_DELETE
 import java.io.Closeable
+import java.io.IOException
+import java.io.UncheckedIOException
+import java.nio.file.DirectoryNotEmptyException
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.READ
 import java.nio.file.attribute.DosFileAttributeView
@@ -27,11 +31,28 @@ internal fun blockFileReplacement(file: Path): Closeable {
     }
 }
 
-/** Git objects are read-only on Windows; remove only the fixture's own tree. */
+/**
+ * Git objects are read-only on Windows; remove only the fixture's own tree.
+ * JGit's background filesystem probe may add or remove files mid-walk, so vanished paths are
+ * skipped and the walk is repeated until the tree is gone.
+ */
 internal fun deleteFixtureTree(root: Path) {
-    val paths = Files.walk(root).use { it.sorted(Comparator.reverseOrder()).toList() }
-    paths.forEach { path ->
-        Files.getFileAttributeView(path, DosFileAttributeView::class.java, NOFOLLOW_LINKS)?.setReadOnly(false)
-        Files.delete(path)
+    repeat(3) { attempt ->
+        try {
+            if (!Files.exists(root, NOFOLLOW_LINKS)) return
+            val paths = Files.walk(root).use { it.sorted(Comparator.reverseOrder()).toList() }
+            paths.forEach { path ->
+                try {
+                    Files.getFileAttributeView(path, DosFileAttributeView::class.java, NOFOLLOW_LINKS)?.setReadOnly(false)
+                } catch (ignored: NoSuchFileException) {
+                }
+                Files.deleteIfExists(path)
+            }
+            return
+        } catch (error: IOException) {
+            if (attempt == 2 || error !is DirectoryNotEmptyException) throw error
+        } catch (error: UncheckedIOException) {
+            if (attempt == 2 || error.cause !is NoSuchFileException) throw error
+        }
     }
 }
