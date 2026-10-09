@@ -172,12 +172,12 @@ class PlaceReorderTest {
 
         // Two blocks, so exactly one row offers each end: the last one can go up, the first down.
         compose.onNodeWithText(MOVE_TOP_GLYPH).performClick()
-        compose.waitForIdle()
+        compose.waitUntil(5_000) { installedOrder(model) == listOf(second.id, first.id) }
 
         assertEquals(listOf(second.id, first.id), installedOrder(model))
 
         compose.onNodeWithText(MOVE_BOTTOM_GLYPH).performClick()
-        compose.waitForIdle()
+        compose.waitUntil(5_000) { installedOrder(model) == listOf(first.id, second.id) }
 
         assertEquals(listOf(first.id, second.id), installedOrder(model))
         val text = agentsFile().readText()

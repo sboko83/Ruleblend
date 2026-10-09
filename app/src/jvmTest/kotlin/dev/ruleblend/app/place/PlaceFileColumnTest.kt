@@ -1193,7 +1193,7 @@ class PlaceFileColumnTest {
 
         val before = file.readText()
         compose.onNodeWithText(strings.placeKeep).performClick()
-        compose.waitForIdle()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(strings.placeDriftKept).fetchSemanticsNodes().isNotEmpty() }
 
         compose.onNodeWithText(strings.placeDriftNotice).assertDoesNotExist()
         compose.onNodeWithText(strings.placeDriftKept).assertIsDisplayed()
