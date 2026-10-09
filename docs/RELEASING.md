@@ -59,7 +59,9 @@ be accepted. A changed archive requires a new review.
 - Ship license texts in both packages and offer the exact Java runtime's complete corresponding
   source archive beside the installers, with its vendor checksum. Keep the vendor notices and
   runtime metadata so a package can be matched to its source; see [THIRD-PARTY](../THIRD-PARTY.md).
-- The tag-triggered publication workflow remains TODO. No publication automation is enabled.
+- A pushed `v*` tag runs [CI](../.github/workflows/ci.yml) with release steps and creates a draft
+  prerelease with all assets; it is published by hand after review. A manual run with a tag input
+  rehearses the same steps and uploads the assets as an artifact without publishing.
   The intended tag is `v<ver>-alpha.1`; it must match `appVersion`.
 - Java source assets are selected from the packaged Temurin 21 metadata, verified against the
   vendor SHA-256 and bundled with original notices and runtime metadata. Each platform's
