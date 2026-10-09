@@ -1,0 +1,35 @@
+# Resource bytes and executable scripts must not depend on core.autocrlf.
+* text=auto
+**/resources/** text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.png binary
+*.icns binary
+*.ico binary
+*.jar binary
+# Preserve upstream legal text byte-for-byte, including its whitespace.
+/LICENSE -text -whitespace
+/NOTICE text eol=lf
+/licenses/** -text -whitespace
+
+# Public snapshots keep private working materials in the original repository only.
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/docs/PLAN.md export-ignore
+/docs/ru/PLAN.md export-ignore
+/docs/art export-ignore
+/tools/run_phases.sh export-ignore
+/tools/split_kt.py export-ignore
+/private export-ignore
+/.claude export-ignore
+/.codex export-ignore
+/.agents export-ignore
+/.vscode export-ignore
+/.idea export-ignore
+/.superpowers export-ignore
+/.zcode export-ignore
+*.log export-ignore
+**/.swiftpm export-ignore
+**/.build export-ignore

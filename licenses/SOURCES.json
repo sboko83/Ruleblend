@@ -1,0 +1,122 @@
+{
+  "LICENSE": {
+    "sha256": "c0ea4a896d2c8c394b29f9427589996db826cd501c512279ff0ed3ef48fabbe5",
+    "source": "https://raw.githubusercontent.com/polyformproject/polyform-licenses/1.0.0/PolyForm-Noncommercial-1.0.0.md"
+  },
+  "licenses/Apache-2.0.txt": {
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "source": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+  },
+  "licenses/Commons-Codec-NOTICE.txt": {
+    "sha256": "d82503df1b65173afe535a2f753d27c25377f7f6e9d0b19b4665af617df14750",
+    "source": "https://repo.maven.apache.org/maven2/commons-codec/commons-codec/1.22.0/commons-codec-1.22.0.jar!/META-INF/NOTICE.txt"
+  },
+  "licenses/JGit-about.html": {
+    "sha256": "657a3c8185dd5ab1e9997f675ad3bcc79ca87249da08b12d4138212d2ae74262",
+    "source": "https://repo.maven.apache.org/maven2/org/eclipse/jgit/org.eclipse.jgit/7.7.1.202607240634-r/org.eclipse.jgit-7.7.1.202607240634-r.jar!/about.html"
+  },
+  "licenses/Lucide.txt": {
+    "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+    "source": "https://raw.githubusercontent.com/lucide-icons/lucide/main/LICENSE"
+  },
+  "licenses/MCP-SDK.txt": {
+    "sha256": "7c6a686d2b34b86ad8c726e0ac4d76903b525f251d73e617f8db3879fa8f11fc",
+    "source": "https://raw.githubusercontent.com/modelcontextprotocol/kotlin-sdk/0.15.0/LICENSE"
+  },
+  "licenses/SLF4J.txt": {
+    "sha256": "4e7f90c86ab51278228bce153122f1d8df30149d13ce9ef524c8444a84c32dcc",
+    "source": "https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.jar!/META-INF/LICENSE.txt"
+  },
+  "licenses/Skia.txt": {
+    "sha256": "5f787c1dee3c56547f09ccc2906ab5f5293c4d8dd6c8654e573216c38e908dbd",
+    "source": "https://raw.githubusercontent.com/JetBrains/skia/m144-22f58c9fd4/LICENSE"
+  },
+  "licenses/Skiko-NOTICE.txt": {
+    "sha256": "35dd077c24768b53625101cfcc0ad853ae7e2abc08bd2a111a0267760d1406d8",
+    "source": "https://raw.githubusercontent.com/JetBrains/skiko/v0.144.6/NOTICE"
+  },
+  "licenses/skia/include/third_party/vulkan/LICENSE": {
+    "sha256": "e59bb5c5c6ba426a9ac4ba9fe667ad14c5166b12aa25be8af1d122b14fbe2e36",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/include/third_party/vulkan/LICENSE"
+  },
+  "licenses/skia/third_party/expat/LICENSE": {
+    "sha256": "cca48bacd6e7ed63f00b42a346bcc8549a460b41efe75d93db350fc882f54dca",
+    "source": "https://raw.githubusercontent.com/JetBrains/skia/m144-22f58c9fd4/third_party/expat/LICENSE"
+  },
+  "licenses/skia/third_party/externals/angle2/LICENSE": {
+    "sha256": "bf4da21bd20bcfb5b60b7ecc67fa864a79be049e21d6178076887f178dd6c71a",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/angle2/LICENSE"
+  },
+  "licenses/skia/third_party/externals/brotli/LICENSE": {
+    "sha256": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94",
+    "source": "https://skia.googlesource.com/external/github.com/google/brotli.git/+/6d03dfbedda1615c4cba1211f8d81735575209c8/LICENSE"
+  },
+  "licenses/skia/third_party/externals/d3d12allocator/LICENSE.txt": {
+    "sha256": "e078ee4f8c5ed0673f4d93b5318557eb8b4e0d7dbccef2ab45c763c7693f0f37",
+    "source": "https://skia.googlesource.com/external/github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator.git/+/169895d529dfce00390a20e69c2f516066fe7a3b/LICENSE.txt"
+  },
+  "licenses/skia/third_party/externals/expat/COPYING": {
+    "sha256": "31b15de82aa19a845156169a17a5488bf597e561b2c318d159ed583139b25e87",
+    "source": "https://chromium.googlesource.com/external/github.com/libexpat/libexpat.git/+/8e49998f003d693213b538ef765814c7d21abada/COPYING"
+  },
+  "licenses/skia/third_party/externals/freetype/docs/FTL.TXT": {
+    "sha256": "5a5ee54c5001bbad1cdc1a57cc3dd4c42199b2da09d39c7ee41fab002d02967f",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/freetype/docs/FTL.TXT"
+  },
+  "licenses/skia/third_party/externals/freetype/docs/GPLv2.TXT": {
+    "sha256": "c4120c6752c910c299e3bd9cb3a46ff262c268303ca2069b61f92f10a5656c18",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/freetype/docs/GPLv2.TXT"
+  },
+  "licenses/skia/third_party/externals/harfbuzz/COPYING": {
+    "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/harfbuzz/COPYING"
+  },
+  "licenses/skia/third_party/externals/highway/LICENSE": {
+    "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+    "source": "https://chromium.googlesource.com/external/github.com/google/highway.git/+/424360251cdcfc314cfc528f53c872ecd63af0f0/LICENSE"
+  },
+  "licenses/skia/third_party/externals/icu/LICENSE": {
+    "sha256": "17510cf7a58b4879b887ec05a45d72cf1b73544dd9ec7e72f20110ed104229ee",
+    "source": "https://chromium.googlesource.com/chromium/deps/icu.git/+/364118a1d9da24bb5b770ac3d762ac144d6da5a4/LICENSE"
+  },
+  "licenses/skia/third_party/externals/libjpeg-turbo/LICENSE.md": {
+    "sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430",
+    "source": "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git/+/e14cbfaa85529d47f9f55b0f104a579c1061f9ad/LICENSE.md"
+  },
+  "licenses/skia/third_party/externals/libjpeg-turbo/README.ijg": {
+    "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6",
+    "source": "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git/+/e14cbfaa85529d47f9f55b0f104a579c1061f9ad/README.ijg"
+  },
+  "licenses/skia/third_party/externals/libpng/LICENSE": {
+    "sha256": "16d9daaafbf63a31a5bdc91d4600972548fef5aaa1244202393288dbd079c49a",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/libpng/LICENSE"
+  },
+  "licenses/skia/third_party/externals/libwebp/COPYING": {
+    "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/libwebp/COPYING"
+  },
+  "licenses/skia/third_party/externals/libwebp/PATENTS": {
+    "sha256": "cc3273e0694ea5896145e0677699b53471b03ea43021ddc50e7923fbb9f5023c",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/libwebp/PATENTS"
+  },
+  "licenses/skia/third_party/externals/swiftshader/LICENSE.txt": {
+    "sha256": "3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/swiftshader/LICENSE.txt"
+  },
+  "licenses/skia/third_party/externals/wuffs/LICENSE": {
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "source": "https://skia.googlesource.com/external/github.com/google/wuffs-mirror-release-c.git/+/e3f919ccfe3ef542cfc983a82146070258fb57f8/LICENSE"
+  },
+  "licenses/skia/third_party/externals/zlib/LICENSE": {
+    "sha256": "e1cfcc55c325b3f78cf55df9664abaa066e2271dffe8213347d9fccdfbac8f2c",
+    "source": "https://github.com/JetBrains/skia/releases/download/m144-22f58c9fd4/Skia-m144-22f58c9fd4-windows-Release-x64.zip!/third_party/externals/zlib/LICENSE"
+  },
+  "licenses/skia/third_party/harfbuzz/LICENSE": {
+    "sha256": "cca48bacd6e7ed63f00b42a346bcc8549a460b41efe75d93db350fc882f54dca",
+    "source": "https://raw.githubusercontent.com/JetBrains/skia/m144-22f58c9fd4/third_party/harfbuzz/LICENSE"
+  },
+  "licenses/skia/third_party/wuffs/LICENSE": {
+    "sha256": "e59bb5c5c6ba426a9ac4ba9fe667ad14c5166b12aa25be8af1d122b14fbe2e36",
+    "source": "https://raw.githubusercontent.com/JetBrains/skia/m144-22f58c9fd4/third_party/wuffs/LICENSE"
+  }
+}

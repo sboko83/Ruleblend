@@ -1,0 +1,28 @@
+[versions]
+kotlin = "2.4.10"
+compose = "1.11.1"
+compose-material3 = "1.9.0"
+jgit = "7.7.1.202607240634-r"
+kaml = "0.104.0"
+kotlinx-serialization = "1.11.0"
+kotlinx-coroutines = "1.11.0"
+mcp-sdk = "0.15.0"
+slf4j = "2.0.18"
+
+[libraries]
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
+compose-ui-test-junit4 = { module = "org.jetbrains.compose.ui:ui-test-junit4", version.ref = "compose" }
+jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
+kaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kaml" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+mcp-sdk-server = { module = "io.modelcontextprotocol:kotlin-sdk-server", version.ref = "mcp-sdk" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

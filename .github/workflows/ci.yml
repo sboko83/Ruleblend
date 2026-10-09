@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            gradlew: ./gradlew
+            format: dmg
+          - os: windows-latest
+            gradlew: ./gradlew.bat
+            format: msi
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # The daemon runs on 21; Kotlin/JVM and test workers use the 17 toolchain.
+          java-version: |
+            17
+            21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Runner contracts
+        run: python -B -m unittest discover -s tools -p test_ui_e2e.py
+
+      - name: MCP guide contract
+        run: python -B tools/mcp_contract.py
+
+      - name: Publication audit contracts
+        run: python -B -m unittest discover -s tools -p test_check_public_tree.py
+
+      - name: Release asset contracts
+        run: python -B -m unittest discover -s tools -p test_release_assets.py
+
+      - name: Test
+        # Every module, not just core: the MCP protocol facade, the install state and the Compose
+        # screens all carry regression tests, and a green run must mean they passed too.
+        # Warnings fail the build here: they name code a future Kotlin will refuse to compile.
+        run: ${{ matrix.gradlew }} -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests :app:compileUiE2eKotlinJvm
+
+      - name: Third-party license coverage
+        run: |
+          python -B -m unittest discover -s tools -p test_check_licenses.py
+          ${{ matrix.gradlew }} :app:writeRuntimeDependencyManifest
+          python -B tools/check_licenses.py app/build/reports/runtime-dependencies.txt
+
+      - name: Package
+        # Unsigned: no signing config exists, and this only checks that the distribution builds.
+        run: ${{ matrix.gradlew }} :app:packageDistributionForCurrentOS
+
+      - name: Packaged license notices
+        shell: bash
+        run: |
+          image=app/build/compose/binaries/main/app/Ruleblend
+          if [ "$RUNNER_OS" = macOS ]; then image="$image.app"; fi
+          python -B tools/check_licenses.py app/build/reports/runtime-dependencies.txt --image "$image"
+
+      - name: Packaged Windows MCP
+        if: runner.os == 'Windows'
+        run: python tools/mcp_smoke.py app/build/compose/binaries/main/app/Ruleblend
+
+      - name: Upload distribution
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruleblend-${{ matrix.format }}
+          path: app/build/compose/binaries/main/${{ matrix.format }}/*.${{ matrix.format }}
+          if-no-files-found: error
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.os }}
+          path: |
+            core/build/reports/tests/
+            mcp/build/reports/tests/
+            app/build/reports/tests/
