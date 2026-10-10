@@ -184,7 +184,7 @@ private fun CommandRow(item: CommandItem, highlighted: Boolean, onClick: () -> U
         CommandKind.SKILL -> extras.successBackground to extras.success
         CommandKind.MCP -> extras.infoBackground to extras.info
         CommandKind.PLACE -> extras.warningBackground to extras.warning
-        CommandKind.GROUP, CommandKind.PROFILE, CommandKind.ACTION ->
+        CommandKind.MOD, CommandKind.GROUP, CommandKind.PROFILE, CommandKind.ACTION ->
             MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(
@@ -228,5 +228,6 @@ fun CommandKind.label(strings: Strings): String = when (this) {
     CommandKind.SKILL -> strings.commandTagSkill
     CommandKind.MCP -> strings.commandTagMcp
     CommandKind.GROUP -> strings.commandTagGroup
+    CommandKind.MOD -> strings.libMods
     CommandKind.PROFILE -> strings.commandTagProfile
 }

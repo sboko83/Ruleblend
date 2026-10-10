@@ -56,6 +56,8 @@ sealed interface LibraryDialog {
 
     data class ImportSkills(val repository: String = "") : LibraryDialog
 
+    data object NewMod : LibraryDialog
+
     data object NewSkill : LibraryDialog
 
     data class ConfirmDeleteBlock(val block: Block) : LibraryDialog
@@ -105,6 +107,7 @@ fun LibraryDialogHost(
     }
     when (dialog) {
         null -> Unit
+        LibraryDialog.NewMod -> ModAddDialog(model.modUi, onDismiss)
 
         LibraryDialog.NewBlock -> {
             val type = (model.selection as? Selection.Type)?.type ?: BlockType.RULE
@@ -181,7 +184,7 @@ private fun InstallMarkedDialog(model: LibraryModel, onDismiss: () -> Unit, onRe
     val scope = rememberCoroutineScope()
     val count = model.marked.size
     RuleblendDialog(
-        onDismiss = onDismiss,
+        onDismiss = { if (!running) onDismiss() },
         title = strings.libInstallIntoTitle,
         text = if (places.isEmpty()) strings.libInstallNoPlaces else strings.libInstallIntoText(count),
         confirmLabel = strings.libInstallConfirm,
@@ -192,7 +195,8 @@ private fun InstallMarkedDialog(model: LibraryModel, onDismiss: () -> Unit, onRe
             scope.launch {
                 val report = model.installMarked(chosen)
                 model.clearMarks()
-                onReplace(LibraryDialog.Message(strings.libInstallReportTitle, report.summary(strings)))
+                onReplace(LibraryDialog.Message(strings.libInstallReportTitle,
+                    listOfNotNull(report.summary(strings), model.modUi.error?.takeIf { report.failed > 0 }).joinToString("\n")))
             }
         },
     ) {
@@ -205,6 +209,16 @@ private fun InstallMarkedDialog(model: LibraryModel, onDismiss: () -> Unit, onRe
                     onCheckedChange = { on -> chosen = if (on) chosen + place.id else chosen - place.id },
                     checkboxTag = "library-install-place:${place.id}",
                 )
+            }
+            val mods = markedModIds(model.marked, model.catalog)
+            if (mods.isNotEmpty()) {
+                item { Text(strings.modRunWarning) }
+                items(model.mods.filter { it.id in mods }, key = { "mod:${it.id}" }) { mod ->
+                    Text("${mod.name} · Claude Code · user")
+                    model.modUi.packages[mod.id]?.let { Text(it.components.sorted().joinToString(", "), style = MaterialTheme.typography.bodySmall) }
+                    model.modUi.packages[mod.id]?.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+                item { Text(strings.modReload) }
             }
         }
     }
@@ -305,7 +319,7 @@ internal fun ImportSkillsDialog(model: LibraryModel, initialRepository: String, 
                         runCatching { model.fetchGitSkills(repository) }
                             .onSuccess { fetched ->
                                 plan = fetched
-                                selected = GitImportSelection.initial(fetched, model.skills, model.blocks)
+                                selected = GitImportSelection.initial(fetched, model.skills, model.blocks, model.mods)
                                 error = null
                             }
                             .onFailure { error = it.message ?: it.toString() }
@@ -373,6 +387,18 @@ internal fun ImportSkillsDialog(model: LibraryModel, initialRepository: String, 
                         }
                     }
                 }
+                items(currentPlan.mods, key = { "mod:${it.path}" }) { candidate ->
+                    Column {
+                        if (candidate.snapshot != null) {
+                            ImportRow(requireNotNull(candidate.snapshot).mod.name, candidate.path, candidate.path in selected.mods,
+                                { checked -> if (!loading) selected = selected.copy(mods = if (checked) selected.mods + candidate.path else selected.mods - candidate.path) },
+                                "library-git-import-mod:${candidate.path}", LibraryObjectKind.MOD)
+                            GitImportPreview(candidate.path, modInventoryText(candidate), preview == "mod:${candidate.path}") {
+                                preview = if (preview == "mod:${candidate.path}") null else "mod:${candidate.path}"
+                            }
+                        } else Text("${candidate.path}: ${candidate.error}", color = MaterialTheme.colorScheme.error)
+                    }
+                }
                 items(currentPlan.errors, key = { "error:${it.path}" }) { failure ->
                     Column(Modifier.testTag("library-git-error:${failure.path}")) {
                         Text("${failure.path}: ${failure.message}", color = MaterialTheme.colorScheme.error,
@@ -436,18 +462,29 @@ private fun ImportDialog(model: LibraryModel, plan: ImportPlan, onDismiss: () ->
             plan.actionableProfiles.filter { it.kind != ChangeKind.CONFLICT }.map { it.incoming.id }.toSet(),
         )
     }
+    var modIds by remember(plan) {
+        mutableStateOf(plan.actionableMods.filter { it.kind != ChangeKind.CONFLICT }.map { it.incoming.mod.id }.toSet())
+    }
     RuleblendDialog(
         onDismiss = onDismiss,
         title = strings.libImportTitle,
         confirmLabel = strings.libImport,
-        confirmEnabled = blockIds.isNotEmpty() || groupIds.isNotEmpty() || skillIds.isNotEmpty() || profileIds.isNotEmpty(),
+        confirmEnabled = blockIds.isNotEmpty() || groupIds.isNotEmpty() || skillIds.isNotEmpty() || profileIds.isNotEmpty() || modIds.isNotEmpty(),
         onConfirm = {
-            model.applyImport(plan, blockIds, groupIds, skillIds, profileIds)
+            model.applyImport(plan, blockIds, groupIds, skillIds, profileIds, modIds)
             onDismiss()
         },
         dismissLabel = strings.actionCancel,
     ) {
         LazyColumn(Modifier.heightIn(max = 320.dp).testTag("library-archive-import-list"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (plan.actionableMods.isNotEmpty()) {
+                item { SectionLabel(strings.libMods) }
+                items(plan.actionableMods, key = { "mod:${it.incoming.mod.id}" }) { change ->
+                    ImportRow(change.incoming.mod.name, change.kind.label(strings), change.incoming.mod.id in modIds,
+                        { checked -> modIds = if (checked) modIds + change.incoming.mod.id else modIds - change.incoming.mod.id },
+                        "library-archive-import:MOD:${change.incoming.mod.id}", LibraryObjectKind.MOD)
+                }
+            }
             if (plan.actionableBlocks.isNotEmpty()) {
                 item { SectionLabel(strings.libRulesLabel) }
                 items(plan.actionableBlocks, key = { it.incoming.id }) { change ->

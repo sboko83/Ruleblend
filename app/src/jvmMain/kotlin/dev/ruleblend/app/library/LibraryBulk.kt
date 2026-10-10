@@ -95,6 +95,7 @@ fun libraryInstallItems(
             LibraryObjectKind.MCP -> blocks.find { it.id == key.id }?.let { InstallItem.Mcp(it) }
             LibraryObjectKind.SUBAGENT -> blocks.find { it.id == key.id }?.let { InstallItem.Subagent(it) }
             LibraryObjectKind.SKILL -> skills.find { it.id == key.id }?.let { InstallItem.SkillCopy(it) }
+            LibraryObjectKind.MOD -> null
             LibraryObjectKind.GROUP -> null
             // Attaching and reconciling a profile belongs to the following Place step; it is not a
             // standalone target write like a marked rule or group.
@@ -124,5 +125,15 @@ fun groupWithAdded(group: Group, keys: Set<LibraryObjectKey>): Group {
     val skillIds = keys.filter { it.kind == LibraryObjectKind.SKILL }
         .map { it.id }
         .filterNot { it in group.skillIds }
-    return group.copy(blockIds = group.blockIds + blockIds, skillIds = group.skillIds + skillIds)
+    val modIds = keys.filter { it.kind == LibraryObjectKind.MOD }.map { it.id }.filterNot { it in group.modIds }
+    return group.copy(blockIds = group.blockIds + blockIds, skillIds = group.skillIds + skillIds, modIds = group.modIds + modIds)
+}
+
+/** Mod writes use a separate immutable runtime transport, including group selections. */
+internal fun markedModIds(keys: Set<LibraryObjectKey>, catalog: LibraryCatalog): Set<String> = buildSet {
+    keys.forEach { key ->
+        if (key.kind == LibraryObjectKind.MOD) add(key.id)
+        if (key.kind == LibraryObjectKind.GROUP) catalog.objects.find { it.key == key }?.memberKeys
+            ?.filter { it.kind == LibraryObjectKind.MOD }?.forEach { add(it.id) }
+    }
 }

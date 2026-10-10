@@ -19,6 +19,27 @@ class ClaudeModRuntime(
     private val store = ModRuntimeStore(root.toAbsolutePath().normalize())
     private var compatible = false
 
+    override fun inventory(target: ModTarget): List<ModRuntimeEntry> {
+        supported(target)
+        return guarded { locked {
+            capabilities()
+            val journal = store.load()
+            val actual = observe()
+            val entries = actual.plugins.map { plugin ->
+                ModRuntimeEntry(plugin.id, plugin.scope, plugin.enabled,
+                    journal.records.values.firstOrNull { it.pluginId == plugin.id && plugin.scope == "user" }?.libraryId,
+                    plugin.installPath, plugin.builtIn)
+            }
+            val missing = journal.records.values.filter { record ->
+                record.installed && entries.none { it.libraryId == record.libraryId }
+            }.map { record -> ModRuntimeEntry(record.pluginId, "user", false, record.libraryId) }
+            val pending = journal.pending?.desired?.takeIf { record ->
+                (entries + missing).none { it.libraryId == record.libraryId }
+            }?.let { listOf(ModRuntimeEntry(it.pluginId, "user", it.enabled, it.libraryId)) }.orEmpty()
+            entries + missing + pending
+        } }
+    }
+
     override fun probe(target: ModTarget, libraryId: String, manifestName: String?): ModRuntimeStatus {
         if (!supports(target)) return ModRuntimeStatus(libraryId, ModRuntimeState.UNSUPPORTED)
         return guarded { locked {
@@ -194,14 +215,16 @@ class ClaudeModRuntime(
         }.toString() + "\n"
     }
 
-    private data class Plugin(val id: String, val scope: String, val enabled: Boolean)
+    private data class Plugin(val id: String, val scope: String, val enabled: Boolean, val installPath: String?, val builtIn: Boolean)
     private data class Actual(val plugins: List<Plugin>, val marketplace: JsonObject?)
 
     private fun observe(): Actual {
         val plugins = array(listOf("list", "--json")).map { item ->
             val obj = item.jsonObject
             Plugin(obj.getValue("id").jsonPrimitive.content, obj.getValue("scope").jsonPrimitive.content,
-                obj.getValue("enabled").jsonPrimitive.boolean)
+                obj.getValue("enabled").jsonPrimitive.boolean,
+                obj["installPath"]?.jsonPrimitive?.contentOrNull,
+                obj["builtin"]?.jsonPrimitive?.booleanOrNull == true || obj.getValue("id").jsonPrimitive.content.endsWith("@builtin"))
         }
         val markets = array(listOf("marketplace", "list", "--json")).map { it.jsonObject }
             .filter { it["name"]?.jsonPrimitive?.content == "ruleblend-mods" }

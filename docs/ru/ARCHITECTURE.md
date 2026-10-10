@@ -555,6 +555,20 @@ sync deletion меняет только portable objects. Сохранённые
 [Offline macOS gate adapter](../../tools/claude_mod_runtime_gate.py) использует isolated CLI profile;
 native UI, исполнение hooks и Windows acceptance остаются отдельными gates.
 
+### Поверхности Library и Global
+
+Моды участвуют в catalog facets, группах, selection и archives целыми пакетами. Inspector показывает
+компоненты и отдельные fingerprints Library/runtime; редактора кода и fork нет.
+Только Global Claude Code получает Mods tab и связанную palette; проекты и другие assistants
+остаются вне runtime contract. Внешние и built-in записи доступны только для чтения; импорт явно
+выбранной внешней папки использует тот же detached preview, что и локальный пакет.
+Установка группы направляет mod members через user-scope lifecycle, убирает дубли и отклоняет
+другие destinations. Существующая установка сохраняет принятую ревизию и enabled state; source
+updates меняют только Library до явного Apply update. Локальное удаление из Library показывает
+preview keep/uninstall; orphan snapshots сохраняют lifecycle controls. CLI confirmation оставляет reload notice.
+Install и Apply update привязаны к показанному fingerprint; изменившийся пакет требует повторного
+просмотра до CLI write, а принятый detached tree сохраняется при последующих изменениях через sync.
+
 <a id="integration-mechanics"></a>
 ## Механика интеграции
 

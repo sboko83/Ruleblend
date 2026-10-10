@@ -81,7 +81,7 @@ fun LibraryScreen(
     LaunchedEffect(openEditorKey) {
         openEditorKey?.let { key ->
             model.selectCatalogObject(key)
-            focusEditor = true
+            focusEditor = key.kind != LibraryObjectKind.MOD
         }
     }
 
@@ -149,6 +149,7 @@ fun LibraryScreen(
                 model.prepareCreate(kind)
                 dialog = when (kind) {
                     LibraryObjectKind.RULE, LibraryObjectKind.SUBAGENT, LibraryObjectKind.MCP -> LibraryDialog.NewBlock
+                    LibraryObjectKind.MOD -> LibraryDialog.NewMod
                     LibraryObjectKind.SKILL -> LibraryDialog.NewSkill
                     LibraryObjectKind.GROUP -> LibraryDialog.NewGroup
                     LibraryObjectKind.PROFILE -> LibraryDialog.NewProfile
@@ -163,6 +164,7 @@ fun LibraryScreen(
                 when (key.kind) {
                     LibraryObjectKind.RULE, LibraryObjectKind.SUBAGENT, LibraryObjectKind.MCP -> model.blocks.find { it.id == key.id }
                         ?.let { dialog = LibraryDialog.ConfirmDeleteBlock(it) }
+                    LibraryObjectKind.MOD -> Unit
                     LibraryObjectKind.SKILL -> model.skills.find { it.id == key.id }
                         ?.let { dialog = LibraryDialog.ConfirmDeleteSkill(it) }
                     LibraryObjectKind.GROUP -> model.groups.find { it.id == key.id }

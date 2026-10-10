@@ -44,6 +44,7 @@ internal fun Facets(
             val label = when (kind) {
                 LibraryObjectKind.RULE -> strings.libTypeRule
                 LibraryObjectKind.SUBAGENT -> strings.libTypeSubagent
+                LibraryObjectKind.MOD -> strings.libMods
                 LibraryObjectKind.SKILL -> strings.libSkills
                 LibraryObjectKind.MCP -> strings.libMcp
                 LibraryObjectKind.GROUP -> strings.libGroups
@@ -201,6 +202,7 @@ internal fun ActiveFilters(
             val label = when (kind) {
                 LibraryObjectKind.RULE -> strings.libTypeRule
                 LibraryObjectKind.SUBAGENT -> strings.libTypeSubagent
+                LibraryObjectKind.MOD -> strings.libMods
                 LibraryObjectKind.SKILL -> strings.libSkills
                 LibraryObjectKind.MCP -> strings.libMcp
                 LibraryObjectKind.GROUP -> strings.libGroups

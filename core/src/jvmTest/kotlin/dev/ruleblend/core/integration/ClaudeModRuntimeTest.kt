@@ -118,6 +118,20 @@ class ClaudeModRuntimeTest {
         assertTrue(cli.calls.none { "--prune" in it || "remove" in it })
     }
 
+    @Test fun `inventory keeps external scopes read only and retains missing owned records`() {
+        runtime.install(target, runtimeFixture())
+        cli.plugins += cli.plugin(scope = "project")
+        cli.plugins += cli.plugin("panel@builtin")
+        val entries = runtime.inventory(target)
+        assertEquals("demo", entries.single { it.scope == "user" && it.pluginId == "demo@ruleblend-mods" }.libraryId)
+        assertNull(entries.single { it.scope == "project" }.libraryId)
+        assertTrue(entries.single { it.pluginId == "panel@builtin" }.builtIn)
+        assertEquals("stale-cache-path", entries.first().installPath)
+        cli.plugins.removeAll { it["scope"]?.jsonPrimitive?.content == "user" && it["id"]?.jsonPrimitive?.content == "demo@ruleblend-mods" }
+        assertEquals("demo", runtime.inventory(target).single { it.libraryId != null }.libraryId)
+        assertEquals(ModRuntimeState.DRIFT, runtime.probe(target, "demo").state)
+    }
+
     @Test fun `last uninstall preview accounts for other scopes without reading secrets`() {
         runtime.install(target, runtimeFixture())
         cli.plugins += cli.plugin(scope = "project")

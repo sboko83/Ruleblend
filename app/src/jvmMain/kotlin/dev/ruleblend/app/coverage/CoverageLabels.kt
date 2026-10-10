@@ -68,6 +68,7 @@ internal fun LibraryObjectKind.label(strings: Strings): String = when (this) {
     LibraryObjectKind.RULE -> strings.libTypeRule
     LibraryObjectKind.SUBAGENT -> strings.libTypeSubagent
     LibraryObjectKind.SKILL -> strings.intSkills
+    LibraryObjectKind.MOD -> strings.libMods
     LibraryObjectKind.MCP -> strings.intMcpServers
     LibraryObjectKind.GROUP -> strings.libGroups
     LibraryObjectKind.PROFILE -> strings.libProfiles

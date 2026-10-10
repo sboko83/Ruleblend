@@ -282,7 +282,7 @@ class CoverageModel(
         LibraryObjectKind.MCP -> blocks.find { it.id == key.id }?.let(InstallItem::Mcp)
         LibraryObjectKind.SKILL -> skills.find { it.id == key.id }?.let(InstallItem::SkillCopy)
         LibraryObjectKind.GROUP -> null
-        LibraryObjectKind.PROFILE -> null
+        LibraryObjectKind.MOD, LibraryObjectKind.PROFILE -> null
     }
 
     private fun reaggregate() {

@@ -64,11 +64,15 @@ class LibraryModel(
      * tests and wherever no agent list is at hand: the editor then shows no per-assistant section.
      */
     val subagentAgents: List<SubagentAgentFields> = emptyList(),
+    modRuntime: dev.ruleblend.core.integration.ModRuntime? = null,
 ) {
     /** Every write to the library goes through these two; this model only decides what to show after. */
     private val library = MutateLibrary(repository, configStore)
 
     private val imports = ImportLibrary(repository, archive, configStore, gitSkillImporter)
+
+    val modUi = ModUiModel(repository, configStore, modRuntime, imports, ::apply, ::rebuildUsage)
+    val mods get() = modUi.mods
 
 
     var blocks by mutableStateOf(emptyList<Block>())
@@ -90,7 +94,7 @@ class LibraryModel(
     private var ruleScopes: Map<String, String> = emptyMap()
 
     val catalog: LibraryCatalog
-        get() = LibraryCatalog.build(blocks, groups, skills, ruleScopes, profiles, builtIns)
+        get() = LibraryCatalog.build(blocks, groups, skills, ruleScopes, profiles, builtIns, mods)
 
     var selectedCatalogKey by mutableStateOf<LibraryObjectKey?>(null)
         private set
@@ -185,6 +189,7 @@ class LibraryModel(
         val skills: List<Skill>,
         val config: AppConfig,
         val stamp: Long,
+        val mods: List<dev.ruleblend.core.model.Mod> = emptyList(),
     )
 
     /**
@@ -206,7 +211,7 @@ class LibraryModel(
             repository.init()
             val read = repository.listBlocks()
             repository.syncAllGroup()
-            Loaded(read, repository.listGroups(), repository.listProfiles(), repository.listSkills(), configStore.load(), stamp)
+            Loaded(read, repository.listGroups(), repository.listProfiles(), repository.listSkills(), configStore.load(), stamp, repository.listMods())
         }
     }
 
@@ -220,6 +225,7 @@ class LibraryModel(
             groups = loaded.groups
             profiles = loaded.profiles
             skills = loaded.skills
+            modUi.land(loaded.mods)
             ruleScopes = config.ruleScopes
             projectScopes = config.knownProjectScopes()
         }
@@ -234,6 +240,20 @@ class LibraryModel(
     var usage by mutableStateOf(LibraryUsageIndex.EMPTY)
         private set
 
+    private var scannedUsage = emptyList<LibraryPlaceUsage>()
+
+    private fun rebuildUsage() {
+        val modInstalls = modUi.statuses.values.filter { it.installed && it.state == dev.ruleblend.core.integration.ModRuntimeState.OWNED }
+            .associate { status -> LibraryObjectKey(LibraryObjectKind.MOD, status.libraryId) to LibraryInstall(
+                if (modUi.updateAvailable(status.libraryId)) dev.ruleblend.core.integration.InstallStatus.UPDATE_AVAILABLE
+                else dev.ruleblend.core.integration.InstallStatus.SYNCED) }
+        val id = "agent:claude-code"
+        val scanned = scannedUsage.map { place -> if (place.id == id) place.copy(installs = place.installs + modInstalls) else place }
+        val places = if (modInstalls.isNotEmpty() && scanned.none { it.id == id }) scanned +
+            LibraryPlaceUsage(id, "Claude Code", LibraryPlaceKind.AGENT, modInstalls) else scanned
+        usage = LibraryUsageIndex.build(places, catalog.objects.filter { it.key.kind == LibraryObjectKind.GROUP })
+    }
+
     /** Git history of [selectedCatalogKey], newest first; empty for a library without commits. */
     var history by mutableStateOf(emptyList<LibraryRevision>())
         private set
@@ -247,7 +267,9 @@ class LibraryModel(
             runCatching { FileReadScope.reading { usageSource.scan(blocks, skills) } }.getOrNull()
         }
             ?: return
-        usage = LibraryUsageIndex.build(scanned, catalog.objects.filter { it.key.kind == LibraryObjectKind.GROUP })
+        scannedUsage = scanned
+        modUi.refresh()
+        rebuildUsage()
     }
 
     /** Revision whose diff is open, or `null` when the diff window is closed. */
@@ -270,6 +292,7 @@ class LibraryModel(
             runCatching {
                 when (key.kind) {
                     LibraryObjectKind.RULE, LibraryObjectKind.SUBAGENT, LibraryObjectKind.MCP -> repository.blockDiff(key.id, revision.id)
+                    LibraryObjectKind.MOD -> repository.modDiff(key.id, revision.id)
                     LibraryObjectKind.SKILL -> repository.skillDiff(key.id, revision.id)
                     LibraryObjectKind.GROUP -> repository.groupDiff(key.id, revision.id)
                     LibraryObjectKind.PROFILE -> repository.profileDiff(key.id, revision.id)
@@ -294,6 +317,7 @@ class LibraryModel(
             withContext(Dispatchers.IO) {
                 when (key.kind) {
                     LibraryObjectKind.RULE, LibraryObjectKind.SUBAGENT, LibraryObjectKind.MCP -> repository.blockHistory(key.id)
+                    LibraryObjectKind.MOD -> repository.modHistory(key.id)
                     LibraryObjectKind.SKILL -> repository.skillHistory(key.id)
                     LibraryObjectKind.GROUP -> repository.groupHistory(key.id)
                     LibraryObjectKind.PROFILE -> repository.profileHistory(key.id)
@@ -324,6 +348,7 @@ class LibraryModel(
                 select(Selection.Skills)
                 selectSkill(key.id)
             }
+            LibraryObjectKind.MOD -> { draft = null; skillDraft = null; groupDraft = null; profileDraft = null }
             LibraryObjectKind.GROUP -> select(Selection.GroupRef(key.id))
             LibraryObjectKind.PROFILE -> select(Selection.ProfileRef(key.id))
         }
@@ -382,8 +407,15 @@ class LibraryModel(
      */
     suspend fun installMarked(placeIds: Set<String>): LibraryInstallReport {
         val items = libraryInstallItems(marked, catalog, blocks, skills)
-        if (items.isEmpty() || placeIds.isEmpty()) return LibraryInstallReport()
-        val report = withContext(Dispatchers.IO) { installer.install(items, placeIds) }
+        val accepted = modUi.fingerprints
+        val modIds = markedModIds(marked, catalog)
+        if (placeIds.isEmpty()) return LibraryInstallReport()
+        val regular = withContext(Dispatchers.IO) { installer.install(items, placeIds) }
+        val modReport = modUi.installInPlaces(modIds, placeIds, accepted)
+        val report = regular.copy(written = regular.written + modReport.written,
+            failed = regular.failed + modReport.failed,
+            skipped = (regular.skipped.keys + modReport.skipped.keys).associateWith {
+                (regular.skipped[it] ?: 0) + (modReport.skipped[it] ?: 0) })
         refreshUsage()
         return report
     }
@@ -404,7 +436,7 @@ class LibraryModel(
     fun addMarkedToGroup(groupId: String): Int {
         val group = groups.find { it.id == groupId } ?: return 0
         val updated = groupWithAdded(group, marked)
-        val added = updated.blockIds.size - group.blockIds.size + updated.skillIds.size - group.skillIds.size
+        val added = updated.blockIds.size - group.blockIds.size + updated.skillIds.size - group.skillIds.size + updated.modIds.size - group.modIds.size
         if (added == 0) return 0
         guard {
             repository.saveGroup(updated)
@@ -427,6 +459,7 @@ class LibraryModel(
                 groupIds = marked.filter { it.kind == LibraryObjectKind.GROUP }.mapTo(mutableSetOf()) { it.id },
                 profileIds = marked.filter { it.kind == LibraryObjectKind.PROFILE }.mapTo(mutableSetOf()) { it.id },
                 skillIds = marked.filter { it.kind == LibraryObjectKind.SKILL }.mapTo(mutableSetOf()) { it.id },
+                modIds = marked.filter { it.kind == LibraryObjectKind.MOD }.mapTo(mutableSetOf()) { it.id },
             ),
         )
     }
@@ -437,6 +470,7 @@ class LibraryModel(
             LibraryObjectKind.SUBAGENT -> select(Selection.Type(BlockType.SUBAGENT))
             LibraryObjectKind.MCP -> select(Selection.Type(BlockType.MCP))
             LibraryObjectKind.SKILL -> select(Selection.Skills)
+            LibraryObjectKind.MOD -> Unit
             LibraryObjectKind.GROUP -> Unit
             LibraryObjectKind.PROFILE -> Unit
         }
@@ -724,7 +758,7 @@ class LibraryModel(
 
     internal suspend fun applyGitImport(plan: GitSkillImportPlan, selection: GitImportSelection): Boolean = try {
         val snapshot = withContext(Dispatchers.IO) {
-            imports.applyGit(plan, selection.skills, selection.selectedSubagents)
+            imports.applyGit(plan, selection.skills, selection.selectedSubagents, selection.mods)
         }
         apply(snapshot)
         true
@@ -854,8 +888,9 @@ class LibraryModel(
         groupIds: Set<String>,
         skillIds: Set<String>,
         profileIds: Set<String>,
+        modIds: Set<String> = emptySet(),
     ) = guard {
-        apply(imports.apply(plan, blockIds, groupIds, skillIds, profileIds))
+        apply(imports.apply(plan, blockIds, groupIds, skillIds, profileIds, modIds))
         draft = draft?.let { current -> blocks.find { it.id == current.id } }
         groupDraft = editableGroup()
         profileDraft = selectedProfile
@@ -875,6 +910,7 @@ class LibraryModel(
         groups = snapshot.groups
         profiles = snapshot.profiles
         skills = snapshot.skills
+        modUi.land(snapshot.mods)
         ruleScopes = snapshot.ruleScopes
         projectScopes = configStore.load().knownProjectScopes()
     }

@@ -126,6 +126,7 @@ internal fun PlaceFileKind.objectKind(): LibraryObjectKind = when (this) {
 }
 
 internal fun emptyNote(kind: PlaceTabKind, strings: Strings): String = when (kind) {
+    PlaceTabKind.MODS -> strings.libMods
     PlaceTabKind.MCP -> strings.placeNoServers
     PlaceTabKind.SKILLS -> strings.placeNoSkills
     PlaceTabKind.SUBAGENTS -> strings.placeNoSubagents
@@ -146,6 +147,7 @@ internal fun PlaceTabKind.label(strings: Strings): String = when (this) {
     PlaceTabKind.RULES -> strings.libRulesLabel
     PlaceTabKind.MCP -> strings.libMcp
     PlaceTabKind.SKILLS -> strings.libSkills
+    PlaceTabKind.MODS -> strings.libMods
     PlaceTabKind.SUBAGENTS -> strings.libSubagents
 }
 

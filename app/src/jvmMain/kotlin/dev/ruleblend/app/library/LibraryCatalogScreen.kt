@@ -200,6 +200,7 @@ internal fun LibraryCatalogScreen(
                                     LibraryObjectKind.RULE to strings.libTypeRule,
                                     LibraryObjectKind.SUBAGENT to strings.libTypeSubagent,
                                     LibraryObjectKind.SKILL to strings.libSkills,
+                                    LibraryObjectKind.MOD to strings.libMods,
                                     LibraryObjectKind.MCP to strings.libMcp,
                                     LibraryObjectKind.GROUP to strings.libGroups,
                                     LibraryObjectKind.PROFILE to strings.libProfiles,
@@ -430,10 +431,10 @@ private fun ObjectRow(
     val strings = LocalStrings.current
     // A single click selects, a double click opens — the same pair a file list has anywhere else.
     // The reserved group and the built-ins are the exception: they have no editor to open.
-    val editable = item.key.id != ALL_GROUP_ID && !item.builtIn
+    val editable = item.key.id != ALL_GROUP_ID && !item.builtIn && item.key.kind != LibraryObjectKind.MOD
     CompactContextMenu(
         // Every text-bearing kind can be compared; only a group has no body of its own.
-        items = if (item.key.kind != LibraryObjectKind.GROUP && item.key.kind != LibraryObjectKind.PROFILE) {
+        items = if (item.key.kind != LibraryObjectKind.GROUP && item.key.kind != LibraryObjectKind.PROFILE && item.key.kind != LibraryObjectKind.MOD) {
             buildList<Pair<String, () -> Unit>> {
                 add(strings.setCopy to { dev.ruleblend.app.util.copyToClipboard(item.copyText) })
                 if (editable) add(strings.libEditFocus to onOpen)
@@ -514,6 +515,7 @@ internal fun KindMark(kind: LibraryObjectKind) {
         LibraryObjectKind.SKILL -> Triple("S", RuleblendTheme.extraColors.successBackground, RuleblendTheme.extraColors.success)
         LibraryObjectKind.MCP -> Triple("M", RuleblendTheme.extraColors.infoBackground, RuleblendTheme.extraColors.info)
         LibraryObjectKind.GROUP -> Triple("G", RuleblendTheme.extraColors.warningBackground, RuleblendTheme.extraColors.warning)
+        LibraryObjectKind.MOD -> Triple("D", RuleblendTheme.extraColors.accentBackground, MaterialTheme.colorScheme.primary)
         LibraryObjectKind.PROFILE -> Triple("P", RuleblendTheme.extraColors.accentBackground, MaterialTheme.colorScheme.primary)
     }
     Box(

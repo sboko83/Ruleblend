@@ -102,18 +102,24 @@ fun PlacePaletteColumn(
     /** `null` where translation is not available, which also keeps UI tests off the system helper. */
     translation: TranslationModel? = null,
     selectedTab: PlaceTabKind? = null,
+    modUi: dev.ruleblend.app.library.ModUiModel? = null,
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalStrings.current
     // Installing, adopting and saving a group all write to disk: off the frame that handled the click.
     val scope = rememberCoroutineScope()
     val target = model.selected ?: return
+    if (selectedTab == PlaceTabKind.MODS && modUi != null) {
+        dev.ruleblend.app.library.ModPalette(modUi, modifier)
+        return
+    }
     var query by remember(target) { mutableStateOf("") }
     var collapsed by remember(target, libraryExpandedByDefault, selectedTab) {
         val activeKind = when (selectedTab) {
             PlaceTabKind.RULES -> LibraryObjectKind.RULE
             PlaceTabKind.SKILLS -> LibraryObjectKind.SKILL
             PlaceTabKind.SUBAGENTS -> LibraryObjectKind.SUBAGENT
+            PlaceTabKind.MODS -> LibraryObjectKind.MOD
             PlaceTabKind.MCP -> LibraryObjectKind.MCP
             null -> null
         }
@@ -293,6 +299,7 @@ private fun LibraryObjectKind.title(strings: Strings): String = when (this) {
     LibraryObjectKind.RULE -> strings.libRulesLabel
     LibraryObjectKind.SUBAGENT -> strings.libSubagents
     LibraryObjectKind.SKILL -> strings.libSkills
+    LibraryObjectKind.MOD -> strings.libMods
     LibraryObjectKind.MCP -> strings.libMcp
     LibraryObjectKind.GROUP -> strings.libGroups
     LibraryObjectKind.PROFILE -> strings.libProfiles

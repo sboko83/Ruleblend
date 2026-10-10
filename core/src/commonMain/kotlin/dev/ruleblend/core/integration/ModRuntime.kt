@@ -29,7 +29,17 @@ data class ModRemovalPreview(
     val consequences: List<String>,
 )
 
+data class ModRuntimeEntry(
+    val pluginId: String,
+    val scope: String,
+    val enabled: Boolean,
+    val libraryId: String? = null,
+    val installPath: String? = null,
+    val builtIn: Boolean = false,
+)
+
 interface ModRuntime {
+    fun inventory(target: ModTarget): List<ModRuntimeEntry> = emptyList()
     fun probe(target: ModTarget, libraryId: String, manifestName: String? = null): ModRuntimeStatus
     fun install(target: ModTarget, snapshot: ModSnapshot): ModRuntimeStatus
     fun update(target: ModTarget, snapshot: ModSnapshot): ModRuntimeStatus

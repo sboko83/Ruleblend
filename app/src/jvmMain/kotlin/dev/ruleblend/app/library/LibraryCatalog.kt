@@ -7,6 +7,7 @@ import dev.ruleblend.core.model.BlockType
 import dev.ruleblend.core.model.GitSkillSource
 import dev.ruleblend.core.model.Group
 import dev.ruleblend.core.model.Profile
+import dev.ruleblend.core.model.Mod
 import dev.ruleblend.core.model.Skill
 import java.nio.file.Path
 
@@ -14,13 +15,17 @@ import java.nio.file.Path
 internal fun projectScopeLabel(project: String): String =
     runCatching { Path.of(project).fileName?.toString() }.getOrNull()?.takeIf { it.isNotBlank() } ?: project
 
-enum class LibraryObjectKind { RULE, SUBAGENT, SKILL, MCP, GROUP, PROFILE }
+enum class LibraryObjectKind { RULE, SUBAGENT, SKILL, MOD, MCP, GROUP, PROFILE }
 
 data class LibraryObjectKey(val kind: LibraryObjectKind, val id: String)
 
 /** Skills and blocks have separate id namespaces. */
 internal fun sourceUpdateId(kind: LibraryObjectKind, id: String): String =
-    if (kind == LibraryObjectKind.SUBAGENT) "subagent:$id" else id
+    when (kind) {
+        LibraryObjectKind.SUBAGENT -> "subagent:$id"
+        LibraryObjectKind.MOD -> "mod:$id"
+        else -> id
+    }
 
 data class LibraryObject(
     val key: LibraryObjectKey,
@@ -108,7 +113,7 @@ class LibraryCatalog private constructor(
                     null -> true
                 } &&
                 when (filters.source) {
-                    LibrarySourceFilter.LOCAL -> item.key.kind in setOf(LibraryObjectKind.SKILL, LibraryObjectKind.SUBAGENT) && !item.importedFromGit
+                    LibrarySourceFilter.LOCAL -> item.key.kind in setOf(LibraryObjectKind.SKILL, LibraryObjectKind.SUBAGENT, LibraryObjectKind.MOD) && !item.importedFromGit
                     LibrarySourceFilter.GIT -> item.importedFromGit
                     null -> true
                 } &&
@@ -184,12 +189,16 @@ class LibraryCatalog private constructor(
             scopes: Map<String, String>,
             profiles: List<Profile> = emptyList(),
             builtIns: List<LibraryObject> = emptyList(),
+            mods: List<Mod> = emptyList(),
         ): LibraryCatalog {
             val memberships = mutableMapOf<LibraryObjectKey, MutableSet<String>>()
             groups.filter { it.id != ALL_GROUP_ID }.forEach { group ->
                 group.blockIds.forEach { id ->
                     val kind = blocks.find { it.id == id }?.type?.objectKind() ?: LibraryObjectKind.RULE
                     memberships.getOrPut(LibraryObjectKey(kind, id), ::mutableSetOf).add(group.id)
+                }
+                group.modIds.forEach { id ->
+                    memberships.getOrPut(LibraryObjectKey(LibraryObjectKind.MOD, id), ::mutableSetOf).add(group.id)
                 }
                 group.skillIds.forEach { id ->
                     memberships.getOrPut(LibraryObjectKey(LibraryObjectKind.SKILL, id), ::mutableSetOf).add(group.id)
@@ -232,6 +241,12 @@ class LibraryCatalog private constructor(
                         ),
                     )
                 }
+                mods.forEach { mod ->
+                    val key = LibraryObjectKey(LibraryObjectKind.MOD, mod.id)
+                    add(LibraryObject(key, mod.name, mod.description, mod.version.orEmpty(), "",
+                        gitSource = mod.source?.let { GitSkillSource(it.repository, it.revision, it.path) },
+                        groupIds = memberships[key].orEmpty(), sourceAssistant = "claude-code"))
+                }
                 groups.forEach { group ->
                     val key = LibraryObjectKey(LibraryObjectKind.GROUP, group.id)
                     val memberKeys = buildList {
@@ -244,6 +259,7 @@ class LibraryCatalog private constructor(
                             )
                         }
                         group.skillIds.forEach { add(LibraryObjectKey(LibraryObjectKind.SKILL, it)) }
+                        group.modIds.forEach { add(LibraryObjectKey(LibraryObjectKind.MOD, it)) }
                     }
                     add(
                         LibraryObject(

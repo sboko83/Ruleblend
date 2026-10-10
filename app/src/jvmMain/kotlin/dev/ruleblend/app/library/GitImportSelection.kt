@@ -9,8 +9,9 @@ internal data class GitImportSelection(
     val skills: Set<String> = emptySet(),
     val assistants: Map<String, String> = emptyMap(),
     val subagents: Set<String> = emptySet(),
+    val mods: Set<String> = emptySet(),
 ) {
-    val isEmpty: Boolean get() = skills.isEmpty() && subagents.isEmpty()
+    val isEmpty: Boolean get() = skills.isEmpty() && subagents.isEmpty() && mods.isEmpty()
     val selectedSubagents: Map<String, String> get() = assistants.filterKeys { it in subagents }
 
     fun chooseAssistant(path: String, assistant: String): GitImportSelection =
@@ -20,11 +21,14 @@ internal data class GitImportSelection(
         if (path !in assistants) this else copy(subagents = if (checked) subagents + path else subagents - path)
 
     companion object {
-        fun initial(plan: GitRepositoryImportPlan, skills: List<Skill>, blocks: List<Block>): GitImportSelection {
+        fun initial(plan: GitRepositoryImportPlan, skills: List<Skill>, blocks: List<Block>, mods: List<dev.ruleblend.core.model.Mod> = emptyList()): GitImportSelection {
             val assistants = plan.subagents.mapNotNull { candidate ->
                 candidate.sourceAssistant?.let { candidate.path to it }
             }.toMap()
             return GitImportSelection(
+                mods = plan.mods.filter { it.snapshot != null }.filterNot { candidate ->
+                    mods.any { it.source?.let { source -> source.repository == plan.repository && source.path == candidate.path } == true }
+                }.map { it.path }.toSet(),
                 skills = plan.skills.mapNotNull { it.skill.source?.path }.filterNot { path ->
                     skills.any { it.source?.let { source -> source.repository == plan.repository && source.path == path } == true }
                 }.toSet(),

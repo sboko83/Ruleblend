@@ -121,6 +121,7 @@ fun PlaceFileColumn(
     /** `null` where translation is not available, which also keeps UI tests off the system helper. */
     translation: TranslationModel? = null,
     onTabSelected: (PlaceTabKind) -> Unit = {},
+    modUi: dev.ruleblend.app.library.ModUiModel? = null,
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalStrings.current
@@ -136,7 +137,9 @@ fun PlaceFileColumn(
         skillDirectories = model.skillDirectories,
         subagentDirectories = model.subagentDirectories,
     )
-    val tabs = placeTabs(files)
+    val supportsMods = target is dev.ruleblend.core.integration.AgentGlobalTarget && target.agent.id == "claude-code" && modUi != null
+    LaunchedEffect(target, modUi) { if (supportsMods) modUi?.refresh() }
+    val tabs = placeTabs(files) + if (supportsMods) listOf(PlaceTab(PlaceTabKind.MODS, emptyList())) else emptyList()
     var selectedKind by remember(target) {
         mutableStateOf(initialPlaceTab(tabs, focusChanges) { file ->
             placeFileMarks(file, placePreviewParts(model, file))
@@ -148,6 +151,7 @@ fun PlaceFileColumn(
         PlaceTabKind.RULES -> rulesExpandedByDefault
         PlaceTabKind.SKILLS -> skillsExpandedByDefault
         PlaceTabKind.SUBAGENTS -> subagentsExpandedByDefault
+        PlaceTabKind.MODS -> false
         PlaceTabKind.MCP -> mcpExpandedByDefault
     }
     // "Keep" writes nothing, so it lives here: the block stays modified, only the prompt is settled.
@@ -206,8 +210,10 @@ fun PlaceFileColumn(
                     selected = candidate.kind == tab.kind,
                     // The place's dot in the list sums up everything it holds; per tab it says which
                     // kind earned those colours, and the section header says which file.
-                    marks = holdings.flatMapTo(mutableSetOf()) { (file, held) -> placeFileMarks(file, held) },
-                    count = holdings.fold(PlaceObjectCount(ours = 0, foreign = 0)) { total, (_, held) ->
+                    marks = if (candidate.kind == PlaceTabKind.MODS) requireNotNull(modUi).tabMarks()
+                        else holdings.flatMapTo(mutableSetOf()) { (file, held) -> placeFileMarks(file, held) },
+                    count = if (candidate.kind == PlaceTabKind.MODS) requireNotNull(modUi).tabCount()
+                        else holdings.fold(PlaceObjectCount(ours = 0, foreign = 0)) { total, (_, held) ->
                         val count = placeObjectCount(held)
                         PlaceObjectCount(total.ours + count.ours, total.foreign + count.foreign)
                     },
@@ -220,6 +226,10 @@ fun PlaceFileColumn(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         // The switch belongs to the tab it hides entries of: a place counts its hidden entries across
         // every kind, and a Skills tab must not offer to unhide an MCP server.
+        if (tab.kind == PlaceTabKind.MODS) {
+            dev.ruleblend.app.library.ModGlobalPanel(requireNotNull(modUi), Modifier.weight(1f))
+            return@Column
+        }
         val hiddenHere = tab.sections.sumOf { file -> placeHiddenCount(placePreviewParts(model, file, showHidden = true)) }
         if (hiddenHere > 0) {
             Row(
@@ -1113,7 +1123,7 @@ private fun TypeTab(
     // The underline marks the open tab; the label only brightens, so the accent is said once.
     val foreground =
         if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-    val split = kind == PlaceTabKind.SKILLS || kind == PlaceTabKind.SUBAGENTS || kind == PlaceTabKind.MCP
+    val split = kind == PlaceTabKind.SKILLS || kind == PlaceTabKind.SUBAGENTS || kind == PlaceTabKind.MCP || kind == PlaceTabKind.MODS
     val countLabel = if (split) strings.placeObjectCount(count.ours, count.foreign) else count.total.toString()
     val description = buildList {
         add(kind.label(strings))

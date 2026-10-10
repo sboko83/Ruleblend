@@ -70,6 +70,7 @@ fun PlaceScreen(
     placeSubagentsExpandedByDefault: Boolean = false,
     placeMcpExpandedByDefault: Boolean = false,
     translation: TranslationModel? = null,
+    modUi: dev.ruleblend.app.library.ModUiModel? = null,
     modifier: Modifier = Modifier,
 ) {
     // Removing a project and saving a file are disk work: the click hands them to a coroutine.
@@ -126,6 +127,7 @@ fun PlaceScreen(
                     onEditBlock = onEditBlock,
                     translation = translation,
                     onTabSelected = { paletteTab = it },
+                    modUi = modUi,
                     modifier = Modifier.weight(1f),
                 )
                 fit.trailing?.let { width ->
@@ -144,6 +146,7 @@ fun PlaceScreen(
                             libraryExpandedByDefault = placeLibraryExpandedByDefault,
                             translation = translation,
                             selectedTab = paletteTab,
+                            modUi = modUi,
                         )
                     }
                 }

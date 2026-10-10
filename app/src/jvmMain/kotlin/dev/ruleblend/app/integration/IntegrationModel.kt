@@ -1287,14 +1287,14 @@ class IntegrationModel(
             LibraryObjectKind.SKILL -> skillEntries
             LibraryObjectKind.SUBAGENT -> subagentEntries
             LibraryObjectKind.MCP -> mcpEntries
-            LibraryObjectKind.RULE, LibraryObjectKind.GROUP, LibraryObjectKind.PROFILE -> emptyList()
+            LibraryObjectKind.MOD, LibraryObjectKind.RULE, LibraryObjectKind.GROUP, LibraryObjectKind.PROFILE -> emptyList()
         }.firstOrNull { it.key == entryKey && it.origin == PlaceEntryOrigin.ORPHAN }?.libraryId
             ?: error("Only an orphaned entry can be removed")
         val outcome = when (kind) {
             LibraryObjectKind.SKILL -> skillService.removeOrphan(target, orphanId)
             LibraryObjectKind.SUBAGENT -> requireNotNull(subagentService) { "Subagent support is unavailable" }.removeOrphan(target, orphanId)
             LibraryObjectKind.MCP -> mcpService.removeOrphan(target, orphanId)
-            LibraryObjectKind.RULE, LibraryObjectKind.GROUP, LibraryObjectKind.PROFILE -> error("This kind does not have disk-entry orphans")
+            LibraryObjectKind.MOD, LibraryObjectKind.RULE, LibraryObjectKind.GROUP, LibraryObjectKind.PROFILE -> error("This kind does not have disk-entry orphans")
         }
         require(outcome != OrphanRemoval.PROTECTED) { "The orphaned entry was edited after Ruleblend installed it" }
     }

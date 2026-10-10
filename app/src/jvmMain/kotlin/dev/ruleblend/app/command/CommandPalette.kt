@@ -11,7 +11,7 @@ import dev.ruleblend.app.place.PlaceSection
  * a query equally well: an action is what the user asked for literally, a place is one of thirty,
  * and a library object is one of three hundred, so the rarer answer is offered first.
  */
-enum class CommandKind { ACTION, PLACE, RULE, SUBAGENT, SKILL, MCP, GROUP, PROFILE }
+enum class CommandKind { ACTION, PLACE, RULE, SUBAGENT, SKILL, MOD, MCP, GROUP, PROFILE }
 
 /** Where a row leads. The palette never writes: every target is a selection on an existing surface. */
 sealed interface CommandTarget {
@@ -82,6 +82,7 @@ fun commandIndex(
                 kind = when (item.key.kind) {
                     LibraryObjectKind.RULE -> CommandKind.RULE
                     LibraryObjectKind.SUBAGENT -> CommandKind.SUBAGENT
+                    LibraryObjectKind.MOD -> CommandKind.MOD
                     LibraryObjectKind.SKILL -> CommandKind.SKILL
                     LibraryObjectKind.MCP -> CommandKind.MCP
                     LibraryObjectKind.GROUP -> CommandKind.GROUP

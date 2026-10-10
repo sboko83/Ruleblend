@@ -424,6 +424,7 @@ internal fun LibraryObject.fitsIn(place: LibraryPlaceUsage): Boolean = when {
     key.kind == LibraryObjectKind.SKILL -> place.supportsSkills
     key.kind == LibraryObjectKind.MCP -> place.supportsMcp
     key.kind == LibraryObjectKind.SUBAGENT -> place.supportsSubagents
+    key.kind == LibraryObjectKind.MOD -> false
     else -> true
 }
 

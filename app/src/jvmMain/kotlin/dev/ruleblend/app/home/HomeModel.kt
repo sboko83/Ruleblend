@@ -57,13 +57,16 @@ data class HomeSourceUpdates(
     val updatingSkillIds: Set<String> = emptySet(),
     val failure: String? = null,
     val subagentNames: Map<String, String> = emptyMap(),
+    val modNames: Map<String, String> = emptyMap(),
 ) {
-    val visible: Boolean get() = skillNames.isNotEmpty() || subagentNames.isNotEmpty()
+    val visible: Boolean get() = skillNames.isNotEmpty() || subagentNames.isNotEmpty() || modNames.isNotEmpty()
     internal val rows: List<SourceUpdateRow>
         get() = report?.perSkill.orEmpty().map {
             SourceUpdateRow(LibraryObjectKey(LibraryObjectKind.SKILL, it.skillId), it.repository, it.status)
         } + report?.perSubagent.orEmpty().map {
             SourceUpdateRow(LibraryObjectKey(LibraryObjectKind.SUBAGENT, it.subagentId), it.repository, it.status)
+        } + report?.perMod.orEmpty().map {
+            SourceUpdateRow(LibraryObjectKey(LibraryObjectKind.MOD, it.modId), it.repository, it.status)
         }
     val updateIds: Set<String>
         get() = rows
@@ -97,6 +100,7 @@ data class HomeSkillSource(
     val remoteHead: String?,
     val lastCheckedAt: String?,
     val subagentIds: Set<String> = emptySet(),
+    val modIds: Set<String> = emptySet(),
 )
 
 /**
@@ -122,6 +126,7 @@ class HomeModel(
     private val setProfileActive: (suspend (String, String, Boolean) -> Unit)? = null,
     private val now: () -> Instant = Instant::now,
     private val updateImportedDefinitions: ((Set<String>, Set<String>) -> Unit)? = null,
+    private val updateImportedPackages: ((Set<String>, Set<String>, Set<String>) -> Unit)? = null,
 ) {
     var snapshot by mutableStateOf(HomeSnapshot.EMPTY)
         private set
@@ -173,19 +178,22 @@ class HomeModel(
         val loaded = withContext(Dispatchers.IO) {
             val imported = repository.listSkills().filter { it.source != null }
             val subagents = repository.listBlocks().filter { it.source != null }
+            val mods = repository.listMods().filter { it.source != null }
             val state = sourceStateStore?.load()
             val cached = state?.cachedSourceCheck(repository)
             val byRepository = state?.sources.orEmpty().associateBy { it.repository }
             SourceUpdatesLoaded(
                 names = imported.associate { it.id to it.name },
                 subagentNames = subagents.associate { it.id to it.name },
-                sources = (imported.map { it.source!!.repository } + subagents.map { it.source!!.repository })
+                modNames = mods.associate { it.id to it.name },
+                sources = (imported.map { it.source!!.repository } + subagents.map { it.source!!.repository } + mods.map { it.source!!.repository })
                     .toSortedSet().map { url ->
                     val saved = byRepository[url]
                     HomeSkillSource(
                         repository = url,
                         skillIds = imported.filter { it.source!!.repository == url }.mapTo(linkedSetOf()) { it.id },
                         subagentIds = subagents.filter { it.source!!.repository == url }.mapTo(linkedSetOf()) { it.id },
+                        modIds = mods.filter { it.source!!.repository == url }.mapTo(linkedSetOf()) { it.id },
                         remoteHead = saved?.remoteHead,
                         lastCheckedAt = saved?.lastCheckedAt,
                     )
@@ -197,6 +205,7 @@ class HomeModel(
         sourceUpdates = sourceUpdates.copy(
             skillNames = loaded.names,
             subagentNames = loaded.subagentNames,
+            modNames = loaded.modNames,
             sources = loaded.sources,
             report = loaded.report,
             lastCheckedAt = loaded.lastCheckedAt,
@@ -243,11 +252,13 @@ class HomeModel(
             sourceUpdates = sourceUpdates.copy(
                 skillNames = names,
                 subagentNames = subagentNames,
+                modNames = withContext(Dispatchers.IO) { repository.listMods().filter { it.source != null }.associate { it.id to it.name } },
                 sources = report.perRepo.map { source ->
                     HomeSkillSource(
                         repository = source.repository,
                         skillIds = report.perSkill.filter { it.repository == source.repository }
                             .mapTo(linkedSetOf()) { it.skillId },
+                        modIds = report.perMod.filter { it.repository == source.repository }.mapTo(linkedSetOf()) { it.modId },
                         subagentIds = report.perSubagent.filter { it.repository == source.repository }
                             .mapTo(linkedSetOf()) { it.subagentId },
                         remoteHead = source.remoteHead,
@@ -266,22 +277,29 @@ class HomeModel(
 
     /** Updates only rows confirmed as changed by the latest check, then replays the cached result. */
     suspend fun updateSourceSkills(ids: Set<String>) {
-        if (updateImportedDefinitions == null && updateImportedSkills == null) return
+        if (updateImportedPackages == null && updateImportedDefinitions == null && updateImportedSkills == null) return
         val selected = ids intersect sourceUpdates.updateIds
         if (selected.isEmpty() || sourceUpdates.busy) return
-        val skills = selected.filterNot { it.startsWith("subagent:") }.toSet()
+        val skills = selected.filterNot { it.startsWith("subagent:") || it.startsWith("mod:") }.toSet()
+        val mods = selected.filter { it.startsWith("mod:") }.map { it.removePrefix("mod:") }.toSet()
+        if (mods.isNotEmpty() && updateImportedPackages == null) return
         val subagents = selected.filter { it.startsWith("subagent:") }.map { it.removePrefix("subagent:") }.toSet()
-        if (subagents.isNotEmpty() && updateImportedDefinitions == null) return
+        if (subagents.isNotEmpty() && updateImportedDefinitions == null && updateImportedPackages == null) return
         sourceUpdates = sourceUpdates.copy(updatingSkillIds = selected, failure = null)
         try {
             withContext(Dispatchers.IO) {
-                updateImportedDefinitions?.invoke(skills, subagents) ?: updateImportedSkills?.invoke(skills)
+                when {
+                    updateImportedPackages != null -> updateImportedPackages.invoke(skills, subagents, mods)
+                    updateImportedDefinitions != null -> updateImportedDefinitions.invoke(skills, subagents)
+                    else -> updateImportedSkills?.invoke(skills)
+                }
             }
             val names = withContext(Dispatchers.IO) {
                 repository.listSkills().filter { it.source != null }.associate { it.id to it.name }
             }
             sourceUpdates = sourceUpdates.copy(
                 skillNames = names,
+                modNames = withContext(Dispatchers.IO) { repository.listMods().filter { it.source != null }.associate { it.id to it.name } },
                 subagentNames = withContext(Dispatchers.IO) {
                     repository.listBlocks().filter { it.source != null }.associate { it.id to it.name }
                 },
@@ -289,6 +307,9 @@ class HomeModel(
                     report.copy(
                         perSkill = report.perSkill.map { skill ->
                             if (skill.skillId in skills) skill.copy(status = SourceCheckSkillStatus.CURRENT) else skill
+                        },
+                        perMod = report.perMod.map { mod ->
+                            if (mod.modId in mods) mod.copy(status = SourceCheckSkillStatus.CURRENT) else mod
                         },
                         perSubagent = report.perSubagent.map { agent ->
                             if (agent.subagentId in subagents) agent.copy(status = SourceCheckSkillStatus.CURRENT) else agent
@@ -351,6 +372,7 @@ class HomeModel(
     private data class SourceUpdatesLoaded(
         val names: Map<String, String>,
         val subagentNames: Map<String, String>,
+        val modNames: Map<String, String>,
         val sources: List<HomeSkillSource>,
         val report: SourceCheckReport?,
         val lastCheckedAt: String?,
@@ -437,6 +459,7 @@ class HomeModel(
             library = LibraryTotals(
                 rules = blocks.count { it.type == BlockType.RULE },
                 skills = skills.size,
+                mods = repository.listMods().size,
                 mcpServers = blocks.count { it.type == BlockType.MCP },
                 groups = repository.listGroups().count { it.id != ALL_GROUP_ID },
             ),

@@ -108,8 +108,9 @@ data class LibraryTotals(
     val skills: Int = 0,
     val mcpServers: Int = 0,
     val groups: Int = 0,
+    val mods: Int = 0,
 ) {
-    val objects: Int get() = rules + skills + mcpServers
+    val objects: Int get() = rules + skills + mcpServers + mods
     val isEmpty: Boolean get() = objects == 0
 }
 

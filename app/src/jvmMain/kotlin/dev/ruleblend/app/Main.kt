@@ -380,6 +380,7 @@ internal fun App(
             installer = LibraryPlaceInstallService(configStore, agents, integrationService, mcpService, skillService, subagentService),
             builtIns = builtInLibraryObjects(mcpLaunch?.command),
             subagentAgents = agents.subagentAgentFields(),
+            modRuntime = dev.ruleblend.core.integration.ClaudeModRuntime(RULEBLEND_HOME.resolve("mod-runtime")),
         )
     }
     // macOS-only: elsewhere the translator reports itself unavailable and the panel never appears.
@@ -428,7 +429,7 @@ internal fun App(
             usageSource = LibraryUsageScanner(configStore, agents, integrationService, mcpService, skillService, subagentService),
             checkImportedSkillSources = CheckSources(repository)::check,
             sourceStateStore = SourcesStateStore(RULEBLEND_HOME),
-            updateImportedDefinitions = { skills, subagents -> importedSkills.updateDefinitions(skills, subagents) },
+            updateImportedPackages = { skills, subagents, mods -> importedSkills.updateDefinitions(skills, subagents, mods) },
             integration = bundledIntegration,
             setProfileActive = { projectKey, profileId, active ->
                 integration.setProfileActive(projectKey, profileId, active)
@@ -697,6 +698,7 @@ internal fun App(
                     )
                     AppRoute.PLACE -> PlaceScreen(
                         model = integration,
+                        modUi = library.modUi,
                         focusChanges = focusChangesForPlace != null &&
                             integration.selected?.let(::placeId) == focusChangesForPlace,
                         onEditBlock = { key ->

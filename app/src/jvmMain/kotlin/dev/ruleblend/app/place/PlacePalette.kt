@@ -144,6 +144,7 @@ fun IntegrationModel.paletteStatus(): (LibraryObjectKey) -> InstallStatus? = { k
         LibraryObjectKind.SKILL -> skillStatuses[key.id]?.status
         LibraryObjectKind.GROUP -> null
         LibraryObjectKind.PROFILE -> null
+        LibraryObjectKind.MOD -> null
     }
 }
 

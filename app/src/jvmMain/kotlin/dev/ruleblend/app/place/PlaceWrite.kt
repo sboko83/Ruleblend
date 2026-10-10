@@ -77,6 +77,7 @@ suspend fun IntegrationModel.performPlaceAction(
 ): Boolean {
     if (action == PlaceAction.KEEP) return false
     return when (key.kind) {
+        LibraryObjectKind.MOD -> false
         LibraryObjectKind.RULE, LibraryObjectKind.MCP -> {
             // An object the library no longer knows still sits in the file, and taking it out is the
             // only move the row offers: it needs the id, not a library copy to compare against.
@@ -137,6 +138,7 @@ fun IntegrationModel.groupComplete(id: String): Boolean =
 
 /** True when the selected place can hold the object at all; false hides the offer instead of failing it. */
 fun IntegrationModel.placeSupports(key: LibraryObjectKey): Boolean = when (key.kind) {
+    LibraryObjectKind.MOD -> false
     LibraryObjectKind.MCP -> blocks.find { it.id == key.id }?.let { mcpInstallable(it) } ?: false
     LibraryObjectKind.SUBAGENT -> subagentInstallable()
     LibraryObjectKind.SKILL -> skillInstallable()

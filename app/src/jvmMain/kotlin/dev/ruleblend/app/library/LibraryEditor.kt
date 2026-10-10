@@ -579,6 +579,16 @@ private fun GroupEditor(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.weight(1f).testTag("library-group-member-list"),
                 ) {
+                    item { Text(strings.libMods.uppercase(), style = SectionHeaderStyle) }
+                    items(model.mods, key = { "mod-${it.id}" }) { mod ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SquareCheckbox(mod.id in draft.modIds, onCheckedChange = { checked ->
+                                model.editGroupDraft { it.copy(modIds = if (checked) it.modIds + mod.id else it.modIds - mod.id) }
+                            }, modifier = Modifier.testTag("library-group-member:MOD:${mod.id}"))
+                            KindMark(LibraryObjectKind.MOD)
+                            Text(mod.name, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                     item { Text(strings.libRulesLabel.uppercase(), style = SectionHeaderStyle) }
                     items(
                         selectedBlocks.filter { it.type != BlockType.SUBAGENT } +

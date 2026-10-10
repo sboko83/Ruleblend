@@ -544,6 +544,20 @@ sync deletion only changes portable objects. Retained records permit actions on 
 The adapter's [offline macOS gate](../tools/claude_mod_runtime_gate.py) uses an isolated CLI profile;
 native UI, hook execution and Windows acceptance remain separate gates.
 
+### Library and Global surfaces
+
+Mods participate in catalog facets, groups, selection and archives as whole packages. Their inspector
+shows package components and separate Library/runtime fingerprints; it offers no code editor or fork.
+Global Claude Code alone gains a Mods tab and matching palette, keeping project and other assistant
+targets outside the runtime contract. External and built-in entries remain read-only; importing an
+explicitly selected external folder uses the same detached preview as a local package.
+Group installs route mod members through the user-scope lifecycle, deduplicate ids and refuse other
+destinations. An existing installation keeps its accepted revision and enabled state; source updates
+change only Library until explicit Apply update. Local Library deletion previews keep/uninstall,
+and retained orphan snapshots keep lifecycle controls. CLI confirmation always leaves a reload notice.
+Install and Apply update bind to the fingerprint shown in the UI; a changed Library package requires
+another review before any CLI write, and the accepted detached tree survives later sync changes.
+
 ## Integration mechanics
 
 **The target file is the only source of truth for managed rule regions.**

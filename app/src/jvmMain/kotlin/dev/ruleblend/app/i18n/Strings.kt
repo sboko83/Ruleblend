@@ -282,6 +282,43 @@ interface Strings {
     val libGroups: String
     val libProfiles: String
     val libAllGroup: String
+    val libMods: String
+    val modAdd: String
+    val modLocal: String
+    val modGit: String
+    val modFolder: String
+    val modPreview: String
+    val modImportWarning: String
+    val modRunWarning: String
+    val modInstall: String
+    val modUpdate: String
+    val modEnable: String
+    val modDisable: String
+    val modUninstall: String
+    val modDelete: String
+    val modKeepInstallation: String
+    val modDeleteAndUninstall: String
+    val modLibraryRevision: String
+    val modInstalledRevision: String
+    val modReload: String
+    val modAbsent: String
+    val modEnabled: String
+    val modDisabled: String
+    val modForeign: String
+    val modOrphan: String
+    val modBuiltin: String
+    val modRefresh: String
+    val modRecover: String
+    val modSourceUpdate: String
+    val modUnavailable: String
+    val modRemovalConsequences: String
+    val modImportInstalled: String
+    val modReplaceLocal: String
+    val modDrift: String
+    val modPending: String
+    val modComponents: String
+    val modFiles: String
+    val modDeleteHint: String
     val libSkills: String
     val libNewSkillTitle: String
     val libImportSkillsAction: String
@@ -1212,13 +1249,50 @@ object EnStrings : Strings {
     override val libGroups = "Groups"
     override val libProfiles = "Profiles"
     override val libAllGroup = "All"
+    override val libMods = "Mods"
+    override val modAdd = "Add mod"
+    override val modLocal = "Local folder"
+    override val modGit = "Git repository"
+    override val modFolder = "Choose package folder"
+    override val modPreview = "Preview package"
+    override val modImportWarning = "The complete package is copied to Library. Import does not install or run its code."
+    override val modRunWarning = "Installation allows the whole package, including hooks, commands and bundled servers, to run with your permissions."
+    override val modInstall = "Install in Claude Code"
+    override val modUpdate = "Apply update"
+    override val modEnable = "Enable"
+    override val modDisable = "Disable"
+    override val modUninstall = "Uninstall from device"
+    override val modDelete = "Delete from Library"
+    override val modKeepInstallation = "Keep installation"
+    override val modDeleteAndUninstall = "Uninstall and delete"
+    override val modLibraryRevision = "Library revision"
+    override val modInstalledRevision = "Installed revision"
+    override val modReload = "Reload required: /reload-plugins or start a new Claude Code session."
+    override val modAbsent = "Not installed"
+    override val modEnabled = "Installed · enabled"
+    override val modDisabled = "Installed · disabled"
+    override val modForeign = "External · read-only"
+    override val modOrphan = "Package removed from Library; installed snapshot is retained."
+    override val modBuiltin = "Built-in · read-only"
+    override val modRefresh = "Refresh"
+    override val modRecover = "Recover interrupted operation"
+    override val modSourceUpdate = "Update Library from source"
+    override val modUnavailable = "Claude Code CLI is unavailable or incompatible."
+    override val modRemovalConsequences = "Runtime data is retained. The last uninstall removes stored options and secrets. Library copies on other devices are kept."
+    override val modImportInstalled = "Import installed package"
+    override val modReplaceLocal = "Replace local Library snapshot"
+    override val modDrift = "Installation changed outside Ruleblend · writes blocked"
+    override val modPending = "Interrupted operation · recovery required"
+    override val modComponents = "Package components"
+    override val modFiles = "Package files"
+    override val modDeleteHint = "Library deletion does not uninstall the mod. Choose what to do with the installation."
     override val libSkills = "Skills"
     override val libNewSkillTitle = "New skill"
     override val libImportSkillsAction = "Import Git"
     override val libSkillNameHint = "Lowercase letters, numbers and hyphens; description is required."
     override val libGroupContents = "Group contents"
     override val libProfileContents = "Profile contents"
-    override val libSkillImportTitle = "Import skills and subagents from Git"
+    override val libSkillImportTitle = "Import skills, subagents and mods from Git"
     override val libSkillRepository = "Repository URL"
     override val libSkillRepositoryHint = "Ruleblend reads skills and native subagent definitions without executing repository code."
     override val libSkillDiscover = "Find definitions"
@@ -2137,13 +2211,50 @@ object RuStrings : Strings {
     override val libGroups = "Группы"
     override val libProfiles = "Профили"
     override val libAllGroup = "Все"
+    override val libMods = "Моды"
+    override val modAdd = "Добавить мод"
+    override val modLocal = "Локальная папка"
+    override val modGit = "Git репозиторий"
+    override val modFolder = "Выбрать папку пакета"
+    override val modPreview = "Предпросмотр пакета"
+    override val modImportWarning = "Весь пакет копируется в Library. Импорт не устанавливает и не запускает его код."
+    override val modRunWarning = "Установка разрешает всему пакету, включая hooks, команды и вложенные серверы, работать с вашими правами."
+    override val modInstall = "Установить в Claude Code"
+    override val modUpdate = "Применить обновление"
+    override val modEnable = "Включить"
+    override val modDisable = "Отключить"
+    override val modUninstall = "Удалить установку с устройства"
+    override val modDelete = "Удалить из Library"
+    override val modKeepInstallation = "Сохранить установку"
+    override val modDeleteAndUninstall = "Удалить установку и пакет"
+    override val modLibraryRevision = "Ревизия Library"
+    override val modInstalledRevision = "Установленная ревизия"
+    override val modReload = "Нужна перезагрузка: /reload-plugins или новый сеанс Claude Code."
+    override val modAbsent = "Не установлен"
+    override val modEnabled = "Установлен · включён"
+    override val modDisabled = "Установлен · отключён"
+    override val modForeign = "Внешний · только чтение"
+    override val modOrphan = "Пакет удалён из Library; установленный snapshot сохранён."
+    override val modBuiltin = "Встроенный · только чтение"
+    override val modRefresh = "Обновить состояние"
+    override val modRecover = "Восстановить прерванную операцию"
+    override val modSourceUpdate = "Обновить Library из источника"
+    override val modUnavailable = "CLI Claude Code недоступен или несовместим."
+    override val modRemovalConsequences = "Runtime data сохраняются. Последний uninstall удаляет сохранённые options и secrets. Library на других устройствах сохраняется."
+    override val modImportInstalled = "Импортировать установленный пакет"
+    override val modReplaceLocal = "Заменить локальный snapshot в Library"
+    override val modDrift = "Установка изменена вне Ruleblend · запись заблокирована"
+    override val modPending = "Прерванная операция · требуется восстановление"
+    override val modComponents = "Компоненты пакета"
+    override val modFiles = "Файлы пакета"
+    override val modDeleteHint = "Удаление из Library не удаляет установку. Выберите, что делать с установкой."
     override val libSkills = "Навыки"
     override val libNewSkillTitle = "Новый skill"
     override val libImportSkillsAction = "Импорт Git"
     override val libSkillNameHint = "Строчные латинские буквы, цифры и дефисы; описание обязательно."
     override val libGroupContents = "Состав группы"
     override val libProfileContents = "Состав профиля"
-    override val libSkillImportTitle = "Импорт skills и субагентов из Git"
+    override val libSkillImportTitle = "Импорт skills, субагентов и модов из Git"
     override val libSkillRepository = "URL репозитория"
     override val libSkillRepositoryHint = "Ruleblend читает skills и определения субагентов без выполнения кода репозитория."
     override val libSkillDiscover = "Найти определения"

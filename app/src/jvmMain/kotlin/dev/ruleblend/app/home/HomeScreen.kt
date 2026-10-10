@@ -369,12 +369,14 @@ private fun SourceUpdatesCard(
             }
             actionable.forEach { skill ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val subagent = skill.key.kind == LibraryObjectKind.SUBAGENT
                     KindMark(skill.key.kind)
                     Column(Modifier.weight(1f)) {
                         Text(
-                            (if (subagent) state.subagentNames[skill.key.id]
-                            else state.skillNames[skill.key.id]) ?: skill.key.id,
+                            (when (skill.key.kind) {
+                                LibraryObjectKind.MOD -> state.modNames[skill.key.id]
+                                LibraryObjectKind.SUBAGENT -> state.subagentNames[skill.key.id]
+                                else -> state.skillNames[skill.key.id]
+                            }) ?: skill.key.id,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                         )

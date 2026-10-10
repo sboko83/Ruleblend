@@ -179,6 +179,10 @@ internal fun Inspector(
             }
             return@LazyColumn
         }
+        if (item.key.kind == LibraryObjectKind.MOD) {
+            item { ModPanel(model.modUi, item.key.id) }
+            return@LazyColumn
+        }
         if (reserved) {
             item { InspectorHeader(strings.libMembersCount(item.memberKeys.size)) }
             return@LazyColumn

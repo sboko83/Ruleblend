@@ -39,7 +39,7 @@ enum class PlaceFileKind {
  * an address, and an address only matters while installing or while tracing an edit, so it lives one
  * level down, in the sections of a tab.
  */
-enum class PlaceTabKind { RULES, SKILLS, SUBAGENTS, MCP }
+enum class PlaceTabKind { RULES, SKILLS, SUBAGENTS, MCP, MODS }
 
 /** One tab of a place: a kind of object, and every address in this place that can hold it. */
 data class PlaceTab(val kind: PlaceTabKind, val sections: List<PlaceFileTab>)

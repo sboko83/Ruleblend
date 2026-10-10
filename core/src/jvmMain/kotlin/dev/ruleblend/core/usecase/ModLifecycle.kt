@@ -21,8 +21,15 @@ class ModLifecycle(
     private val runtime: ModRuntime,
     private val target: ModTarget = ModTarget(),
 ) {
-    fun install(id: String) = runtime.install(target, requireNotNull(repository.loadModSnapshot(id)))
-    fun update(id: String) = runtime.update(target, requireNotNull(repository.loadModSnapshot(id)))
+    fun install(id: String, acceptedFingerprint: String? = null) = runtime.install(target, acceptedSnapshot(id, acceptedFingerprint))
+    fun update(id: String, acceptedFingerprint: String? = null) = runtime.update(target, acceptedSnapshot(id, acceptedFingerprint))
+
+    private fun acceptedSnapshot(id: String, acceptedFingerprint: String?): dev.ruleblend.core.model.ModSnapshot {
+        val snapshot = requireNotNull(repository.loadModSnapshot(id))
+        if (acceptedFingerprint != null && modTreeFingerprint(snapshot.files) != acceptedFingerprint)
+            throw ModRuntimeException(ModRuntimeError.CONFIRMATION_REQUIRED, "Library package changed after the installation preview; refresh and review it again")
+        return snapshot
+    }
     fun enable(id: String) = runtime.enable(target, id)
     fun disable(id: String) = runtime.disable(target, id)
     fun status(id: String) = runtime.probe(target, id, repository.loadMod(id)?.manifestName)
