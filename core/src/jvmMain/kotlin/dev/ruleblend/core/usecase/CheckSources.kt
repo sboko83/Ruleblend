@@ -3,6 +3,10 @@ package dev.ruleblend.core.usecase
 import dev.ruleblend.core.model.Skill
 import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.BlockType
+import dev.ruleblend.core.model.Mod
+import dev.ruleblend.core.model.ModSource
+import dev.ruleblend.core.storage.ModImport
+import dev.ruleblend.core.storage.modTreeFingerprint
 import dev.ruleblend.core.storage.GitAgentRoot
 import dev.ruleblend.core.storage.GitImportLimits
 import dev.ruleblend.core.storage.discoverGitSubagents
@@ -25,6 +29,7 @@ data class SourceCheckReport(
     val perRepo: List<SourceCheckRepository>,
     val perSkill: List<SourceCheckSkill>,
     val perSubagent: List<SourceCheckSubagent> = emptyList(),
+    val perMod: List<SourceCheckMod> = emptyList(),
 )
 
 data class SourceCheckRepository(
@@ -47,6 +52,17 @@ data class SourceCheckSkill(
 
 enum class SourceCheckSkillStatus { CURRENT, UPDATE_AVAILABLE, PATH_MISSING, UNAVAILABLE }
 
+data class SourceCheckMod(
+    val modId: String,
+    val repository: String,
+    val path: String,
+    val status: SourceCheckSkillStatus,
+    val upstreamTreeFingerprint: String? = null,
+    val error: String? = null,
+) {
+    val key: String get() = "mod:$modId"
+}
+
 data class SourceCheckSubagent(
     val subagentId: String,
     val repository: String,
@@ -65,19 +81,23 @@ class CheckSources(private val repository: LibraryRepository) {
     fun check(onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): SourceCheckReport {
         val sources = repository.listSkills().filter { it.source != null }.groupBy { it.source!!.repository }
         val agentSources = repository.listBlocks().filter { it.source != null }.groupBy { it.source!!.repository }
-        val urls = (sources.keys + agentSources.keys).sorted()
+        val modSources = repository.listMods().filter { it.source != null }.groupBy { it.source!!.repository }
+        val urls = (sources.keys + agentSources.keys + modSources.keys).sorted()
         val total = urls.size
         onProgress(0, total)
         val repos = mutableListOf<SourceCheckRepository>()
         val skills = mutableListOf<SourceCheckSkill>()
         val subagents = mutableListOf<SourceCheckSubagent>()
+        val mods = mutableListOf<SourceCheckMod>()
 
         urls.forEachIndexed { index, repositoryUrl ->
             val importedSkills = sources[repositoryUrl].orEmpty()
             val importedAgents = agentSources[repositoryUrl].orEmpty()
+            val importedMods = modSources[repositoryUrl].orEmpty()
             try {
                 val remoteHead = remoteHead(validateGitRepositoryUrl(repositoryUrl))
-                if (importedSkills.all { it.source!!.revision == remoteHead } && importedAgents.all { it.source!!.revision == remoteHead }) {
+                if (importedSkills.all { it.source!!.revision == remoteHead } && importedAgents.all { it.source!!.revision == remoteHead } &&
+                    importedMods.all { it.source!!.revision == remoteHead }) {
                     repos += SourceCheckRepository(repositoryUrl, remoteHead, SourceCheckRepositoryStatus.UNCHANGED)
                     skills += importedSkills.map { skill ->
                         val local = repository.loadSkillSnapshot(skill.id)
@@ -91,6 +111,11 @@ class CheckSources(private val repository: LibraryRepository) {
                         )
                     }
                     subagents += importedAgents.map { block -> agentResult(block, SourceCheckSkillStatus.CURRENT, subagentFingerprint(block)) }
+                    mods += importedMods.map { mod ->
+                        val source = requireNotNull(mod.source)
+                        val local = requireNotNull(repository.loadModSnapshot(mod.id))
+                        SourceCheckMod(mod.id, repositoryUrl, source.path, SourceCheckSkillStatus.CURRENT, modTreeFingerprint(local.files))
+                    }
                 } else {
                     val checkout = clone(validateGitRepositoryUrl(repositoryUrl))
                     try {
@@ -98,6 +123,7 @@ class CheckSources(private val repository: LibraryRepository) {
                         repos += SourceCheckRepository(repositoryUrl, checkedHead, SourceCheckRepositoryStatus.CHECKED)
                         skills += importedSkills.map { skill -> checkSkill(checkout, skill) }
                         subagents += importedAgents.map { block -> checkSubagent(checkout, block) }
+                        mods += importedMods.map { mod -> checkMod(checkout, mod, checkedHead) }
                     } finally {
                         checkout.toFile().deleteRecursively()
                     }
@@ -106,6 +132,7 @@ class CheckSources(private val repository: LibraryRepository) {
                 repos.removeAll { it.repository == repositoryUrl }
                 skills.removeAll { it.repository == repositoryUrl }
                 subagents.removeAll { it.repository == repositoryUrl }
+                mods.removeAll { it.repository == repositoryUrl }
                 repos += SourceCheckRepository(
                     repositoryUrl,
                     remoteHead = null,
@@ -116,11 +143,13 @@ class CheckSources(private val repository: LibraryRepository) {
                     SourceCheckSkill(skill.id, repositoryUrl, skill.source!!.path, SourceCheckSkillStatus.UNAVAILABLE)
                 }
                 subagents += importedAgents.map { agentResult(it, SourceCheckSkillStatus.UNAVAILABLE) }
+                mods += importedMods.map { SourceCheckMod(it.id, repositoryUrl, it.source!!.path, SourceCheckSkillStatus.UNAVAILABLE,
+                    error = error.message) }
             } finally {
                 onProgress(index + 1, total)
             }
         }
-        return SourceCheckReport(repos, skills, subagents)
+        return SourceCheckReport(repos, skills, subagents, mods)
     }
 
     private fun remoteHead(repositoryUrl: String): String = withGitCredentials { credentials ->
@@ -200,5 +229,23 @@ class CheckSources(private val repository: LibraryRepository) {
     private fun agentResult(block: Block, status: SourceCheckSkillStatus, fingerprint: String? = null): SourceCheckSubagent {
         val source = requireNotNull(block.source)
         return SourceCheckSubagent(block.id, source.repository, source.path, source.assistant, status, fingerprint)
+    }
+
+    private fun checkMod(checkout: Path, mod: Mod, revision: String): SourceCheckMod {
+        val source = requireNotNull(mod.source)
+        return try {
+            val directory = resolveGitImportPath(checkout, source.path)
+            if (!Files.isDirectory(directory) || !Files.isRegularFile(directory.resolve(".claude-plugin/plugin.json"))) {
+                return SourceCheckMod(mod.id, source.repository, source.path, SourceCheckSkillStatus.PATH_MISSING)
+            }
+            val upstream = ModImport.capture(directory, ModSource(source.repository, revision, source.path), gitSkillExecutableFiles(checkout, directory))
+            val fingerprint = modTreeFingerprint(upstream.files)
+            val local = requireNotNull(repository.loadModSnapshot(mod.id))
+            SourceCheckMod(mod.id, source.repository, source.path,
+                if (modTreeFingerprint(local.files) == fingerprint) SourceCheckSkillStatus.CURRENT else SourceCheckSkillStatus.UPDATE_AVAILABLE,
+                fingerprint)
+        } catch (error: Exception) {
+            SourceCheckMod(mod.id, source.repository, source.path, SourceCheckSkillStatus.UNAVAILABLE, error = error.message)
+        }
     }
 }

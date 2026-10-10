@@ -430,6 +430,10 @@ class LibraryRepository(
 
     fun loadModSnapshot(id: String): ModSnapshot? = withLock { mods.load(id) }
 
+    fun findMod(source: dev.ruleblend.core.model.ModSource): Mod? = listMods().find {
+        it.source?.repository == source.repository && it.source.path == source.path
+    }
+
     fun writeMod(snapshot: ModSnapshot): Mod = withLock {
         mods.write(snapshot)
         requireNotNull(mods.load(snapshot.mod.id)).mod

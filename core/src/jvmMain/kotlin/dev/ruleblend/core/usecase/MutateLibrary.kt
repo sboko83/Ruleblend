@@ -239,6 +239,9 @@ class MutateLibrary(
     }
 
     fun writeMod(snapshot: ModSnapshot): LibraryChange<Mod> = change {
+        require(repository.loadMod(snapshot.mod.id) == null) {
+            "Imported mods are read-only; use snapshot import to replace the package"
+        }
         repository.writeMod(snapshot)
     }
 

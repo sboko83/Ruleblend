@@ -10,6 +10,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ### Added
 - Library Git sync and ZIP archives preserve complete Claude Code mod packages, including executable
   files, group membership and whole-package conflict alternatives.
+- core: Complete Claude Code mods can be previewed and imported from Git or a selected local/installed
+  folder; explicit source updates preserve references and report incompatible packages.
 
 ### Fixed
 - Tooltips appear above and to the right of the pointer, keeping controls clickable.

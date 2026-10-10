@@ -42,6 +42,7 @@ internal fun Git.prepareImportCheckout(limits: GitImportLimits): List<String> {
             }
         }
     }
+    dev.ruleblend.core.model.requirePortableFileTree(paths)
     checkoutPortableTree()
     return paths
 }

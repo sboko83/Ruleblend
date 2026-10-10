@@ -5,6 +5,7 @@ import dev.ruleblend.core.storage.FileReadScope
 import dev.ruleblend.core.storage.LibraryRepository
 import dev.ruleblend.core.storage.skillTreeFingerprint
 import dev.ruleblend.core.storage.subagentFingerprint
+import dev.ruleblend.core.storage.modTreeFingerprint
 import java.nio.file.Path
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -27,6 +28,10 @@ data class SourceStateSource(
     val upstreamSubagentFingerprints: Map<String, String> = emptyMap(),
     val missingSubagentPaths: List<String> = emptyList(),
     val unavailableSubagentPaths: List<String> = emptyList(),
+    val upstreamModFingerprints: Map<String, String> = emptyMap(),
+    val modPaths: Map<String, String> = emptyMap(),
+    val missingMods: List<String> = emptyList(),
+    val unavailableMods: Map<String, String> = emptyMap(),
 )
 
 /** A cached report reconstructed against the library as it exists now. */
@@ -58,6 +63,12 @@ fun SourceCheckReport.toSourcesState(checkedAt: String): SourcesState = SourcesS
             unavailableSubagentPaths = perSubagent.filter {
                 it.repository == source.repository && it.status == SourceCheckSkillStatus.UNAVAILABLE
             }.map { "${it.assistant}:${it.path}" },
+            upstreamModFingerprints = perMod.filter { it.repository == source.repository }
+                .mapNotNull { mod -> mod.upstreamTreeFingerprint?.let { mod.key to it } }.toMap(),
+            modPaths = perMod.filter { it.repository == source.repository }.associate { it.key to it.path },
+            missingMods = perMod.filter { it.repository == source.repository && it.status == SourceCheckSkillStatus.PATH_MISSING }.map { it.key },
+            unavailableMods = perMod.filter { it.repository == source.repository && it.status == SourceCheckSkillStatus.UNAVAILABLE }
+                .associate { it.key to it.error.orEmpty() },
         )
     },
 )
@@ -69,9 +80,11 @@ fun SourceCheckReport.toSourcesState(checkedAt: String): SourcesState = SourcesS
 fun SourcesState.cachedSourceCheck(repository: LibraryRepository): CachedSourceCheck {
     val imported = repository.listSkills().filter { it.source != null }
     val agents = repository.listBlocks().filter { it.source != null }
+    val mods = repository.listMods().filter { it.source != null }
     val stateByRepository = sources.associateBy { it.repository }
     val revisions = (imported.map { it.source!!.repository to it.source.revision } +
-        agents.map { it.source!!.repository to it.source.revision }).groupBy({ it.first }, { it.second })
+        agents.map { it.source!!.repository to it.source.revision } +
+        mods.map { it.source!!.repository to it.source.revision }).groupBy({ it.first }, { it.second })
     val checkedRepositories = revisions.mapNotNull { (url, revisions) ->
         val state = stateByRepository[url]?.takeIf { it.lastCheckedAt != null } ?: return@mapNotNull null
         val status = when {
@@ -113,8 +126,23 @@ fun SourcesState.cachedSourceCheck(repository: LibraryRepository): CachedSourceC
         }
         SourceCheckSubagent(agent.id, source.repository, source.path, source.assistant, status, fingerprint)
     }
-    val report = if (checkedRepositories.isNotEmpty() && checkedSkills.size == imported.size && checkedAgents.size == agents.size) {
-        SourceCheckReport(checkedRepositories, checkedSkills, checkedAgents)
+    val checkedMods = mods.filter { it.source!!.repository in checkedUrls }.mapNotNull { mod ->
+        val source = requireNotNull(mod.source)
+        val state = stateByRepository.getValue(source.repository)
+        val key = "mod:${mod.id}"
+        if (state.modPaths[key] != source.path) return@mapNotNull null
+        val fingerprint = state.upstreamModFingerprints[key]
+        val status = when {
+            state.remoteHead == null || key in state.unavailableMods -> SourceCheckSkillStatus.UNAVAILABLE
+            key in state.missingMods -> SourceCheckSkillStatus.PATH_MISSING
+            fingerprint == null -> return@mapNotNull null
+            repository.loadModSnapshot(mod.id)?.files?.let(::modTreeFingerprint) == fingerprint -> SourceCheckSkillStatus.CURRENT
+            else -> SourceCheckSkillStatus.UPDATE_AVAILABLE
+        }
+        SourceCheckMod(mod.id, source.repository, source.path, status, fingerprint, state.unavailableMods[key])
+    }
+    val report = if (checkedRepositories.isNotEmpty() && checkedSkills.size == imported.size && checkedAgents.size == agents.size && checkedMods.size == mods.size) {
+        SourceCheckReport(checkedRepositories, checkedSkills, checkedAgents, checkedMods)
     } else {
         null
     }

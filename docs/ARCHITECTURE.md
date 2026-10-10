@@ -41,7 +41,7 @@ can still be presented as `java` even with the legacy `-Xdock:name` flag.
 | `InstallPolicy` | the single answer to "may this be written here, and if not, why" |
 | `AcceptLocalChange` | taking an edit made in a target file into the library as its next version |
 | `MutateLibrary` | every write to the library, each as one transaction |
-| `ImportLibrary` | archive import/export and Git skill/subagent import |
+| `ImportLibrary` | archive exchange, Git definitions/packages and local package snapshot import |
 
 A facade — the Compose models, the MCP server — turns its input into a command and renders the typed
 result. It does not decide. Before this layer the same safety questions (is the rule in scope, can
@@ -486,6 +486,20 @@ Ordinary inline settings hooks alone are not mods. Claude 2.1.287 validates inli
 but ignores it at runtime as an unknown hook event: report an explicit incompatibility rather
 than importing a nonfunctional mod. Standard and custom hooks files are supported. Import
 acceptance is structural, not a safety claim; show every bundled component before installation.
+
+### Source imports
+
+Git and explicitly selected local/installed roots use the same detached structural preview;
+acceptance stores the full package, never executes or installs its code. File and component
+inventories include commands, agents, skills and MCP configuration. Invalid candidates retain
+an explanation; remote marketplace entries are reported without fetching their sources.
+Mixed discovery hides definitions bundled in accepted mods by default; the existing skill import
+entry point remains an explicit extraction route. Git reimport matches repository plus plugin path
+to preserve local ids and memberships. Local replacement explicitly selects the existing id;
+ordinary library mutations cannot edit imported packages, and no mod fork/editor is offered.
+Source checks compare byte/mode fingerprints with one bounded checkout per repository and cache
+results under `mod:<id>`, including path identity, missing packages and incompatibility reasons.
+Checks never apply updates; selected mixed updates resolve every source before their first write.
 
 ### Runtime transport
 

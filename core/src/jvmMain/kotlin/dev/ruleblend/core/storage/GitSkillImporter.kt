@@ -17,7 +17,7 @@ import kotlinx.serialization.json.contentOrNull
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.transport.URIish
 
-/** One checkout shared by skill and subagent discovery. No library writes happen during fetch. */
+/** One checkout shared by skill, subagent and mod discovery. Fetch never writes library objects. */
 data class GitRepositoryImportPlan(
     val repository: String,
     val revision: String,
@@ -25,7 +25,14 @@ data class GitRepositoryImportPlan(
     val skills: List<SkillSnapshot>,
     val subagents: List<GitSubagentCandidate> = emptyList(),
     val errors: List<GitImportFileError> = emptyList(),
-)
+    val mods: List<ModImportCandidate> = emptyList(),
+    /** Hidden in default package preview, retained for updating previously extracted definitions. */
+    val bundledSkills: List<SkillSnapshot> = emptyList(),
+    val bundledSubagents: List<GitSubagentCandidate> = emptyList(),
+) {
+    val allSkills: List<SkillSnapshot> get() = skills + bundledSkills
+    val allSubagents: List<GitSubagentCandidate> get() = subagents + bundledSubagents
+}
 
 fun interface GitRepositoryFetcher {
     fun fetch(repositoryUrl: String): GitRepositoryImportPlan
@@ -41,10 +48,13 @@ private data class PluginManifest(
 )
 
 /** Compatibility entry point for existing skill import and source-update callers. */
-class GitSkillImporter : GitSkillFetcher by GitRepositoryImporter()
+class GitSkillImporter : GitSkillFetcher by GitRepositoryImporter(extractModContents = true)
 
-/** Fetches both library item types from the same bounded, temporary checkout. */
-class GitRepositoryImporter(private val limits: GitImportLimits = GitImportLimits()) : GitRepositoryFetcher {
+/** Discovers definitions and whole packages from the same bounded, temporary checkout. */
+class GitRepositoryImporter(
+    private val limits: GitImportLimits = GitImportLimits(),
+    private val extractModContents: Boolean = false,
+) : GitRepositoryFetcher {
     private val json = Json { ignoreUnknownKeys = true }
 
     override fun fetch(repositoryUrl: String): GitRepositoryImportPlan {
@@ -65,18 +75,34 @@ class GitRepositoryImporter(private val limits: GitImportLimits = GitImportLimit
                 val paths = git.prepareImportCheckout(limits)
                 val revision = git.repository.resolve("HEAD")?.name
                     ?: error("Repository has no HEAD revision")
-                val manifest = readManifest(checkout)
+                val mods = discoverGitMods(checkout, paths, repository, revision)
+                val manifestErrors = mutableListOf<GitImportFileError>()
+                val manifest = try { readManifest(checkout) } catch (error: Exception) {
+                    if (mods.isEmpty()) throw error
+                    manifestErrors += GitImportFileError(".claude-plugin/plugin.json", error.message ?: "Invalid manifest")
+                    null
+                }
                 val version = manifest?.version?.takeIf { it.isNotBlank() } ?: revision.take(12)
                 val skillsRoot = resolveSkillsRoot(checkout, manifest?.skills)
                 val directories = discoverSkillDirectories(skillsRoot)
                 val snapshots = directories.map { directory ->
                     captureSkill(checkout, directory, repository, revision, version)
                 }
-                val discovery = discoverGitSubagents(checkout, paths, manifest?.agents.orEmpty(), limits)
-                require(snapshots.isNotEmpty() || discovery.candidates.isNotEmpty() || discovery.errors.isNotEmpty()) {
-                    "No skills or subagents found in the repository"
+                val discovery = try { discoverGitSubagents(checkout, paths, manifest?.agents.orEmpty(), limits) } catch (error: Exception) {
+                    if (mods.none { it.snapshot != null }) throw error
+                    GitSubagentDiscovery(emptyList(), listOf(GitImportFileError("agents", error.message ?: "Invalid agents paths")))
                 }
-                GitRepositoryImportPlan(repository, revision, version, snapshots, discovery.candidates, discovery.errors)
+                require(snapshots.isNotEmpty() || discovery.candidates.isNotEmpty() || discovery.errors.isNotEmpty() || mods.isNotEmpty()) {
+                    "No skills, subagents or mods found in the repository"
+                }
+                fun bundled(path: String): Boolean = !extractModContents && mods.any { candidate ->
+                    candidate.snapshot != null && (candidate.path == "." || path.startsWith(candidate.path + "/"))
+                }
+                GitRepositoryImportPlan(repository, revision, version,
+                    snapshots.filterNot { bundled(requireNotNull(it.skill.source).path) },
+                    discovery.candidates.filterNot { bundled(it.path) }, discovery.errors + manifestErrors, mods,
+                    snapshots.filter { bundled(requireNotNull(it.skill.source).path) },
+                    discovery.candidates.filter { bundled(it.path) })
             }
         } finally {
             checkout.toFile().deleteRecursively()
