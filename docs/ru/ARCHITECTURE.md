@@ -140,6 +140,7 @@ Compose-модели и MCP-сервер преобразуют ввод в ко
 | `mcp-state.json` | Последняя запись Ruleblend в MCP-конфигурации агентов | При потере копии безопасно становятся чужими |
 | `skill-state.json` | Отпечатки полных деревьев установленных скиллов | При потере копии безопасно становятся чужими |
 | `subagent-state.json` | Отпечатки принятых отдельных определений субагентов | При потере копии безопасно становятся чужими |
+| `mod-runtime/` | Локальный marketplace, immutable snapshots и ownership/pending journal `state.json` | нет; не синхронизируется |
 | `sources-state.json` | Время проверки, remote HEAD и upstream-отпечатки импортированных скиллов/субагентов | да |
 | `targets.index` | Кеш режимов целей и хешей блоков с контрольной суммой | да |
 | `ruleblend.lock` | Межпроцессная advisory-блокировка библиотеки, config, целей и sidecar | да |
@@ -542,6 +543,17 @@ delete — разные действия; Library delete не удаляет у�
 plugin через uninstall, не marketplace remove. Последний uninstall с `--keep-data` сохраняет
 runtime data, но удаляет options/secrets. Старые snapshots могут быть нужны открытым сеансам:
 в v1 нет автоматического snapshot GC. [Семантика удаления](https://code.claude.com/docs/en/plugins/cli-reference#what-an-uninstall-deletes-and-keeps).
+
+Core runtime contract поддерживает только Claude Code user scope; прочие targets отклоняются до
+CLI и доступа к файловой системе. Общий с desktop поиск CLI и Windows wrapper bridge сохраняет
+argv; process boundary ограничивает output, возвращает typed timeout/cancellation и не передаёт
+вывод дочернего процесса в stdout. Формат 1 `mod-runtime/state.json` связывает точный owned catalog
+и immutable snapshots с подтверждёнными records и одной pending operation под `ruleblend.lock`.
+Pending блокирует новые изменения до явного recovery с повторной probe; неоднозначный CLI effect
+остаётся pending. Локальное удаление из Library использует свежий preview и выбор keep/uninstall;
+sync deletion меняет только portable objects. Сохранённые records позволяют управлять orphaned installs.
+[Offline macOS gate adapter](../../tools/claude_mod_runtime_gate.py) использует isolated CLI profile;
+native UI, исполнение hooks и Windows acceptance остаются отдельными gates.
 
 <a id="integration-mechanics"></a>
 ## Механика интеграции

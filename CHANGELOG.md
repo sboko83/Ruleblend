@@ -12,6 +12,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   files, group membership and whole-package conflict alternatives.
 - core: Complete Claude Code mods can be previewed and imported from Git or a selected local/installed
   folder; explicit source updates preserve references and report incompatible packages.
+- core: Claude Code mods support explicit user-scope installation, updates, enable/disable and
+  keep-data uninstall, with drift protection and recovery after interrupted CLI operations.
 
 ### Fixed
 - Tooltips appear above and to the right of the pointer, keeping controls clickable.

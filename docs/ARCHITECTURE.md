@@ -133,6 +133,7 @@ changing hand-written text outside the managed region.
 | `mcp-state.json` | what Ruleblend last wrote into agent MCP configs | degrades safely to foreign |
 | `skill-state.json` | fingerprints of complete skill trees Ruleblend installed into targets | degrades safely to foreign |
 | `subagent-state.json` | fingerprints of accepted standalone subagent definition files | degrades safely to foreign |
+| `mod-runtime/` | local marketplace, immutable accepted snapshots and `state.json` ownership/pending journal | no; never synchronized |
 | `sources-state.json` | latest source-check time, remote HEAD and upstream fingerprints per imported skill/subagent | yes |
 | `targets.index` | checksummed cache of target modes and block hashes | yes |
 | `ruleblend.lock` | advisory cross-process lock over library, config, targets and sidecar state | yes |
@@ -531,6 +532,17 @@ are separate operations; removing a library object cannot remove an installation
 Use per-plugin uninstall, never marketplace removal for that purpose. `--keep-data` preserves
 runtime data but removes stored options/secrets on the last uninstall. Old snapshots may still
 serve open sessions: v1 performs no automatic snapshot GC. [Uninstall semantics](https://code.claude.com/docs/en/plugins/cli-reference#what-an-uninstall-deletes-and-keeps).
+
+The core runtime contract supports Claude Code user scope only; other targets refuse before CLI or
+filesystem access. It shares the desktop CLI resolver and Windows wrapper bridge, uses bounded
+process output and typed timeout/cancellation errors, and never forwards child output to stdout.
+`mod-runtime/state.json` format 1 binds the exact owned catalogue and immutable snapshots to
+confirmed records and one pending operation under `ruleblend.lock`. A pending operation blocks
+further mutations until explicit recovery probes it; ambiguous CLI effects remain pending.
+Local Library deletion goes through a fresh preview and a keep-installation/uninstall choice;
+sync deletion only changes portable objects. Retained records permit actions on orphaned installs.
+The adapter's [offline macOS gate](../tools/claude_mod_runtime_gate.py) uses an isolated CLI profile;
+native UI, hook execution and Windows acceptance remain separate gates.
 
 ## Integration mechanics
 

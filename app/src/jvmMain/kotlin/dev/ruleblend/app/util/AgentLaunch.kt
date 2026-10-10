@@ -2,15 +2,14 @@ package dev.ruleblend.app.util
 
 import dev.ruleblend.core.integration.AgentLauncherScript
 import dev.ruleblend.core.storage.AtomicWrite
-import dev.ruleblend.core.process.WindowsExecutables
+import dev.ruleblend.core.process.resolveCli
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
-import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
 
 /** Where the executable was found and which shell mode found it — the script must use the same one. */
-data class CliProbe(val path: String, val interactive: Boolean)
+typealias CliProbe = dev.ruleblend.core.process.CliProbe
 
 /** Where generated launchers live: beside the rest of the disposable machine state. */
 fun defaultLauncherDirectory(): Path =
@@ -28,31 +27,8 @@ private fun userShell(): String = System.getenv("SHELL")?.takeIf { it.isNotBlank
 fun probeCli(executable: String): CliProbe? = DesktopEnvironment.actions.probe(executable)
 
 internal fun nativeProbeCli(executable: String): CliProbe? {
-    if (System.getProperty("os.name").startsWith("Windows")) {
-        return WindowsExecutables().find(executable)?.let { CliProbe(it.toString(), interactive = false) }
-    }
-    val shell = userShell()
-    probe(shell, "-lc", executable)?.let { return CliProbe(it, interactive = false) }
-    return probe(shell, "-ilc", executable)?.let { CliProbe(it, interactive = true) }
+    return resolveCli(executable)
 }
-
-private fun probe(shell: String, flags: String, executable: String): String? = runCatching {
-    val process = ProcessBuilder(shell, flags, "command -v ${'$'}1 || true", "sh", executable)
-        .redirectErrorStream(false)
-        .start()
-    process.outputStream.close()
-    val output = process.inputStream.bufferedReader().use { it.readText() }
-    if (!process.waitFor(ProbeTimeoutSeconds, TimeUnit.SECONDS)) {
-        process.destroyForcibly()
-        return@runCatching null
-    }
-    // An interactive shell prints its own greetings first; the path is the last line that is one.
-    output.lineSequence()
-        .map(String::trim)
-        .lastOrNull { it.startsWith("/") && Path.of(it).exists() }
-}.getOrNull()
-
-private const val ProbeTimeoutSeconds = 8L
 
 /** One launch: what to run, where, and in which terminal. */
 data class CliLaunch(
