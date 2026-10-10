@@ -9,6 +9,10 @@ import dev.ruleblend.core.model.SkillFile
 import dev.ruleblend.core.model.SkillMeta
 import dev.ruleblend.core.model.Skill
 import dev.ruleblend.core.model.SkillSnapshot
+import dev.ruleblend.core.model.ModSnapshot
+import dev.ruleblend.core.model.ModMeta
+import dev.ruleblend.core.storage.modTreeFingerprint
+import dev.ruleblend.core.storage.validateModSnapshot
 import dev.ruleblend.core.model.requirePortableFileTree
 import dev.ruleblend.core.storage.BlockFile
 import dev.ruleblend.core.storage.AtomicMove
@@ -33,6 +37,7 @@ data class ArchiveContents(
     val groups: List<Group>,
     val skills: List<SkillSnapshot>,
     val profiles: List<Profile> = emptyList(),
+    val mods: List<ModSnapshot> = emptyList(),
 )
 
 /**
@@ -45,8 +50,9 @@ data class ArchiveSelection(
     val groupIds: Set<String> = emptySet(),
     val skillIds: Set<String> = emptySet(),
     val profileIds: Set<String> = emptySet(),
+    val modIds: Set<String> = emptySet(),
 ) {
-    val isEmpty: Boolean get() = blockIds.isEmpty() && groupIds.isEmpty() && skillIds.isEmpty() && profileIds.isEmpty()
+    val isEmpty: Boolean get() = blockIds.isEmpty() && groupIds.isEmpty() && skillIds.isEmpty() && profileIds.isEmpty() && modIds.isEmpty()
 }
 
 /** Per-entry decompressed size cap — blocks/groups are small text files; guards against zip-bomb archives. */
@@ -84,6 +90,8 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
 
     private fun writeArchive(zip: Path, selection: ArchiveSelection?) {
         val wanted = selection?.let(::expanded)
+        // Validate complete mod trees before the first ZIP entry, including links and fingerprints.
+        repository.listMods()
         ZipOutputStream(zip.outputStream().buffered()).use { out ->
             Files.walk(root).use { paths ->
                 paths.filter {
@@ -111,6 +119,7 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
             groupIds = groups.mapTo(mutableSetOf()) { it.id },
             skillIds = selection.skillIds + profiles.flatMap { it.skillIds } + groups.flatMap { it.skillIds },
             profileIds = profiles.mapTo(mutableSetOf()) { it.id },
+            modIds = selection.modIds + groups.flatMap { it.modIds },
         )
     }
 
@@ -122,6 +131,7 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
             "blocks" -> parts.size == 2 && parts[1].removeSuffix(".md") in blockIds
             "groups" -> parts.size == 2 && parts[1].removeSuffix(".yaml") in groupIds
             "skills" -> parts.size > 1 && parts[1] in skillIds
+            "mods" -> parts.size > 1 && parts[1] in modIds
             "profiles" -> parts.size == 2 && parts[1].removeSuffix(".yaml") in profileIds
             else -> false
         }
@@ -142,6 +152,8 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
         val seenPaths = mutableSetOf<String>()
         data class MutableSkill(val meta: SkillMeta? = null, val files: MutableList<SkillFile> = mutableListOf())
         val skills = linkedMapOf<String, MutableSkill>()
+        data class MutableMod(val meta: ModMeta? = null, val files: MutableList<SkillFile> = mutableListOf())
+        val mods = linkedMapOf<String, MutableMod>()
         ZipInputStream(zip.inputStream().buffered()).use { input ->
             while (true) {
                 val entry = input.nextEntry ?: break
@@ -201,6 +213,23 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
                         captured.files += SkillFile(relative, bytes)
                     }
 
+                    parts.size == 3 && parts[0] == "mods" && parts[2] == "meta.yaml" -> {
+                        val id = checkedLibraryId(parts[1])
+                        val meta = Yaml.default.decodeFromString(ModMeta.serializer(), bytes.decodeToString())
+                        require(meta.mod.id == id && meta.formatVersion == 1) { "Unsupported or mismatched mod metadata" }
+                        mods[id] = (mods[id] ?: MutableMod()).copy(meta = meta)
+                    }
+
+                    parts.size >= 4 && parts[0] == "mods" && parts[2] == "files" -> {
+                        val id = checkedLibraryId(parts[1])
+                        val captured = mods.getOrPut(id, ::MutableMod)
+                        require(captured.files.size < MAX_ARCHIVED_SKILL_FILES &&
+                            captured.files.sumOf { it.bytes.size.toLong() } + bytes.size <= MAX_ARCHIVED_SKILL_BYTES) {
+                            "Archived mod '$id' exceeds tree limits"
+                        }
+                        captured.files += SkillFile(parts.drop(3).joinToString("/"), bytes)
+                    }
+
                     else -> throw IllegalArgumentException("Unexpected archive entry: ${entry.name}")
                 }
             }
@@ -223,13 +252,22 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
             )
         }
         requirePortableFileTree(seenPaths.toList())
-        return ArchiveContents(blocks, groups, snapshots, profiles)
+        val modSnapshots = mods.map { (id, captured) ->
+            val meta = requireNotNull(captured.meta) { "Archived mod '$id' has no meta.yaml" }
+            require(meta.executableFiles.distinct().size == meta.executableFiles.size &&
+                meta.executableFiles.all { executable -> captured.files.any { it.path == executable } }) { "Invalid executable metadata" }
+            val snapshot = ModSnapshot(meta.mod, captured.files.map { it.copy(executable = it.path in meta.executableFiles) })
+            validateModSnapshot(snapshot)
+            require(meta.fingerprint == modTreeFingerprint(snapshot.files)) { "Mod fingerprint mismatch" }
+            snapshot
+        }
+        return ArchiveContents(blocks, groups, snapshots, profiles, modSnapshots)
     }
 
     /** Compares [zip] against the current library without writing anything. */
     fun plan(zip: Path): ImportPlan {
         val contents = read(zip)
-        repository.validateImport(contents.blocks, contents.groups, contents.skills, contents.profiles)
+        repository.validateImport(contents.blocks, contents.groups, contents.skills, contents.profiles, contents.mods)
         return ImportMerge.plan(
             contents.blocks,
             contents.groups,
@@ -239,6 +277,8 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
             repository.listSkills().mapNotNull { repository.loadSkillSnapshot(it.id) },
             contents.profiles,
             repository.listProfiles(),
+            contents.mods,
+            repository.listMods().mapNotNull { repository.loadModSnapshot(it.id) },
         )
     }
 
@@ -254,17 +294,20 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
         groupIds: Set<String>,
         skillIds: Set<String> = emptySet(),
         profileIds: Set<String> = emptySet(),
+        modIds: Set<String> = emptySet(),
     ) = repository.withLock {
         repository.validateImport(
             plan.blocks.filter { it.incoming.id in blockIds }.map { it.incoming },
             plan.groups.filter { it.incoming.id in groupIds }.map { it.incoming },
             plan.skills.filter { it.incoming.skill.id in skillIds }.map { it.incoming },
             plan.profiles.filter { it.incoming.id in profileIds }.map { it.incoming },
+            plan.mods.filter { it.incoming.mod.id in modIds }.map { it.incoming },
         )
         plan.blocks.filter { it.incoming.id in blockIds }.forEach { repository.writeArchiveBlock(it.incoming) }
         plan.groups.filter { it.incoming.id in groupIds }.forEach { repository.writeGroup(it.incoming) }
         plan.skills.filter { it.incoming.skill.id in skillIds }.forEach { repository.writeSkill(it.incoming) }
         plan.profiles.filter { it.incoming.id in profileIds }.forEach { repository.writeProfile(it.incoming) }
+        plan.mods.filter { it.incoming.mod.id in modIds }.forEach { repository.writeMod(it.incoming) }
     }
 
     /** Reads the current zip entry, aborting once decompressed output exceeds [MAX_ENTRY_BYTES]. */
@@ -290,8 +333,8 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
         parts.size == 2 && parts[0] == "blocks" -> parts[1].endsWith(".md")
         parts.size == 2 && parts[0] == "groups" -> parts[1].endsWith(".yaml") && parts[1] != "$ALL_GROUP_ID.yaml"
         parts.size == 2 && parts[0] == "profiles" -> parts[1].endsWith(".yaml")
-        parts.size == 3 && parts[0] == "skills" -> parts[2] == "meta.yaml"
-        parts.size >= 4 && parts[0] == "skills" -> parts[2] == "files"
+        parts.size == 3 && parts[0] in setOf("skills", "mods") -> parts[2] == "meta.yaml"
+        parts.size >= 4 && parts[0] in setOf("skills", "mods") -> parts[2] == "files"
         else -> false
     }
 
@@ -300,7 +343,7 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
      * copied it verbatim; a skill's own files are kept byte-exact and never filtered.
      */
     private fun isOsMetadata(parts: List<String>): Boolean {
-        if (parts.size >= 4 && parts[0] == "skills" && parts[2] == "files") return false
+        if (parts.size >= 4 && parts[0] in setOf("skills", "mods") && parts[2] == "files") return false
         return parts[0] == "__MACOSX" || parts.last() in OS_METADATA_FILES
     }
 

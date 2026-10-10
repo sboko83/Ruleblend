@@ -2,6 +2,7 @@ package dev.ruleblend.core.storage
 
 import com.charleskorn.kaml.Yaml
 import dev.ruleblend.core.model.SkillMeta
+import dev.ruleblend.core.model.ModMeta
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -45,6 +46,16 @@ internal object LibraryMembership {
         }
         .sortedWith(byNameThenId)
         .map { it.first }
+
+    fun modIds(root: Path): List<String> = root.resolve("mods").entries()
+        .filter { it.isDirectory() && !it.name.startsWith(".") }
+        .mapNotNull { directory ->
+            val meta = directory.resolve("meta.yaml")
+            if (!meta.isRegularFile() || !directory.resolve("files/.claude-plugin/plugin.json").isRegularFile()) return@mapNotNull null
+            runCatching { Yaml.default.decodeFromString(ModMeta.serializer(), meta.readText()) }
+                .getOrNull()?.takeIf { it.mod.id == directory.name && it.formatVersion == 1 }
+                ?.let { directory.name to it.mod.name }
+        }.sortedWith(byNameThenId).map { it.first }
 
     /**
      * Two objects may share a display name, and a name-only sort would then fall back to directory

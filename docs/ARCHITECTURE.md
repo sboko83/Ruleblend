@@ -93,12 +93,12 @@ interface the `mcp` module's `McpInstallService` implements. A facade with no MC
 - **Rule scope** — global or one project. Scope is deliberately not a `Block` field: its absolute
   project path is machine state in `config.json`, keyed by block id. Moving scope therefore neither
   bumps the content version nor leaks a local checkout path into the portable library Git history.
-- **`Group`** — `id`, `name`, `description`, ordered `blockIds`, `skillIds`, and `version`
-  (auto-incremented when either membership list changes).
+- **`Group`** — `id`, `name`, `description`, ordered `blockIds`, `skillIds`, `modIds`, and `version`
+  (auto-incremented when any membership list changes).
 - **`Profile`** — a portable, versioned project mode with ordered direct rule/MCP block, skill and
   subagent ids plus flat group ids. It can include groups but not another profile; its version
   increments when any membership list changes, while name-only and description-only edits keep it.
-- **Reserved group `all`** — auto-maintained, holds every block and skill id. Recomputed on load and
+- **Reserved group `all`** — auto-maintained, holds every block, skill and mod id. Recomputed on load and
   library-item changes; profiles are deliberately not members. The group is not editable or
   deletable, is pinned first, and is excluded from export/import (it is derived locally, not
   portable content).
@@ -126,6 +126,7 @@ changing hand-written text outside the managed region.
 | `library/profiles/<id>.yaml` | portable profile definition | no |
 | `library/skills/<id>/meta.yaml` | skill metadata and Git provenance | no |
 | `library/skills/<id>/files/` | complete portable skill directory rooted at `SKILL.md` | no |
+| `library/mods/<id>/meta.yaml` and `files/` | portable Claude Code package metadata and byte-exact plugin root | no |
 | `library/.git/` | JGit repo — every save is a local commit; optional remote is a two-way sync peer | no |
 | `config.json` | app state: projects, profile bindings, rule scopes, settings, window frame, pane sizes, agent toggles, place list, kept drifts, hidden entries | no |
 | `backups/` | manual whole-file snapshots + `index.json` manifest | no |
@@ -275,7 +276,7 @@ see. It is local to that checkout and does not change the directory; discovery s
 entry as ignored so a later directory with the same key stays hidden until the user restores it.
 
 The additive bundle of library objects is the **group**; project modes use profiles. It holds rules and MCP servers in
-`blockIds` (both are blocks) and skills in `skillIds`, carries a version, and lives in the library,
+`blockIds` (both are blocks), skills in `skillIds` and Claude packages in `modIds`, carries a version, and lives in the library,
 so it travels with an export and its Git history and is offered from every list a library object is
 offered from. Setting up a project is therefore one install, not a dozen. Saving a place captures
 what is installed there as a group; a group is never captured into itself, so the saved membership
@@ -450,7 +451,6 @@ without the call would still need the two-rename fallback with its gap.
 
 ## Claude Code mods: implementation contract
 
-This contract guides the pending implementation; mods are not yet exposed by the app.
 Transport assumptions have an [isolated offline gate](../tools/claude_mod_transport_spike.py).
 
 ### Portable packages
@@ -459,9 +459,20 @@ Mods are separate directory-backed objects: `library/mods/<id>/meta.yaml` and `f
 the complete plugin root, manifest identity and opaque upstream version. Metadata holds source
 repository/path/exact revision, a content fingerprint and portable executable paths; groups gain
 `modIds`, including derived `all`, while profiles stay unchanged. Git/ZIP transport whole snapshots,
-never runtime state, options or secrets; conflicting trees remain complete alternatives.
+never machine-local runtime state, option values or secrets; conflicting trees remain complete
+alternatives in the two merge parents, with the local complete tree winning and a surviving edit
+restored against deletion. Payload comparison is byte-exact, including text line endings.
 Fingerprint v1 is SHA-256 over files sorted by UTF-8 relative path: 8-byte big-endian path length,
 path bytes, one executable-intent byte, 8-byte big-endian content length, then exact content bytes.
+
+The portable layout requires Ruleblend **0.5.0 build 263 or newer on both peers**; older libraries
+load with empty `modIds`, but older clients cannot safely read or synchronize the new root/fields.
+Mod metadata always uses LF; `files/` bypasses Git text conversion, including nested attributes.
+ZIP selection closes over group members, including groups referenced by profiles; profiles gain
+no direct mod membership. Storage reads and complete directory publication hold the library lock,
+so no cooperating reader can observe a hybrid package. A failed commit restores the previous tree
+and only that object's index entries; an interrupted rollback remains excluded from Git/ZIP and
+blocks access to that mod until recovered. This library transaction is not a runtime publisher.
 
 ### Discovery compatibility
 
@@ -1236,10 +1247,10 @@ make process startup the dominant cost, so it is not used as this backend.
   scripts executable across zip export/import; differing snapshots conflict because repository
   versions are opaque strings and cannot be ordered safely.
 - Archive entries are accepted only in the known `blocks/`, `groups/`, `profiles/` and validated
-  `skills/<id>/` layouts, so a crafted zip cannot write outside the library. Any other entry, a
+  `skills/<id>/` and `mods/<id>/` layouts, so a crafted zip cannot write outside the library. Any other entry, a
   duplicate path or a damaged zip rejects the whole archive before anything is written; only
   Finder/Windows folder metadata (`.DS_Store`, `__MACOSX/`, `Thumbs.db`, `desktop.ini`) outside skill
-  trees is skipped, because earlier exports copied it verbatim. Export and import share one layout
+  and mod payload trees is skipped, because earlier exports copied it verbatim. Export and import share one layout
   so the library's own archive is always importable.
   Group and profile ids inside YAML must match the archive filename; checking the ZIP path alone
   cannot protect the destination, which is derived from that embedded id.

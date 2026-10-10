@@ -54,6 +54,17 @@ open class LibraryGit(
 
     fun formatText(text: String): String = lineEnding().apply(text)
 
+    /** Restores only this object's index entries after a failed mutation; HEAD never moves. */
+    internal fun restoreIndex(relativePath: Path) = withLock {
+        open().use { git ->
+            if (git.repository.resolve("HEAD") != null) {
+                git.reset().addPath(relativePath.joinToString("/")).call()
+            } else {
+                git.rm().setCached(true).addFilepattern(relativePath.joinToString("/")).call()
+            }
+        }
+    }
+
     /** Applies the local output choice and migrates portable definitions without changing versions. */
     fun configureLineEndings(ending: LineEnding = lineEnding()) = withLock {
         open().use { prepareLineEndings(it, ending) }
@@ -291,7 +302,7 @@ open class LibraryGit(
                 while (tree.next()) {
                     val path = tree.pathString
                     when (path.substringBefore('/')) {
-                        "blocks", "groups", "profiles", "skills", GITIGNORE_FILE -> Unit
+                        "blocks", "groups", "profiles", "skills", "mods", GITIGNORE_FILE -> Unit
                         else -> continue
                     }
                     val mode = tree.getFileMode(0)
@@ -580,7 +591,7 @@ open class LibraryGit(
                     .setTimeout(10)
                     .setNoCheckout(true)
                     .call()
-                    .use { it.checkoutPortableTree() }
+                    .use { it.checkoutPortableTree(protectLibraryPayloads = true) }
             }
             if (!replaceExisting) {
                 AtomicMove.move(staging, root)
@@ -664,7 +675,7 @@ open class LibraryGit(
 
         // Skill files only get their index entry cleared here; the object-level pass below decides
         // which complete skill tree survives, so a skill never ends up as a handful of its files.
-        val skillPaths = paths.filter { it.startsWith("skills/") }
+        val skillPaths = paths.filter { it.startsWith("skills/") || it.startsWith("mods/") }
         skillPaths.forEach { path ->
             if (!resolveFormattingConflict(git, base, local, remote, path)) resolveRawConflict(git, local, remote, path)
         }
@@ -812,7 +823,39 @@ open class LibraryGit(
             .plus(skillIds(repository, remote))
             .distinct()
             .forEach { id -> reconcileSkill(git, base, local, remote, id)?.let(conflicts::add) }
+        modIds(repository, base).plus(modIds(repository, local)).plus(modIds(repository, remote)).distinct()
+            .forEach { id -> reconcileMod(git, base, local, remote, id)?.let(conflicts::add) }
         return conflicts
+    }
+
+    private fun modIds(repository: Repository, commit: ObjectId?): List<String> =
+        treePaths(repository, commit, "mods/").map { it.removePrefix("mods/").substringBefore('/') }.distinct()
+
+    private fun reconcileMod(git: Git, base: ObjectId?, local: ObjectId, remote: ObjectId, id: String): RemoteSyncConflict? {
+        val prefix = "mods/$id/"
+        val repository = git.repository
+        val original = treeEntries(repository, base, prefix)
+        val localTree = treeEntries(repository, local, prefix)
+        val remoteTree = treeEntries(repository, remote, prefix)
+        fun equivalent(left: Map<String, BlobEntry>, right: Map<String, BlobEntry>): Boolean =
+            left.keys == right.keys && left.all { (path, entry) ->
+                val other = right.getValue(path)
+                if (path == "${prefix}meta.yaml") entry.equivalentTo(other)
+                else entry.executable == other.executable && entry.bytes.contentEquals(other.bytes)
+            }
+        if (equivalent(original, localTree) || equivalent(original, remoteTree)) return null
+        val resolved = if (localTree.isEmpty()) remoteTree else localTree
+        (original.keys + localTree.keys + remoteTree.keys).sortedDescending().forEach { path ->
+            writeBlobResolution(git, path, null)
+        }
+        // Drop empty directories before restoring a complete winner (a path may have changed type).
+        val target = root.resolve("mods/$id")
+        if (Files.exists(target)) Files.walk(target).use { paths ->
+            paths.sorted(Comparator.reverseOrder()).filter { Files.isDirectory(it) }.forEach(Files::delete)
+        }
+        resolved.forEach { (path, entry) -> writeBlobResolution(git, path, entry) }
+        if (equivalent(localTree, remoteTree)) return null
+        return RemoteSyncConflict(id, RemoteSyncConflictKind.MOD, restored = localTree.isEmpty() || remoteTree.isEmpty())
     }
 
     /**
@@ -1093,13 +1136,15 @@ open class LibraryGit(
     private fun rebuildAllGroup() {
         val blocks = LibraryMembership.blockIds(root)
         val skills = LibraryMembership.skillIds(root)
+        val mods = LibraryMembership.modIds(root)
         val target = root.resolve(ALL_GROUP_PATH)
         val previous = target.takeIf { it.exists() }?.toFile()?.readText()
             ?.let { text -> runCatching { Yaml.default.decodeFromString(Group.serializer(), text) }.getOrNull() }
         val rebuilt = (previous ?: Group(id = ALL_GROUP_ID, name = ALL_GROUP_ID)).copy(
-            version = if (previous == null || previous.blockIds != blocks || previous.skillIds != skills) (previous?.version ?: 0) + 1 else previous.version,
+            version = if (previous == null || previous.blockIds != blocks || previous.skillIds != skills || previous.modIds != mods) (previous?.version ?: 0) + 1 else previous.version,
             blockIds = blocks,
             skillIds = skills,
+            modIds = mods,
         )
         AtomicWrite.write(target, formatText(Yaml.default.encodeToString(Group.serializer(), rebuilt) + "\n"))
     }
@@ -1113,6 +1158,22 @@ open class LibraryGit(
         git.add().setUpdate(true).addFilepattern("groups").call()
         git.add().setUpdate(true).addFilepattern("profiles").call()
         git.add().setUpdate(true).addFilepattern("skills").call()
+        stageModContent(git)
+    }
+
+    /** New portable roots must never sweep adjacent runtime/options files into a merge commit. */
+    private fun stageModContent(git: Git) {
+        val status = git.status().call()
+        val paths = status.untracked + status.modified + status.missing + status.added + status.removed
+        paths.filter { path ->
+            val parts = path.split('/')
+            parts.size >= 3 && parts[0] == "mods" &&
+                runCatching { checkedLibraryId(parts[1]) }.isSuccess &&
+                ((parts.size == 3 && parts[2] == "meta.yaml") || (parts.size >= 4 && parts[2] == "files"))
+        }.forEach { path ->
+            if (Files.exists(root.resolve(path))) git.add().addFilepattern(path).call()
+            else git.rm().addFilepattern(path).call()
+        }
     }
 
     /** Adds the file Ruleblend created itself to the first content commit, never a user's variant. */
@@ -1192,7 +1253,7 @@ data class RemoteSyncConflict(
     val restored: Boolean = false,
 )
 
-enum class RemoteSyncConflictKind { BLOCK, GROUP, PROFILE, SKILL }
+enum class RemoteSyncConflictKind { BLOCK, GROUP, PROFILE, SKILL, MOD }
 
 private data class RemoteSyncProgress(
     val behind: Int = 0,

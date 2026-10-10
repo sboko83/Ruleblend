@@ -12,6 +12,8 @@ import dev.ruleblend.core.model.Group
 import dev.ruleblend.core.model.NameFormat
 import dev.ruleblend.core.model.Profile
 import dev.ruleblend.core.model.Skill
+import dev.ruleblend.core.model.Mod
+import dev.ruleblend.core.model.ModSnapshot
 import dev.ruleblend.core.model.formatName
 import dev.ruleblend.core.model.localSkillDocument
 import dev.ruleblend.core.model.nextId
@@ -28,6 +30,7 @@ data class LibrarySnapshot(
     val skills: List<Skill> = emptyList(),
     /** Project key each rule is pinned to; a rule that is absent here is global. */
     val ruleScopes: Map<String, String> = emptyMap(),
+    val mods: List<Mod> = emptyList(),
 )
 
 /** What one mutation produced, and the library as it stands afterwards. */
@@ -233,6 +236,16 @@ class MutateLibrary(
             .filter { id in it.skillIds && it.id != ALL_GROUP_ID }
             .forEach { repository.saveGroup(it.copy(skillIds = it.skillIds - id)) }
         forEachProfileNaming({ id in it.skillIds }) { it.copy(skillIds = it.skillIds - id) }
+    }
+
+    fun writeMod(snapshot: ModSnapshot): LibraryChange<Mod> = change {
+        repository.writeMod(snapshot)
+    }
+
+    fun deleteMod(id: String): LibraryChange<Unit> = change {
+        repository.deleteMod(id)
+        repository.listGroups().filter { it.id != ALL_GROUP_ID && id in it.modIds }
+            .forEach { repository.saveGroup(it.copy(modIds = it.modIds - id)) }
     }
 
     /**

@@ -4,6 +4,7 @@ import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.Group
 import dev.ruleblend.core.model.Profile
 import dev.ruleblend.core.model.SkillSnapshot
+import dev.ruleblend.core.model.ModSnapshot
 
 /** What importing an item would do to the library. */
 enum class ChangeKind {
@@ -32,12 +33,15 @@ data class ProfileChange(val incoming: Profile, val local: Profile?, val kind: C
 /** One complete skill directory from an archive. Differing snapshots are conflicts: versions are opaque strings. */
 data class SkillChange(val incoming: SkillSnapshot, val local: SkillSnapshot?, val kind: ChangeKind)
 
+data class ModChange(val incoming: ModSnapshot, val local: ModSnapshot?, val kind: ChangeKind)
+
 /** Everything an archive would change. Nothing is written until the user picks. */
 data class ImportPlan(
     val blocks: List<BlockChange>,
     val groups: List<GroupChange>,
     val skills: List<SkillChange> = emptyList(),
     val profiles: List<ProfileChange> = emptyList(),
+    val mods: List<ModChange> = emptyList(),
 ) {
 
     /** Items worth showing: [ChangeKind.SAME] entries are noise — importing them is a no-op. */
@@ -46,8 +50,10 @@ data class ImportPlan(
     val actionableSkills: List<SkillChange> get() = skills.filter { it.kind != ChangeKind.SAME }
     val actionableProfiles: List<ProfileChange> get() = profiles.filter { it.kind != ChangeKind.SAME }
 
+    val actionableMods: List<ModChange> get() = mods.filter { it.kind != ChangeKind.SAME }
+
     val isEmpty: Boolean get() =
-        actionableBlocks.isEmpty() && actionableGroups.isEmpty() && actionableSkills.isEmpty() && actionableProfiles.isEmpty()
+        actionableBlocks.isEmpty() && actionableGroups.isEmpty() && actionableSkills.isEmpty() && actionableProfiles.isEmpty() && actionableMods.isEmpty()
 }
 
 /** Compares an archive against the current library. Pure: no I/O, no writes. */
@@ -62,6 +68,8 @@ object ImportMerge {
         localSkills: List<SkillSnapshot> = emptyList(),
         incomingProfiles: List<Profile> = emptyList(),
         localProfiles: List<Profile> = emptyList(),
+        incomingMods: List<ModSnapshot> = emptyList(),
+        localMods: List<ModSnapshot> = emptyList(),
     ): ImportPlan {
         val localBlocksById = localBlocks.associateBy { it.id }
         val localGroupsById = localGroups.associateBy { it.id }
@@ -75,6 +83,15 @@ object ImportMerge {
             skills = incomingSkills.map { incoming ->
                 val local = localSkills.find { it.skill.id == incoming.skill.id }
                 SkillChange(incoming, local, itemKind(incoming, local))
+            },
+            mods = incomingMods.map { incoming ->
+                val local = localMods.find { it.mod.id == incoming.mod.id }
+                val kind = when {
+                    local == null -> ChangeKind.NEW
+                    incoming.mod == local.mod && incoming.files.sortedBy { it.path } == local.files.sortedBy { it.path } -> ChangeKind.SAME
+                    else -> ChangeKind.CONFLICT
+                }
+                ModChange(incoming, local, kind)
             },
             profiles = incomingProfiles.map { incoming ->
                 val local = localProfiles.find { it.id == incoming.id }

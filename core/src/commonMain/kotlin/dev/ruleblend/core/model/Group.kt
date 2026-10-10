@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 const val ALL_GROUP_ID = "all"
 
 /**
- * Ordered set of blocks and skills, stored in `groups/<id>.yaml`. [version] increments when either
+ * Ordered set of blocks, skills and mods, stored in `groups/<id>.yaml`. [version] increments when any
  * membership list changes, so a target can tell whether an installed group is stale.
  */
 @Serializable
@@ -17,4 +17,5 @@ data class Group(
     val blockIds: List<String> = emptyList(),
     val skillIds: List<String> = emptyList(),
     val version: Int = 1,
+    val modIds: List<String> = emptyList(),
 )

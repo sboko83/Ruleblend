@@ -7,6 +7,10 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+- Library Git sync and ZIP archives preserve complete Claude Code mod packages, including executable
+  files, group membership and whole-package conflict alternatives.
+
 ### Fixed
 - Tooltips appear above and to the right of the pointer, keeping controls clickable.
 - The Library label in Settings → About stays on one line.

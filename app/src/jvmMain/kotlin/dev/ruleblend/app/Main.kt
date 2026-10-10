@@ -447,7 +447,7 @@ internal fun App(
                 dev.ruleblend.app.library.LibraryObjectKind.SUBAGENT,
             )
             RemoteSyncConflictKind.GROUP -> item.key.kind == dev.ruleblend.app.library.LibraryObjectKind.GROUP
-            RemoteSyncConflictKind.PROFILE -> false
+            RemoteSyncConflictKind.PROFILE, RemoteSyncConflictKind.MOD -> false
             RemoteSyncConflictKind.SKILL -> item.key.kind == dev.ruleblend.app.library.LibraryObjectKind.SKILL
         }
     }?.key

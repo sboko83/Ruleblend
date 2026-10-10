@@ -44,8 +44,9 @@ class ImportLibrary(
         groupIds: Set<String>,
         skillIds: Set<String> = emptySet(),
         profileIds: Set<String> = emptySet(),
+        modIds: Set<String> = emptySet(),
     ): LibrarySnapshot {
-        archive.apply(plan, blockIds, groupIds, skillIds, profileIds)
+        archive.apply(plan, blockIds, groupIds, skillIds, profileIds, modIds)
         return synced()
     }
 

@@ -12,7 +12,7 @@ internal fun Git.preserveFileBytes(): Git = apply {
 }
 
 /** Populate a fresh no-checkout clone after disabling machine-wide newline conversion. */
-internal fun Git.checkoutPortableTree() {
+internal fun Git.checkoutPortableTree(protectLibraryPayloads: Boolean = false) {
     preserveFileBytes()
     RevWalk(repository).use { revisions ->
         val commit = revisions.parseCommit(repository.resolve("HEAD"))
@@ -23,5 +23,6 @@ internal fun Git.checkoutPortableTree() {
             requirePortableFileTree(paths)
         }
     }
+    if (protectLibraryPayloads) LibraryLineEndings(repository.workTree.toPath()).protectPayloads(this)
     checkout().setStartPoint("HEAD").setAllPaths(true).call()
 }

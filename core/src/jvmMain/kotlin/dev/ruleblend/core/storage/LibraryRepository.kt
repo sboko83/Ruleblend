@@ -13,6 +13,8 @@ import dev.ruleblend.core.model.SkillFile
 import dev.ruleblend.core.model.SkillMeta
 import dev.ruleblend.core.model.SkillSnapshot
 import dev.ruleblend.core.model.LineEnding
+import dev.ruleblend.core.model.Mod
+import dev.ruleblend.core.model.ModSnapshot
 import dev.ruleblend.core.model.requirePortableFileTree
 import dev.ruleblend.core.model.updateSkillDocumentMetadata
 import java.nio.file.Files
@@ -66,6 +68,7 @@ class LibraryRepository(
     private val groupsDir: Path = root.resolve("groups")
     private val profilesDir: Path = root.resolve("profiles")
     private val skillsDir: Path = root.resolve("skills")
+    private val mods = ModStorage(root, git)
 
     /**
      * Runs [body] holding the library write lock, so a multi-step mutation (an import batch, a
@@ -192,7 +195,7 @@ class LibraryRepository(
         val existing = loadGroup(group.id)
         val saved = when {
             existing == null -> group
-            existing.blockIds != group.blockIds || existing.skillIds != group.skillIds ->
+            existing.blockIds != group.blockIds || existing.skillIds != group.skillIds || existing.modIds != group.modIds ->
                 group.copy(version = existing.version + 1)
             else -> group.copy(version = existing.version)
         }
@@ -420,21 +423,36 @@ class LibraryRepository(
         it.source?.repository == source.repository && it.source.path == source.path
     }
 
-    /**
-     * Keeps the reserved "all" group's membership equal to every block and skill id. A no-op (no write,
-     * no version bump) when membership already matches. Must run after any block create/delete —
-     * every facade (GUI, MCP) mutating blocks calls it. The order comes from [LibraryMembership],
-     * which a remote merge rebuilds the same group with.
-     */
+    /** Mod payloads are always read under the same lock as directory replacement and Git sync. */
+    fun listMods(): List<Mod> = withLock { mods.list().map { it.mod } }
+
+    fun loadMod(id: String): Mod? = withLock { mods.load(id)?.mod }
+
+    fun loadModSnapshot(id: String): ModSnapshot? = withLock { mods.load(id) }
+
+    fun writeMod(snapshot: ModSnapshot): Mod = withLock {
+        mods.write(snapshot)
+        requireNotNull(mods.load(snapshot.mod.id)).mod
+    }
+
+    fun deleteMod(id: String): Unit = withLock { mods.delete(id) }
+
+    fun modHistory(id: String, limit: Int = HISTORY_LIMIT): List<LibraryRevision> = history(mods.path(id), limit)
+
+    fun modDiff(id: String, revision: String): String = diff(mods.path(id), revision)
+
+    /** Rebuilds all portable membership with the same stable ordering used by remote merges. */
     fun syncAllGroup(): Unit = withLock {
         val ids = LibraryMembership.blockIds(root)
         val skillIds = LibraryMembership.skillIds(root)
+        val modIds = LibraryMembership.modIds(root)
         val existing = loadGroup(ALL_GROUP_ID)
-        if (existing?.blockIds == ids && existing.skillIds == skillIds) return@withLock
+        if (existing?.blockIds == ids && existing.skillIds == skillIds && existing.modIds == modIds) return@withLock
         saveGroup(
             (existing ?: Group(id = ALL_GROUP_ID, name = ALL_GROUP_ID)).copy(
                 blockIds = ids,
                 skillIds = skillIds,
+                modIds = modIds,
             ),
         )
     }
@@ -556,6 +574,7 @@ class LibraryRepository(
         groups: List<Group> = emptyList(),
         skills: List<SkillSnapshot> = emptyList(),
         profiles: List<Profile> = emptyList(),
+        modSnapshots: List<ModSnapshot> = emptyList(),
     ) {
         fun ids(values: List<String>, path: (String) -> Path) {
             require(values.map { it.lowercase() }.distinct().size == values.size) { "Duplicate library ids" }
@@ -567,6 +586,8 @@ class LibraryRepository(
         ids(profiles.map { it.id }, ::profilePath)
         ids(skills.map { it.skill.id }, ::skillPath)
         skills.forEach(::validateSkillSnapshot)
+        ids(modSnapshots.map { it.mod.id }, mods::path)
+        modSnapshots.forEach(::validateModSnapshot)
     }
 
     private fun skillRollbackPath(id: String): Path = skillsDir.resolve(".${checkedLibraryId(id)}.rollback")

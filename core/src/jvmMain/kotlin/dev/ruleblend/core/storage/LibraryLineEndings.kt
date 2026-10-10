@@ -30,8 +30,11 @@ internal class LibraryLineEndings(private val root: Path) {
         if (config.toText() != before) config.save()
         updateAttributes(root.resolve(ATTRIBUTES_FILE))
         // Highest precedence protects payloads even when an imported tree has .gitattributes.
-        updateAttributes(git.repository.directory.toPath().resolve("info/attributes"))
+        protectPayloads(git)
     }
+
+    /** Installed before a library clone's first checkout; nested payload attributes cannot convert bytes. */
+    fun protectPayloads(git: Git) = updateAttributes(git.repository.directory.toPath().resolve("info/attributes"))
 
     /** Converts only clean definitions; edited and staged files retain their exact bytes. */
     fun normalizeCleanDefinitions(git: Git, ending: LineEnding): List<String> {
@@ -57,7 +60,7 @@ internal class LibraryLineEndings(private val root: Path) {
                         !current.toString(Charsets.UTF_8).encodeToByteArray().contentEquals(current)) continue
                     val canonical = LineEnding.LF.apply(committed.toString(Charsets.UTF_8))
                     if (LineEnding.LF.apply(current.toString(Charsets.UTF_8)) != canonical) continue
-                    val formatted = ending.apply(canonical).encodeToByteArray()
+                    val formatted = (if (path.startsWith("mods/")) LineEnding.LF else ending).apply(canonical).encodeToByteArray()
                     if (!current.contentEquals(formatted) &&
                         !AtomicWrite.writeIfUnchanged(target, formatted, FileIdentity.of(current))) continue
                     clean += path
@@ -101,7 +104,7 @@ internal class LibraryLineEndings(private val root: Path) {
         const val ATTRIBUTES_FILE = ".gitattributes"
         private const val BEGIN = "# BEGIN Ruleblend line endings"
         private const val END = "# END Ruleblend line endings"
-        private val definitionPath = Regex("(?:blocks/[^/]+\\.md|(?:groups|profiles)/[^/]+\\.yaml|skills/[^/]+/meta\\.yaml)")
+        private val definitionPath = Regex("(?:blocks/[^/]+\\.md|(?:groups|profiles)/[^/]+\\.yaml|(?:skills|mods)/[^/]+/meta\\.yaml)")
         val MANAGED_ATTRIBUTES = """
             $BEGIN
             /blocks/*.md text !eol
@@ -109,6 +112,8 @@ internal class LibraryLineEndings(private val root: Path) {
             /profiles/*.yaml text !eol
             /skills/*/meta.yaml text !eol
             /skills/*/files/** -text !eol
+            /mods/*/meta.yaml text eol=lf
+            /mods/*/files/** -text !eol
             /.gitattributes -text !eol
             $END
         """.trimIndent() + "\n"

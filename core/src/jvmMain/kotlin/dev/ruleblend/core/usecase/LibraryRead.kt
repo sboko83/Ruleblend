@@ -14,5 +14,6 @@ internal fun readLibrary(repository: LibraryRepository, configStore: ConfigStore
         groups = repository.listGroups(),
         profiles = repository.listProfiles(),
         skills = repository.listSkills(),
+        mods = repository.listMods(),
         ruleScopes = configStore.load().ruleScopes,
     )
