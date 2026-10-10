@@ -524,6 +524,8 @@ Only a confirmed local sidecar grants ownership: record library id, qualified pl
 registered marketplace path, accepted snapshot fingerprint and operation state. Missing/corrupt
 state, foreign origins and built-ins remain foreign even when names/bytes match; reserve collisions
 before any CLI write, reject duplicate manifest names, and never rename imported manifests.
+Compare installed manifest names as well as marketplace entry ids; prefer `readFromFolder` when
+provided so inspection and import use the active source rather than a stale install cache.
 Journal before catalog publication and reconcile CLI state after every result or interruption;
 write the sidecar atomically only after confirmation. On failure restore the previous catalog,
 retain both snapshots, and report unresolved CLI/config state rather than claiming rollback.
@@ -534,7 +536,9 @@ runtime data but removes stored options/secrets on the last uninstall. Old snaps
 serve open sessions: v1 performs no automatic snapshot GC. [Uninstall semantics](https://code.claude.com/docs/en/plugins/cli-reference#what-an-uninstall-deletes-and-keeps).
 
 The core runtime contract supports Claude Code user scope only; other targets refuse before CLI or
-filesystem access. It shares the desktop CLI resolver and Windows wrapper bridge, uses bounded
+filesystem access. CLI calls run from the local Ruleblend state directory and select user settings;
+In 2.1.287, `plugin list` ignores that flag alone, allowing project overrides to masquerade as global drift.
+It shares the desktop CLI resolver and Windows wrapper bridge, uses bounded
 process output and typed timeout/cancellation errors, and never forwards child output to stdout.
 `mod-runtime/state.json` format 1 binds the exact owned catalogue and immutable snapshots to
 confirmed records and one pending operation under `ruleblend.lock`. A pending operation blocks

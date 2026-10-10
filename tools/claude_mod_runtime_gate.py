@@ -20,7 +20,8 @@ def main():
     args = parser.parse_args()
     if args.dry_run:
         print('Prove OS isolation in a new /private/tmp fixture; run only the JVM adapter gate;')
-        print('check real CLI install/update/toggle/uninstall, restart recovery, drift and keep-data;')
+        print('check real CLI lifecycle, reinstall, recovery, aliases, user settings isolation and keep-data;')
+        print('sync two device libraries through a local bare remote, then verify explicit Apply and orphan controls;')
         print('deny real home, network, Keychain and package child commands; remove the fixture.')
         return
     assert sys.platform == 'darwin' and args.claude, 'macOS and an installed Claude CLI are required'
@@ -41,7 +42,8 @@ def main():
                                  '*ClaudeModRuntimeMacOsIntegrationTest', '--rerun-tasks'], cwd=repo,
                                 env={**os.environ, 'RULEBLEND_MOD_GATE_CONTROL': str(control)})
         assert result.returncode == 0, 'JVM adapter gate failed'
-        print('PASS: real CLI adapter lifecycle, partial failure, restart recovery, foreign drift and keep-data.')
+        print('PASS: real CLI lifecycle, reinstall, recovery, foreign aliases, user settings isolation, drift and keep-data;')
+        print('two-device local Git transfer, explicit Apply, whole-package conflict and orphan controls.')
     finally:
         shutil.rmtree(fixture.root)
         assert not fixture.root.exists()

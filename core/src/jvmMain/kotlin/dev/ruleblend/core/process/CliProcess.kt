@@ -105,10 +105,11 @@ fun resolveCli(executable: String): CliProbe? {
 }
 
 /** Launch directly with the captured login PATH so shell greetings cannot corrupt CLI JSON. */
-fun resolvedCliProcess(executable: String): CliProcess {
+fun resolvedCliProcess(executable: String, directory: Path? = null): CliProcess {
     val runner by lazy {
         val probe = resolveCli(executable) ?: throw ModRuntimeException(ModRuntimeError.CLI_UNAVAILABLE, "CLI executable is unavailable")
-        BoundedCliProcess(listOf(probe.path), environment = probe.searchPath?.let { mapOf("PATH" to it) }.orEmpty())
+        BoundedCliProcess(listOf(probe.path), directory = directory,
+            environment = probe.searchPath?.let { mapOf("PATH" to it) }.orEmpty())
     }
     return CliProcess { runner.run(it) }
 }

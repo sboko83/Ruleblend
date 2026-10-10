@@ -35,10 +35,12 @@ internal class FakeModCli(private val root: Path) : CliProcess {
     }
 
     override fun run(arguments: List<String>): CliProcessResult {
-        calls += arguments
-        if (arguments == listOf("--version")) return CliProcessResult(0, version)
-        if (arguments.last() == "--help") return CliProcessResult(0, "--scope --json --keep-data")
-        val args = arguments.drop(1)
+        assertEquals(listOf("--setting-sources", "user"), arguments.take(2))
+        val scoped = arguments.drop(2)
+        calls += scoped
+        if (scoped == listOf("--version")) return CliProcessResult(0, version)
+        if (scoped.last() == "--help") return CliProcessResult(0, "--scope --json --keep-data")
+        val args = scoped.drop(1)
         if (args == listOf("list", "--json")) return CliProcessResult(0, JsonArray(plugins).toString())
         if (args == listOf("marketplace", "list", "--json")) return CliProcessResult(0, JsonArray(listOfNotNull(marketplace)).toString())
         beforeCommand?.invoke(args)
@@ -132,6 +134,20 @@ class ClaudeModRuntimeTest {
         assertEquals(ModRuntimeState.DRIFT, runtime.probe(target, "demo").state)
     }
 
+    @Test fun `reinstall after uninstall enables the package and clears the journal`() {
+        runtime.install(target, runtimeFixture())
+        runtime.disable(target, "demo")
+        runtime.remove(target, "demo", runtime.previewRemove(target, "demo"))
+        val restarted = adapter()
+        val installed = restarted.install(target, runtimeFixture(revision = "B"))
+        assertEquals(ModRuntimeState.OWNED, installed.state)
+        assertTrue(installed.installed && installed.enabled)
+        assertEquals(installed, adapter().probe(target, "demo"))
+        assertNull(store.load().pending)
+        assertFalse(restarted.disable(target, "demo").enabled)
+        assertFalse(restarted.update(target, runtimeFixture(revision = "C")).enabled)
+    }
+
     @Test fun `last uninstall preview accounts for other scopes without reading secrets`() {
         runtime.install(target, runtimeFixture())
         cli.plugins += cli.plugin(scope = "project")
@@ -155,6 +171,36 @@ class ClaudeModRuntimeTest {
         assertEquals(ModRuntimeState.FOREIGN, status.state)
         assertEquals("demo@skills-dir", status.pluginId)
         assertTrue(status.installed)
+    }
+
+    @Test fun `foreign marketplace aliases cannot hide a colliding manifest name`() {
+        val foreign = scratch.resolve("foreign package")
+        Files.createDirectories(foreign.resolve(".claude-plugin"))
+        Files.writeString(foreign.resolve(".claude-plugin/plugin.json"), """{"name":"demo"}""")
+        cli.plugins += JsonObject(cli.plugin("alias@foreign") + ("installPath" to JsonPrimitive(foreign.toString())))
+        assertEquals(ModRuntimeState.FOREIGN, runtime.probe(target, "library-id", "demo").state)
+        error(ModRuntimeError.FOREIGN) { runtime.install(target, runtimeFixture()) }
+        assertFalse(Files.exists(store.stateFile))
+        assertFalse(Files.exists(store.catalogFile))
+        cli.plugins.clear()
+        runtime.install(target, runtimeFixture())
+        cli.plugins += JsonObject(cli.plugin("alias@foreign") + ("installPath" to JsonPrimitive(foreign.toString())))
+        assertEquals(ModRuntimeState.DRIFT, runtime.probe(target, "demo").state)
+        error(ModRuntimeError.DRIFT) { runtime.disable(target, "demo") }
+    }
+
+    @Test fun `in place source takes precedence over stale install cache`() {
+        val cached = scratch.resolve("cache")
+        val current = scratch.resolve("current")
+        for ((path, name) in listOf(cached to "old-name", current to "demo")) {
+            Files.createDirectories(path.resolve(".claude-plugin"))
+            Files.writeString(path.resolve(".claude-plugin/plugin.json"), """{"name":"$name"}""")
+        }
+        cli.plugins += JsonObject(cli.plugin("alias@foreign") + mapOf(
+            "installPath" to JsonPrimitive(cached.toString()), "readFromFolder" to JsonPrimitive(current.toString())))
+        assertEquals(current.toString(), runtime.inventory(target).single().installPath)
+        assertEquals(ModRuntimeState.FOREIGN, runtime.probe(target, "demo").state)
+        error(ModRuntimeError.FOREIGN) { runtime.install(target, runtimeFixture()) }
     }
 
     @Test fun `recovery permits retry after failed initial install without removing its marketplace`() {
@@ -276,7 +322,7 @@ class ClaudeModRuntimeTest {
         cli.version = "2.1.286"
         error(ModRuntimeError.INCOMPATIBLE) { runtime.install(target, runtimeFixture()) }
         assertFalse(Files.exists(store.stateFile))
-        val noFlags = ClaudeModRuntime(root, CliProcess { args -> CliProcessResult(0, if (args == listOf("--version")) "2.1.287" else "--json") })
+        val noFlags = ClaudeModRuntime(root, CliProcess { args -> CliProcessResult(0, if (args.last() == "--version") "2.1.287" else "--json") })
         error(ModRuntimeError.INCOMPATIBLE) { noFlags.install(target, runtimeFixture()) }
     }
 

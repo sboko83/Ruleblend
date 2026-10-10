@@ -7,13 +7,14 @@ import dev.ruleblend.core.storage.InterProcessLock
 import dev.ruleblend.core.storage.ModImport
 import dev.ruleblend.core.storage.modTreeFingerprint
 import dev.ruleblend.core.storage.validateModSnapshot
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.serialization.json.*
 
 /** User-scope only. Library import/sync and this runtime never share writable package trees. */
 class ClaudeModRuntime(
     root: Path = Path.of(System.getProperty("user.home"), ".ruleblend", "mod-runtime"),
-    private val process: CliProcess = resolvedCliProcess("claude"),
+    private val process: CliProcess = resolvedCliProcess("claude", directory = root.toAbsolutePath().parent),
     private val lock: InterProcessLock = InterProcessLock(root.toAbsolutePath().parent.resolve("ruleblend.lock")),
 ) : ModRuntime {
     private val store = ModRuntimeStore(root.toAbsolutePath().normalize())
@@ -51,7 +52,7 @@ class ClaudeModRuntime(
                     return@locked actualStatus(pending.desired, ModRuntimeState.PENDING, actual)
             }
             val record = journal.records[libraryId] ?: run {
-                val foreign = actual.plugins.firstOrNull { it.id.substringBefore('@') == (manifestName ?: libraryId) }
+                val foreign = actual.plugins.firstOrNull { it.hasName(manifestName ?: libraryId) }
                 return@locked ModRuntimeStatus(libraryId,
                     if (foreign != null || (journal.catalog == null && store.text(store.catalogFile) != null))
                         ModRuntimeState.FOREIGN else ModRuntimeState.ABSENT,
@@ -82,11 +83,12 @@ class ClaudeModRuntime(
             if (update && before?.installed != true) fail(ModRuntimeError.INVALID_STATE)
             if (journal.records.values.any { it.libraryId != snapshot.mod.id && it.pluginId == pluginId }) fail(ModRuntimeError.FOREIGN)
             if (journal.records.keys.any { it != snapshot.mod.id && it.equals(snapshot.mod.id, ignoreCase = true) }) fail(ModRuntimeError.FOREIGN)
-            if (actual.plugins.any { plugin -> plugin.id.substringBefore('@') == name &&
+            if (actual.plugins.any { plugin -> plugin.hasName(name) &&
                     (before?.installed != true || plugin.id != pluginId || plugin.scope != "user") }) fail(ModRuntimeError.FOREIGN)
             marketplaceSafe(journal, actual)
             val desired = OwnedMod(snapshot.mod.id, pluginId, store.root.toString(), modTreeFingerprint(snapshot.files),
-                snapshot.files.filter { it.executable }.map { it.path }, enabled = before?.enabled ?: true)
+                snapshot.files.filter { it.executable }.map { it.path },
+                enabled = if (before?.installed == true) before.enabled else true)
             if (before?.installed == true && before.fingerprint == desired.fingerprint) return@locked status(before)
             store.materialize(snapshot, desired)
             val after = catalogue(journal.catalog, desired)
@@ -215,21 +217,37 @@ class ClaudeModRuntime(
         }.toString() + "\n"
     }
 
-    private data class Plugin(val id: String, val scope: String, val enabled: Boolean, val installPath: String?, val builtIn: Boolean)
+    private data class Plugin(val id: String, val scope: String, val enabled: Boolean, val installPath: String?,
+        val builtIn: Boolean, val manifestName: String?) {
+        fun hasName(name: String) = id.substringBefore('@') == name || manifestName == name
+    }
     private data class Actual(val plugins: List<Plugin>, val marketplace: JsonObject?)
 
     private fun observe(): Actual {
         val plugins = array(listOf("list", "--json")).map { item ->
             val obj = item.jsonObject
+            val path = obj["readFromFolder"]?.jsonPrimitive?.contentOrNull
+                ?: obj["installPath"]?.jsonPrimitive?.contentOrNull
             Plugin(obj.getValue("id").jsonPrimitive.content, obj.getValue("scope").jsonPrimitive.content,
                 obj.getValue("enabled").jsonPrimitive.boolean,
-                obj["installPath"]?.jsonPrimitive?.contentOrNull,
-                obj["builtin"]?.jsonPrimitive?.booleanOrNull == true || obj.getValue("id").jsonPrimitive.content.endsWith("@builtin"))
+                path,
+                obj["builtin"]?.jsonPrimitive?.booleanOrNull == true || obj.getValue("id").jsonPrimitive.content.endsWith("@builtin"),
+                manifestName(path))
         }
         val markets = array(listOf("marketplace", "list", "--json")).map { it.jsonObject }
             .filter { it["name"]?.jsonPrimitive?.content == "ruleblend-mods" }
         if (markets.size > 1) fail(ModRuntimeError.DRIFT)
         return Actual(plugins, markets.singleOrNull())
+    }
+
+    /** Marketplace entry aliases are not component namespaces. Read metadata only, never code. */
+    private fun manifestName(directory: String?): String? {
+        val path = directory?.let { Path.of(it).resolve(".claude-plugin/plugin.json") } ?: return null
+        if (!Files.exists(path)) return null // Manifest-less plugins use their entry name.
+        require(Files.isRegularFile(path) && Files.size(path) <= 1024 * 1024) { "Invalid installed plugin manifest" }
+        val name = Json.parseToJsonElement(Files.readString(path)).jsonObject["name"] ?: return null
+        require(name is JsonPrimitive && name.isString) { "Invalid installed plugin name" }
+        return name.content
     }
 
     private fun marketplaceOriginSafe(actual: Actual): Boolean = actual.marketplace?.let { market ->
@@ -251,7 +269,7 @@ class ClaudeModRuntime(
         val entry = entries.singleOrNull { it.jsonObject["name"]?.jsonPrimitive?.content == record.pluginId.substringBefore('@') }
         if (entry?.jsonObject?.get("source")?.jsonPrimitive?.content != "./snapshots/${record.libraryId}-${record.fingerprint}" || !store.snapshotMatches(record)) return false
         val installed = actual.plugins.filter { it.id == record.pluginId && it.scope == record.scope }
-        if (actual.plugins.any { it.id.substringBefore('@') == record.pluginId.substringBefore('@') && it.id != record.pluginId }) return false
+        if (actual.plugins.any { it.hasName(record.pluginId.substringBefore('@')) && it.id != record.pluginId }) return false
         return if (!record.installed) installed.isEmpty() else installed.size == 1 && installed.single().enabled == record.enabled
     }
 
@@ -306,7 +324,9 @@ class ClaudeModRuntime(
         compatible = true
     }
 
-    private fun run(args: List<String>) = process.run(args).also { if (it.exitCode != 0) fail(ModRuntimeError.CLI_FAILED) }
+    // Also use the Ruleblend directory as cwd: 2.1.287 plugin list ignores this source filter.
+    private fun run(args: List<String>) = process.run(listOf("--setting-sources", "user") + args)
+        .also { if (it.exitCode != 0) fail(ModRuntimeError.CLI_FAILED) }
     private fun array(args: List<String>): JsonArray = Json.parseToJsonElement(run(listOf("plugin") + args).stdout) as? JsonArray
         ?: fail(ModRuntimeError.INVALID_STATE)
     private fun mutation(args: List<String>) {

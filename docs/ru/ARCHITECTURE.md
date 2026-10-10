@@ -535,6 +535,8 @@ scope; marketplace auto-update выключен. Refresh не публикует
 registered marketplace path, принятый fingerprint и operation state. Потерянный/повреждённый
 state, foreign origins и built-ins остаются чужими даже при совпадении имени/байтов. До CLI write
 проверять collisions, отклонять duplicate manifest names; не переименовывать чужой manifest.
+Сравнивать manifest names установленных пакетов вместе с marketplace entry ids; при наличии
+`readFromFolder` читать и импортировать активный source, а не устаревший install cache.
 Журналировать до публикации catalog, сверять CLI state после результата/прерывания; атомарно
 писать sidecar лишь после подтверждения. При сбое вернуть прежний catalog, сохранить оба
 snapshots и явно показать неразрешённый CLI/config state, если rollback не подтверждён.
@@ -545,7 +547,9 @@ runtime data, но удаляет options/secrets. Старые snapshots мог
 в v1 нет автоматического snapshot GC. [Семантика удаления](https://code.claude.com/docs/en/plugins/cli-reference#what-an-uninstall-deletes-and-keeps).
 
 Core runtime contract поддерживает только Claude Code user scope; прочие targets отклоняются до
-CLI и доступа к файловой системе. Общий с desktop поиск CLI и Windows wrapper bridge сохраняет
+CLI и доступа к файловой системе. CLI запускается из локального каталога Ruleblend с выбором user settings;
+в 2.1.287 `plugin list` игнорирует этот flag сам по себе, принимая project overrides за global drift.
+Общий с desktop поиск CLI и Windows wrapper bridge сохраняет
 argv; process boundary ограничивает output, возвращает typed timeout/cancellation и не передаёт
 вывод дочернего процесса в stdout. Формат 1 `mod-runtime/state.json` связывает точный owned catalog
 и immutable snapshots с подтверждёнными records и одной pending operation под `ruleblend.lock`.

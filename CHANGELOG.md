@@ -22,3 +22,6 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - The Library label in Settings → About stays on one line.
 - Home reports missing assistant components and moved MCP paths; updating an existing connection
   restores its missing components.
+- core: Claude Code mods reinstall cleanly after removal, detect foreign plugins with aliased names,
+  and use user settings for global actions. Installed-package imports prefer the active source folder
+  when Claude reports it instead of an older cache copy.
