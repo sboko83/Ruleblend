@@ -448,6 +448,65 @@ directories (`renamex_np(RENAME_SWAP)`, `renameat2(RENAME_EXCHANGE)`) is reachab
 toolchain only through a new native dependency (JNA) or a JDK 22+ toolchain for FFM, and filesystems
 without the call would still need the two-rename fallback with its gap.
 
+## Claude Code mods: implementation contract
+
+This contract guides the pending implementation; mods are not yet exposed by the app.
+Transport assumptions have an [isolated offline gate](../tools/claude_mod_transport_spike.py).
+
+### Portable packages
+
+Mods are separate directory-backed objects: `library/mods/<id>/meta.yaml` and `files/` preserve
+the complete plugin root, manifest identity and opaque upstream version. Metadata holds source
+repository/path/exact revision, a content fingerprint and portable executable paths; groups gain
+`modIds`, including derived `all`, while profiles stay unchanged. Git/ZIP transport whole snapshots,
+never runtime state, options or secrets; conflicting trees remain complete alternatives.
+Fingerprint v1 is SHA-256 over files sorted by UTF-8 relative path: 8-byte big-endian path length,
+path bytes, one executable-intent byte, 8-byte big-endian content length, then exact content bytes.
+
+### Discovery compatibility
+
+Root plugins, nested monorepo plugins and local relative marketplace entries share bounded
+discovery. Reject links, escaping/nonportable or case-colliding paths, remote/command sources,
+plugin dependencies and packages needing dependency installation/build scripts; never execute
+package code during discovery, import or sync. Keep existing Git tree/manifest limits.
+A mod requires a manifest and a hooks file with `modules`; inspect both `hooks/hooks.json` and
+manifest-declared hooks paths/arrays, resolving module paths relative to their hooks file.
+Ordinary inline settings hooks alone are not mods. Claude 2.1.287 validates inline `hooks.modules`
+but ignores it at runtime as an unknown hook event: report an explicit incompatibility rather
+than importing a nonfunctional mod. Standard and custom hooks files are supported. Import
+acceptance is structural, not a safety claim; show every bundled component before installation.
+
+### Runtime transport
+
+Use a dedicated local directory marketplace under `~/.ruleblend/mod-runtime/`; relative entries
+point only to accepted immutable snapshots, never Library files. Sync/source import cannot modify
+this catalog. Under the existing process lock, Apply validates/materializes a new tree, journals
+the prior catalog and atomically publishes one changed entry; other entries and snapshots stay fixed.
+Use qualified CLI ids and user scope; keep marketplace auto-update off. Refreshing the marketplace
+must not publish unaccepted snapshots. Do not rewrite upstream manifest versions to force updates.
+Claude Code 2.1.287 is the minimum supported baseline; check version and required CLI flags first.
+Its equal-version `plugin update` can report `up_to_date` and leave a stale cache install record
+while a cold session loads the new relative source. Confirm the registered directory, entry path,
+snapshot fingerprint and user install/enable state together; `installPath` alone is insufficient.
+An open session retains its loaded revision until `/reload-plugins` or restart; report reload
+required even after installation is confirmed. See [loading](https://code.claude.com/docs/en/plugins/loading)
+and [CLI semantics](https://code.claude.com/docs/en/plugins/cli-reference).
+
+### Ownership and recovery
+
+Only a confirmed local sidecar grants ownership: record library id, qualified plugin id, scope,
+registered marketplace path, accepted snapshot fingerprint and operation state. Missing/corrupt
+state, foreign origins and built-ins remain foreign even when names/bytes match; reserve collisions
+before any CLI write, reject duplicate manifest names, and never rename imported manifests.
+Journal before catalog publication and reconcile CLI state after every result or interruption;
+write the sidecar atomically only after confirmation. On failure restore the previous catalog,
+retain both snapshots, and report unresolved CLI/config state rather than claiming rollback.
+Do not edit Claude's cache or install/marketplace registries. Disable, uninstall and Library delete
+are separate operations; removing a library object cannot remove an installation or runtime tree.
+Use per-plugin uninstall, never marketplace removal for that purpose. `--keep-data` preserves
+runtime data but removes stored options/secrets on the last uninstall. Old snapshots may still
+serve open sessions: v1 performs no automatic snapshot GC. [Uninstall semantics](https://code.claude.com/docs/en/plugins/cli-reference#what-an-uninstall-deletes-and-keeps).
+
 ## Integration mechanics
 
 **The target file is the only source of truth for managed rule regions.**

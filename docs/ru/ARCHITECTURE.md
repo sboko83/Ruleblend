@@ -458,6 +458,66 @@ ZIP и Git переносят одинаковые метаданные; POSIX-�
 отвергнут: для JDK 17 нужна новая native-зависимость JNA либо JDK 22+ с FFM;
 файловые системы без такого вызова всё равно требуют двух rename с промежутком отсутствия.
 
+## Моды Claude Code: контракт реализации
+
+Контракт для предстоящей реализации; приложение пока не предоставляет работу с модами.
+Допущения транспорта проверяет [isolated offline gate](../../tools/claude_mod_transport_spike.py).
+
+### Переносимые пакеты
+
+Мод — отдельный directory-backed объект: `library/mods/<id>/meta.yaml` и `files/` сохраняют
+полный plugin root, identity manifest и opaque upstream version. Метаданные содержат repository,
+path, exact revision, fingerprint и переносимые executable-пути; группы получают `modIds`,
+включая производную `all`, profiles не меняются. Git/ZIP переносят целые snapshots без runtime,
+options и secrets; конфликтующие деревья сохраняются отдельными согласованными вариантами.
+Fingerprint v1 — SHA-256 файлов, отсортированных по UTF-8 relative path: длина пути в 8 байтах
+big-endian, байты пути, один байт executable intent, длина содержимого в 8 байтах big-endian,
+точные байты содержимого.
+
+### Совместимость discovery
+
+Root plugins, monorepo и local relative marketplace entries используют общий bounded discovery.
+Отклонять links, escaping/nonportable и case-colliding paths, remote/command sources, plugin
+dependencies и пакеты, требующие dependency install/build scripts. Discovery/import/sync не
+исполняют код; действующие Git tree/manifest limits сохраняются. Моду нужны manifest и hooks-файл
+с `modules`: проверять `hooks/hooks.json` и manifest-declared hooks paths/arrays; пути modules
+разрешать относительно hooks-файла. Обычные inline settings hooks сами по себе не моды.
+В Claude 2.1.287 inline `hooks.modules` проходит validate, но runtime игнорирует его как неизвестное
+hook event: давать явную ошибку совместимости, не импортировать неработающий мод.
+Standard/custom hooks files поддерживаются. Принятие пакета подтверждает структуру, не
+безопасность кода; до установки показывать все bundled components.
+
+### Runtime-транспорт
+
+Отдельный local directory marketplace под `~/.ruleblend/mod-runtime/` указывает relative entries
+только на принятые immutable snapshots, никогда на Library. Sync/source import не меняют catalog.
+Явный Apply под существующим process lock материализует дерево, журналирует catalog и атомарно
+меняет одну entry; остальные entries и snapshots неподвижны. CLI получает qualified id и user
+scope; marketplace auto-update выключен. Refresh не публикует непринятые snapshots.
+Не повышать upstream manifest version ради обновления. Минимальный baseline — Claude Code
+2.1.287; до записи проверять версию и наличие необходимых CLI flags. При равной версии
+`plugin update` может вернуть `up_to_date`, оставив старый cache install record, хотя cold session
+загрузит новый relative source. Подтверждать вместе registered directory, entry path, fingerprint
+и user install/enable state; одного `installPath` недостаточно. Открытый сеанс удерживает ревизию
+до `/reload-plugins` или restart; после подтверждения установки показывать reload required.
+См. [загрузку](https://code.claude.com/docs/en/plugins/loading)
+и [CLI](https://code.claude.com/docs/en/plugins/cli-reference).
+
+### Владение и восстановление
+
+Владение даёт только подтверждённый local sidecar: library id, qualified plugin id, scope,
+registered marketplace path, принятый fingerprint и operation state. Потерянный/повреждённый
+state, foreign origins и built-ins остаются чужими даже при совпадении имени/байтов. До CLI write
+проверять collisions, отклонять duplicate manifest names; не переименовывать чужой manifest.
+Журналировать до публикации catalog, сверять CLI state после результата/прерывания; атомарно
+писать sidecar лишь после подтверждения. При сбое вернуть прежний catalog, сохранить оба
+snapshots и явно показать неразрешённый CLI/config state, если rollback не подтверждён.
+Не редактировать cache и install/marketplace registries Claude. Disable, uninstall и Library
+delete — разные действия; Library delete не удаляет установку или runtime tree. Удалять один
+plugin через uninstall, не marketplace remove. Последний uninstall с `--keep-data` сохраняет
+runtime data, но удаляет options/secrets. Старые snapshots могут быть нужны открытым сеансам:
+в v1 нет автоматического snapshot GC. [Семантика удаления](https://code.claude.com/docs/en/plugins/cli-reference#what-an-uninstall-deletes-and-keeps).
+
 <a id="integration-mechanics"></a>
 ## Механика интеграции
 
