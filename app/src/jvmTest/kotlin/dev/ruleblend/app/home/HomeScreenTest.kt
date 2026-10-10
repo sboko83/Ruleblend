@@ -263,6 +263,51 @@ class HomeScreenTest {
         compose.onNodeWithText(strings.homeIntegrationTitle).assertDoesNotExist()
     }
 
+    @Test fun `a missing connection reports both components and opens assistant settings`() {
+        var configured = false
+        val state = HomeIntegrationUpdates(states = listOf(AgentIntegrationState(
+            agentId = "codex",
+            mcp = BundledMcpState(McpRegistration.NOT_REGISTERED, installed = null),
+            skill = BundledSkillState(SkillStatus.NOT_INSTALLED, installed = null),
+        )))
+        compose.setContent {
+            RuleblendTheme(ThemeMode.LIGHT) {
+                IntegrationScreen(state, onConfigure = { configured = true })
+            }
+        }
+
+        compose.onNodeWithText("${strings.homeIntegrationMcpMissing} · ${strings.homeIntegrationSkillMissing}")
+            .assertIsDisplayed()
+        compose.onNodeWithTag("home-integration-update-all").assertDoesNotExist()
+        compose.onNodeWithTag("home-integration-configure-codex").performClick()
+        compose.runOnIdle { assertEquals(true, configured) }
+    }
+
+    @Test fun `a moved MCP path and a missing skill offer repair with an explicit reason`() {
+        var updated = emptySet<String>()
+        val state = HomeIntegrationUpdates(states = listOf(AgentIntegrationState(
+            agentId = "codex",
+            mcp = BundledMcpState(McpRegistration.STALE_PATH, installed = 3, current = 3),
+            skill = BundledSkillState(SkillStatus.NOT_INSTALLED, installed = null),
+        )))
+        compose.setContent {
+            RuleblendTheme(ThemeMode.LIGHT) { IntegrationScreen(state, onUpdate = { updated = it }) }
+        }
+
+        compose.onNodeWithText("${strings.homeIntegrationSkillMissing} · ${strings.homeIntegrationMcpMoved}")
+            .assertIsDisplayed()
+        compose.onNodeWithTag("home-integration-update-codex").performClick()
+        compose.runOnIdle { assertEquals(setOf("codex"), updated) }
+    }
+
+    @Test fun `a failed integration scan remains visible without any previous states`() {
+        compose.setContent {
+            RuleblendTheme(ThemeMode.LIGHT) { IntegrationScreen(HomeIntegrationUpdates(failure = "Cannot read config")) }
+        }
+        compose.onNodeWithText(strings.homeIntegrationTitle).assertIsDisplayed()
+        compose.onNodeWithText(strings.homeSourceFailure("Cannot read config")).assertIsDisplayed()
+    }
+
     @Test fun `source update card shows check progress and disables competing actions`() {
         compose.setContent {
             RuleblendTheme(ThemeMode.LIGHT) {
@@ -465,6 +510,7 @@ class HomeScreenTest {
     private fun IntegrationScreen(
         state: HomeIntegrationUpdates,
         onUpdate: (Set<String>) -> Unit = {},
+        onConfigure: () -> Unit = {},
     ) {
         HomeScreen(
             snapshot = HomeSnapshot.EMPTY,
@@ -477,6 +523,7 @@ class HomeScreenTest {
             onOpenLibrary = {},
             integrationUpdates = state,
             onUpdateIntegration = onUpdate,
+            onOpenAssistantSettings = onConfigure,
         )
     }
 

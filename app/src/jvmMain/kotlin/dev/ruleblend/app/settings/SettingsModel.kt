@@ -220,7 +220,7 @@ class SettingsModel(
         get() = integrationStates.mapNotNull { state -> state.skill?.let { state.agentId to it.status } }.toMap()
 
     /** Agents whose copy an app update left behind; what "Update everywhere" acts on. */
-    val outdatedAgentIds: List<String> get() = integrationStates.filter { it.outdated }.map { it.agentId }
+    val outdatedAgentIds: List<String> get() = integrationStates.filter { it.repairable }.map { it.agentId }
 
     /** Message of the last failed Connect action, until the screen shows and clears it. */
     var connectFailure by mutableStateOf<String?>(null)

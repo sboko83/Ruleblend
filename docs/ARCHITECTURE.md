@@ -1312,8 +1312,11 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
   every assistant stale for nothing. A copy written before versioning reads as version 0, so the
   first run after an update repairs it once. `BundledIntegration` is the single reader of that state
   and the single writer of the repair; Home reports it as an attention card and Settings shows it per
-  assistant, both offering one agent and all of them. A foreign skill is reported by both and
-  rewritten by neither.
+  assistant, both offering one agent and all of them. Missing components also require attention:
+  repair completes an existing owned connection, while an entirely unconnected assistant leads to
+  Settings for explicit connection. This keeps a missing skill from masquerading as a healthy MCP
+  connection without silently connecting new assistants. Foreign skills and MCP entries are
+  reported by both surfaces and rewritten by neither.
 - **Both artifacts in Library:** the bundled skill and the self-registration are listed among the
   library's own skills and MCP entries, marked built-in, under the reserved ids `builtin:skill` and
   `builtin:mcp` (a colon is not a slug character, so no library object can claim them). They show

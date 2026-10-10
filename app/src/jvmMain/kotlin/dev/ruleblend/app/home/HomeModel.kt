@@ -82,11 +82,11 @@ data class HomeIntegrationUpdates(
     val updatingAgentIds: Set<String> = emptySet(),
     val failure: String? = null,
 ) {
-    val outdated: List<AgentIntegrationState> get() = states.filter { it.outdated }
-    val blocked: List<AgentIntegrationState> get() = states.filter { it.blocked }
+    val repairable: List<AgentIntegrationState> get() = states.filter { it.repairable }
+    val attention: List<AgentIntegrationState> get() = states.filter { it.outdated || it.incomplete || it.blocked }
 
     /** Nothing to say while everything is current: the card is attention, not a status board. */
-    val visible: Boolean get() = outdated.isNotEmpty() || blocked.isNotEmpty()
+    val visible: Boolean get() = attention.isNotEmpty() || failure != null
     val busy: Boolean get() = updatingAgentIds.isNotEmpty()
 }
 
@@ -326,7 +326,7 @@ class HomeModel(
      */
     suspend fun updateIntegration(agentIds: Set<String>) {
         val service = integration ?: return
-        val selected = agentIds intersect integrationUpdates.outdated.map { it.agentId }.toSet()
+        val selected = agentIds intersect integrationUpdates.repairable.map { it.agentId }.toSet()
         if (selected.isEmpty() || integrationUpdates.busy) return
         integrationUpdates = integrationUpdates.copy(updatingAgentIds = selected, failure = null)
         try {

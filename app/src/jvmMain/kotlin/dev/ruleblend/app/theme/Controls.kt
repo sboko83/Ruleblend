@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.TooltipArea
+import androidx.compose.foundation.TooltipPlacement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -73,6 +74,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -469,6 +471,10 @@ fun RuleblendTooltip(text: String, modifier: Modifier = Modifier, content: @Comp
             }
         },
         delayMillis = 400,
+        tooltipPlacement = TooltipPlacement.CursorPoint(
+            offset = DpOffset(12.dp, (-12).dp),
+            alignment = Alignment.TopEnd,
+        ),
         modifier = modifier,
         content = content,
     )
@@ -499,6 +505,10 @@ fun RuleblendTooltipRich(
             }
         },
         delayMillis = 400,
+        tooltipPlacement = TooltipPlacement.CursorPoint(
+            offset = DpOffset(12.dp, (-12).dp),
+            alignment = Alignment.TopEnd,
+        ),
         modifier = modifier,
         content = content,
     )

@@ -110,6 +110,66 @@ class BundledIntegrationTest {
         assertEquals(McpRegistration.NOT_REGISTERED, state?.mcp?.registration)
         assertEquals(SkillStatus.NOT_INSTALLED, state?.skill?.status)
         assertEquals(false, state?.outdated)
+        assertEquals(true, state?.incomplete)
+        assertEquals(false, state?.repairable)
+        assertEquals(emptyList(), integration().updateAll())
+    }
+
+    @Test
+    fun `moving the app repairs the MCP path and installs a missing skill`() {
+        ClaudeCodeConnector(home).register(Path.of("/Volumes/Ruleblend/Ruleblend.app/Contents/MacOS/Ruleblend"))
+        val integration = integration()
+
+        val before = integration.stateOf("claude-code")!!
+        assertEquals(McpRegistration.STALE_PATH, before.mcp?.registration)
+        assertTrue(before.incomplete)
+        assertTrue(before.repairable)
+        assertEquals(listOf("claude-code"), integration.updateAll())
+
+        val after = integration.stateOf("claude-code")!!
+        assertEquals(McpRegistration.REGISTERED, after.mcp?.registration)
+        assertEquals(SkillStatus.INSTALLED, after.skill?.status)
+        assertEquals(false, after.incomplete)
+        assertEquals(false, after.repairable)
+    }
+
+    @Test
+    fun `a current MCP entry with a missing skill is repairable`() {
+        ClaudeCodeConnector(home).register(binary)
+        val integration = integration()
+
+        assertTrue(integration.stateOf("claude-code")!!.repairable)
+        integration.update("claude-code")
+
+        assertEquals(BundledSkill.text, claudeSkill.readText())
+        assertEquals(false, integration.stateOf("claude-code")!!.incomplete)
+    }
+
+    @Test
+    fun `an installed skill with a missing MCP entry restores the connection`() {
+        ClaudeCodeSkillInstaller(home).install()
+        val integration = integration()
+
+        assertTrue(integration.stateOf("claude-code")!!.repairable)
+        integration.update("claude-code")
+
+        assertEquals(McpRegistration.REGISTERED, integration.stateOf("claude-code")?.mcp?.registration)
+    }
+
+    @Test
+    fun `a foreign MCP entry blocks repair even with an outdated owned skill`() {
+        val foreign = """{"mcpServers":{"ruleblend":{"command":"other-server","args":[]}}}"""
+        home.resolve(".claude.json").writeText(foreign)
+        claudeSkill.parent.createDirectories()
+        val oldSkill = "# Old\n\n<!-- ruleblend-managed skill v0 -->\n"
+        claudeSkill.writeText(oldSkill)
+        val integration = integration()
+
+        assertTrue(integration.stateOf("claude-code")!!.blocked)
+        assertEquals(false, integration.stateOf("claude-code")!!.repairable)
+        assertEquals(emptyList(), integration.updateAll())
+        assertEquals(foreign, home.resolve(".claude.json").readText())
+        assertEquals(oldSkill, claudeSkill.readText())
     }
 
     @Test

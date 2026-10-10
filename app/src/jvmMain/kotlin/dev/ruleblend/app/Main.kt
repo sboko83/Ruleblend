@@ -689,6 +689,10 @@ internal fun App(
                             route = AppRoute.LIBRARY
                         },
                         onOpenSettings = { route = AppRoute.SETTINGS },
+                        onOpenAssistantSettings = {
+                            settingsSection = SettingsSection.AGENTS
+                            route = AppRoute.SETTINGS
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                     AppRoute.PLACE -> PlaceScreen(

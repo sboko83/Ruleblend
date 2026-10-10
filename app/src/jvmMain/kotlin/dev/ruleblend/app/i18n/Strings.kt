@@ -899,6 +899,11 @@ interface Strings {
     val homeIntegrationUpdate: String
     val homeIntegrationUpdating: String
     val homeIntegrationForeign: String
+    val homeIntegrationMcpForeign: String
+    val homeIntegrationMcpMissing: String
+    val homeIntegrationSkillMissing: String
+    val homeIntegrationMcpMoved: String
+    val homeIntegrationConfigure: String
     val libBuiltIn: String
     val libBuiltInManaged: String
     val connectManualHint: String
@@ -1780,12 +1785,17 @@ object EnStrings : Strings {
     override fun setEntryVersion(installed: Int, current: Int) =
         if (installed == current) "entry v$installed" else "entry v$installed → v$current"
     override val setUpdateAll = "Update everywhere"
-    override fun setUpdateAllHint(count: Int) = "$count assistant(s) hold an older copy"
-    override val homeIntegrationTitle = "Assistants need Ruleblend updated"
+    override fun setUpdateAllHint(count: Int) = "$count assistant(s) need connection repair"
+    override val homeIntegrationTitle = "Assistants need Ruleblend setup"
     override val homeIntegrationUpdateAll = "Update everywhere"
     override val homeIntegrationUpdate = "Update"
     override val homeIntegrationUpdating = "Updating…"
     override val homeIntegrationForeign = "A skill named \"ruleblend\" is not ours — left untouched"
+    override val homeIntegrationMcpForeign = "An MCP server named \"ruleblend\" is not ours — left untouched"
+    override val homeIntegrationMcpMissing = "Ruleblend MCP is not registered"
+    override val homeIntegrationSkillMissing = "Ruleblend skill is not installed"
+    override val homeIntegrationMcpMoved = "MCP points to another app location"
+    override val homeIntegrationConfigure = "Configure"
     override val libBuiltIn = "built-in"
     override val libBuiltInManaged =
         "Ships with the app. Connect, update or remove it per assistant in Settings; it cannot be edited or deleted here."
@@ -2713,12 +2723,17 @@ object RuStrings : Strings {
     override fun setEntryVersion(installed: Int, current: Int) =
         if (installed == current) "запись v$installed" else "запись v$installed → v$current"
     override val setUpdateAll = "Обновить везде"
-    override fun setUpdateAllHint(count: Int) = "Устаревшая копия у ассистентов: $count"
-    override val homeIntegrationTitle = "Ассистентам нужно обновить Ruleblend"
+    override fun setUpdateAllHint(count: Int) = "Требуется восстановить подключения: $count"
+    override val homeIntegrationTitle = "Подключение ассистентов требует внимания"
     override val homeIntegrationUpdateAll = "Обновить везде"
     override val homeIntegrationUpdate = "Обновить"
     override val homeIntegrationUpdating = "Обновляем…"
     override val homeIntegrationForeign = "Навык «ruleblend» написан не нами — не трогаем"
+    override val homeIntegrationMcpForeign = "MCP-сервер «ruleblend» добавлен не нами — не трогаем"
+    override val homeIntegrationMcpMissing = "MCP Ruleblend не зарегистрирован"
+    override val homeIntegrationSkillMissing = "Навык Ruleblend не установлен"
+    override val homeIntegrationMcpMoved = "MCP указывает на другое расположение приложения"
+    override val homeIntegrationConfigure = "Настроить"
     override val libBuiltIn = "встроенный"
     override val libBuiltInManaged =
         "Поставляется с приложением. Подключение, обновление и удаление — в настройках, по каждому ассистенту; здесь его нельзя изменить или удалить."

@@ -2,6 +2,8 @@ package dev.ruleblend.app.settings
 
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -47,7 +49,13 @@ internal fun AboutSection(model: SettingsModel, narrow: Boolean) {
 private fun FileRow(label: String, path: Path?) {
     val strings = LocalStrings.current
     ControlRow {
-        Note(label, modifier = Modifier.width(64.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            softWrap = false,
+            modifier = Modifier.width(88.dp),
+        )
         PathChip(path?.abbreviateHome() ?: "-")
         if (path != null) {
             CompactGhostButton(onClick = { revealInFileManager(path) }) { ButtonLabel(strings.setReveal) }

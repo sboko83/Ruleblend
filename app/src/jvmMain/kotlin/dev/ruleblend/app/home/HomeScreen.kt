@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import dev.ruleblend.app.i18n.LocalStrings
 import dev.ruleblend.app.i18n.Strings
 import dev.ruleblend.mcp.AgentIntegrationState
+import dev.ruleblend.mcp.McpRegistration
+import dev.ruleblend.mcp.skill.SkillStatus
 import dev.ruleblend.app.theme.CompactButton
 import dev.ruleblend.app.theme.CompactGhostButton
 import dev.ruleblend.app.theme.CompactOutlinedButton
@@ -92,6 +94,7 @@ fun HomeScreen(
     onOpenHistory: (RemoteSyncConflict) -> Unit = {},
     onOpenCompare: (RemoteSyncConflict) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenAssistantSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -117,6 +120,7 @@ fun HomeScreen(
         onOpenHistory = onOpenHistory,
         onOpenCompare = onOpenCompare,
         onOpenSettings = onOpenSettings,
+        onOpenAssistantSettings = onOpenAssistantSettings,
         profileChange = model.lastProfileChange,
         profileSwitching = model.switchingProfile,
         profileFailure = model.profileFailure,
@@ -155,6 +159,7 @@ fun HomeScreen(
     onOpenHistory: (RemoteSyncConflict) -> Unit = {},
     onOpenCompare: (RemoteSyncConflict) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenAssistantSettings: () -> Unit = {},
     profileChange: HomeProfileChange? = null,
     profileSwitching: Pair<String, String>? = null,
     profileFailure: String? = null,
@@ -204,6 +209,7 @@ fun HomeScreen(
                         state = integrationUpdates,
                         strings = strings,
                         onUpdate = onUpdateIntegration,
+                        onConfigure = onOpenAssistantSettings,
                     )
                 }
                 if (sourceUpdates.visible) {
@@ -418,12 +424,13 @@ private fun IntegrationUpdatesCard(
     state: HomeIntegrationUpdates,
     strings: Strings,
     onUpdate: (Set<String>) -> Unit,
+    onConfigure: () -> Unit,
 ) {
     val extras = RuleblendTheme.extraColors
-    val outdated = state.outdated
+    val repairable = state.repairable
     val accent = when {
-        state.blocked.isNotEmpty() || state.failure != null -> extras.danger
-        outdated.isNotEmpty() -> extras.warning
+        state.attention.any { it.blocked } || state.failure != null -> extras.danger
+        state.attention.isNotEmpty() -> extras.warning
         else -> extras.success
     }
     CardFrame(accent = accent) {
@@ -433,12 +440,16 @@ private fun IntegrationUpdatesCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatusDot(accent)
-                Text(strings.homeIntegrationTitle, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                if (outdated.isNotEmpty()) {
+                Text(
+                    strings.homeIntegrationTitle,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (repairable.isNotEmpty()) {
                     CompactOutlinedButton(
                         enabled = !state.busy,
-                        onClick = { onUpdate(outdated.mapTo(mutableSetOf()) { it.agentId }) },
+                        onClick = { onUpdate(repairable.mapTo(mutableSetOf()) { it.agentId }) },
                         modifier = Modifier.testTag("home-integration-update-all"),
                     ) {
                         Text(strings.homeIntegrationUpdateAll, style = MaterialTheme.typography.labelMedium)
@@ -448,7 +459,7 @@ private fun IntegrationUpdatesCard(
             state.failure?.let {
                 Text(strings.homeSourceFailure(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
             }
-            (outdated + state.blocked).forEach { agent ->
+            state.attention.forEach { agent ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -462,7 +473,7 @@ private fun IntegrationUpdatesCard(
                             color = if (agent.blocked) MaterialTheme.colorScheme.error else extras.warning,
                         )
                     }
-                    if (agent.outdated) {
+                    if (agent.repairable) {
                         CompactGhostButton(
                             enabled = !state.busy,
                             onClick = { onUpdate(setOf(agent.agentId)) },
@@ -476,6 +487,14 @@ private fun IntegrationUpdatesCard(
                                 },
                             )
                         }
+                    } else {
+                        CompactGhostButton(
+                            enabled = !state.busy,
+                            onClick = onConfigure,
+                            modifier = Modifier.testTag("home-integration-configure-${agent.agentId}"),
+                        ) {
+                            Text(strings.homeIntegrationConfigure)
+                        }
                     }
                 }
             }
@@ -483,12 +502,18 @@ private fun IntegrationUpdatesCard(
     }
 }
 
-/** What is behind, in versions rather than in adjectives; a foreign skill says so instead. */
+/** Names missing components, moved paths, old versions and ownership conflicts independently. */
 private fun AgentIntegrationState.detail(strings: Strings): String {
-    if (blocked) return strings.homeIntegrationForeign
     return listOfNotNull(
+        if (mcp?.registration == McpRegistration.FOREIGN) strings.homeIntegrationMcpForeign else null,
+        if (skill?.status == SkillStatus.FOREIGN) strings.homeIntegrationForeign else null,
+        if (mcp?.registration == McpRegistration.NOT_REGISTERED) strings.homeIntegrationMcpMissing else null,
+        if (skill?.status == SkillStatus.NOT_INSTALLED) strings.homeIntegrationSkillMissing else null,
         this.skill?.takeIf { it.outdated }?.let { strings.setSkillVersion(it.installed ?: 0, it.current) },
-        this.mcp?.takeIf { it.outdated }?.let { strings.setEntryVersion(it.installed ?: 0, it.current) },
+        this.mcp?.takeIf { it.outdated }?.let {
+            if (it.registration == McpRegistration.STALE_PATH) strings.homeIntegrationMcpMoved
+            else strings.setEntryVersion(it.installed ?: 0, it.current)
+        },
     ).joinToString(" · ")
 }
 

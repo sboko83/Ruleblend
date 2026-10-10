@@ -37,8 +37,18 @@ data class AgentIntegrationState(
     /** Something of ours is installed here and an app update left it behind. */
     val outdated: Boolean get() = mcp?.outdated == true || skill?.outdated == true
 
-    /** A skill of the same name that Ruleblend did not write. Never touched, only reported. */
-    val blocked: Boolean get() = skill?.status == SkillStatus.FOREIGN
+    val incomplete: Boolean
+        get() = mcp?.registration == McpRegistration.NOT_REGISTERED || skill?.status == SkillStatus.NOT_INSTALLED
+
+    /** A same-name entry that Ruleblend did not write. Never touched, only reported. */
+    val blocked: Boolean
+        get() = mcp?.registration == McpRegistration.FOREIGN || skill?.status == SkillStatus.FOREIGN
+
+    /** Repair only an existing connection; a new one requires the Settings Connect action. */
+    val repairable: Boolean
+        get() = !blocked && (outdated || incomplete && (
+            mcp?.registration == McpRegistration.REGISTERED || skill?.status == SkillStatus.INSTALLED
+        ))
 }
 
 /**
@@ -72,17 +82,22 @@ class BundledIntegration(
     fun stateOf(agentId: String): AgentIntegrationState? = states().find { it.agentId == agentId }
 
     /**
-     * Rewrites whatever is outdated for one agent, and nothing else: an entry that was never
-     * registered stays unregistered, and a foreign skill stays the user's file.
+     * Repairs an existing connection, including a missing counterpart. An assistant that was never
+     * connected stays unconnected, and foreign entries stay the user's files.
      */
     fun update(agentId: String) {
         val state = stateOf(agentId) ?: return
-        if (state.mcp?.outdated == true) binary?.let { connectorFor(agentId)?.register(it) }
-        if (state.skill?.outdated == true) skillInstallerFor(agentId)?.install()
+        if (!state.repairable) return
+        if (state.mcp?.outdated == true || state.mcp?.registration == McpRegistration.NOT_REGISTERED) {
+            binary?.let { connectorFor(agentId)?.register(it) }
+        }
+        if (state.skill?.outdated == true || state.skill?.status == SkillStatus.NOT_INSTALLED) {
+            skillInstallerFor(agentId)?.install()
+        }
     }
 
     /** The same for every agent that needs it. Returns the agent ids it touched. */
-    fun updateAll(): List<String> = states().filter { it.outdated }.map { it.agentId }.onEach(::update)
+    fun updateAll(): List<String> = states().filter { it.repairable }.map { it.agentId }.onEach(::update)
 
     private fun mcpStateOf(agentId: String): BundledMcpState? {
         val connector = connectorFor(agentId) ?: return null
