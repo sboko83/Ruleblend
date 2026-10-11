@@ -901,6 +901,16 @@ file: the unit of writing is the file, not the agent.
 
 ## UI
 
+Embedded assistant launch preparation belongs to `app`. It passes only a saved Library object's
+type, name and ID; the assistant reads content through the existing Ruleblend MCP and skill.
+The CLI keeps its normal profile, authentication and permissions. Launch preparation never installs
+integration files or inherits external-terminal arguments. Availability combines the existing
+MCP/skill states with a fresh login-PATH CLI probe, independently of assistant visibility.
+Only explicitly selected, fully current connections can be offered; there is no implicit default.
+The first implementation supports Claude Code only: native `--prefill` keeps the initial text
+editable without submitting it. Codex is deferred because terminal-screen heuristics do not establish
+safe draft-input readiness across authentication, onboarding and connection failures.
+
 Compose Desktop uses a shared collapsible navigation sidebar and 44 dp top bar over typed application
 routes. The sidebar animates between 204 dp and 68 dp without swapping layouts: icons keep one column,
 labels fade out before the width can clip them, and the collapsed state keeps every destination as a

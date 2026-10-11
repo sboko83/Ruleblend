@@ -106,7 +106,7 @@ if args.assistant == 'claude':
         'customApiKeyResponses':{'approved':[fake[-20:]],'rejected':[]},
         'projects':{str(workspace):{'hasTrustDialogAccepted':True,'hasCompletedProjectOnboarding':True}},
     }))
-    command=[str(cli),'--bare','--setting-sources','user','--debug-file',str(root/'debug.log'),
+    command=[str(cli),'--setting-sources','user','--debug-file',str(root/'debug.log'),
              '--strict-mcp-config','--mcp-config',json.dumps(mcp),'--prefill',draft]
 else:
     (profile/'config.toml').write_text(f'''model = "probe-model"
