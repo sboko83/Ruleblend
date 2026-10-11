@@ -41,6 +41,16 @@ license coverage and packaged-app checks. Unit tests do not run the graphical su
 macOS translation checks. Run the relevant opt-in scenarios from [UI_E2E](docs/UI_E2E.md) for UI
 changes, and state explicitly which checks were not run.
 
+The isolated terminal feasibility harness is opt-in on macOS and does not enter the application
+runtime. `./gradlew :app:checkAssistantTerminalSpike` checks PTY/emulator behavior without AI;
+`:app:assistantTerminalSpike` opens its offline native window. Keyboard, clipboard and focus
+acceptance require that window. After `:app:createDistributable`,
+`:app:packageAssistantTerminalSpike` creates a separate app image. For another build, select a
+fresh output directory with `-PspikePackageDirectory=/path/to/new-directory`.
+`python3 -B tools/assistant_cli_prefill_spike.py <claude|codex> --dry-run` describes a separate
+macOS experiment with temporary profiles and denied network/credential access. Removing
+`--dry-run` checks draft input and fake MCP without submitting a prompt or changing real profiles.
+
 ## File-write guarantees
 
 - Preserve all content outside Ruleblend-managed regions. Exceptions require a user-invoked

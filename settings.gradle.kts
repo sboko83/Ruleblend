@@ -17,6 +17,10 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        exclusiveContent {
+            forRepository { maven("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies") }
+            filter { includeGroup("org.jetbrains.jediterm") }
+        }
     }
 }
 

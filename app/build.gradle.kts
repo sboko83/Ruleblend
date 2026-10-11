@@ -147,9 +147,70 @@ if (System.getProperty("os.name").startsWith("Windows")) {
 
 kotlin {
     jvmToolchain(17)
+    val spikeDesktopRuntime = compose.desktop.currentOs
 
     jvm {
         val main = compilations.getByName("main")
+        // Opt-in feasibility harness. Its terminal libraries never enter the application runtime.
+        val assistantSpike = compilations.create("assistantSpike") {
+            defaultSourceSet.kotlin.srcDir("src/assistantSpike/kotlin")
+            defaultSourceSet.dependencies {
+                implementation(spikeDesktopRuntime)
+                implementation(libs.compose.material3)
+                implementation("org.jetbrains.jediterm:jediterm-ui:3.76")
+                implementation("org.jetbrains.jediterm:jediterm-core:3.76")
+                implementation("org.jetbrains.pty4j:pty4j:0.14.0")
+                runtimeOnly(libs.slf4j.nop)
+            }
+        }
+        listOf("assistantTerminalSpike", "checkAssistantTerminalSpike").forEach { taskName ->
+            tasks.register<JavaExec>(taskName) {
+                group = "verification"
+                description = "Opt-in isolated terminal feasibility harness; no AI requests"
+                classpath = assistantSpike.output.allOutputs + assistantSpike.runtimeDependencyFiles
+                mainClass.set("dev.ruleblend.app.spike.AssistantTerminalSpikeKt")
+                javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) })
+                systemProperty("ruleblend.spike.fixture", rootProject.file("tools/assistant_terminal_fixture.py").absolutePath)
+                systemProperty("ruleblend.spike.python", providers.gradleProperty("spikePython").orElse("python3").get())
+                if (taskName.startsWith("check")) args("--check")
+            }
+        }
+        val spikeJar = tasks.register<Jar>("assistantSpikeJar") {
+            from(assistantSpike.output.allOutputs)
+            archiveFileName.set("ruleblend-assistant-spike.jar")
+            destinationDirectory.set(layout.buildDirectory.dir("assistant-spike/jar"))
+        }
+        val spikeInput = tasks.register<Sync>("prepareAssistantSpikePackage") {
+            from(spikeJar)
+            from(assistantSpike.runtimeDependencyFiles)
+            into(layout.buildDirectory.dir("assistant-spike/input"))
+        }
+        tasks.register<Exec>("packageAssistantTerminalSpike") {
+            group = "verification"
+            description = "Builds a separate macOS spike app image using the existing application runtime"
+            dependsOn(spikeInput)
+            onlyIf { isMacOs }
+            val launcher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) }
+            doFirst {
+                val destination = providers.gradleProperty("spikePackageDirectory")
+                    .map { rootProject.file(it) }
+                    .getOrElse(layout.buildDirectory.dir("assistant-spike/package").get().asFile)
+                val runtime = layout.buildDirectory.dir("compose/binaries/main/app/Ruleblend.app/Contents/runtime").get().asFile
+                check(runtime.isDirectory) { "Build :app:createDistributable first" }
+                check(!destination.resolve("RuleblendTerminalSpike.app").exists()) { "Spike app image already exists: $destination" }
+                commandLine(
+                    launcher.get().metadata.installationPath.file("bin/jpackage").asFile.absolutePath,
+                    "--type", "app-image", "--name", "RuleblendTerminalSpike", "--app-version", "1.0",
+                    "--mac-package-identifier", "dev.ruleblend.spike",
+                    "--input", layout.buildDirectory.dir("assistant-spike/input").get().asFile.absolutePath,
+                    "--dest", destination.absolutePath, "--runtime-image", runtime.absolutePath,
+                    "--main-jar", "ruleblend-assistant-spike.jar",
+                    "--main-class", "dev.ruleblend.app.spike.AssistantTerminalSpikeKt",
+                    "--java-options", "-Druleblend.spike.fixture=${rootProject.file("tools/assistant_terminal_fixture.py").absolutePath}",
+                    "--java-options", "-Druleblend.spike.python=${providers.gradleProperty("spikePython").orElse("/usr/bin/python3").get()}",
+                )
+            }
+        }
         val uiE2e = compilations.create("uiE2e") {
             associateWith(main)
             defaultSourceSet.kotlin.srcDir("src/uiE2e/kotlin")
