@@ -37,6 +37,7 @@ RULEBLEND_E2E_BUNDLE=/absolute/path/Ruleblend.app tools/verify_e2e.sh desktop
 # Корневой UI и холодный перезапуск в новой JVM, один временный корень.
 python3 -B tools/ui_e2e.py ui
 python3 -B tools/ui_e2e.py ui --tests '*RootSmokeTest*' --timeout 240
+python3 -B tools/ui_e2e.py ui --tests '*AssistanceUiTest*' --timeout 240
 
 # Фаза 1: каждый сценарий P-01…P-12 на собственном временном корне.
 python3 -B tools/ui_e2e.py projects

@@ -86,6 +86,8 @@ fun AppShell(
     topBarAction: (@Composable () -> Unit)? = null,
     /** Drawn over the whole window, rail included, inside the shell's focus so chords survive it. */
     overlay: (@Composable () -> Unit)? = null,
+    assistanceSession: dev.ruleblend.app.assistance.AssistanceSession? = null,
+    onCloseAssistance: () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     // Shortcuts belong to the window, not to a surface. The preview pass runs from the root down to
@@ -105,7 +107,19 @@ fun AppShell(
             .onFocusChanged { state ->
                 holdsFocus = state.hasFocus
                 if (!state.hasFocus) {
-                    scope.launch { if (!holdsFocus) runCatching { shortcuts.requestFocus() } }
+                    val terminal = assistanceSession?.terminal?.component
+                    // A native terminal owns AWT focus outside the Compose focus tree.
+                    // Let the Swing focus transition settle before reclaiming an empty window.
+                    val reclaim = {
+                        scope.launch {
+                            val nativeFocus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
+                            val terminalFocused = nativeFocus != null && terminal != null &&
+                                javax.swing.SwingUtilities.isDescendingFrom(nativeFocus, terminal)
+                            if (!holdsFocus && !terminalFocused) runCatching { shortcuts.requestFocus() }
+                        }
+                        Unit
+                    }
+                    if (terminal == null) reclaim() else javax.swing.SwingUtilities.invokeLater(reclaim)
                 }
             }
             .focusTarget()
@@ -143,7 +157,9 @@ fun AppShell(
                 )
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     TopBar(labelFor(route), onOpenCommands, topBarAction)
-                    Box(Modifier.fillMaxSize().testTag("route-${route.name.lowercase()}"), contentAlignment = Alignment.TopStart) { content() }
+                    dev.ruleblend.app.assistance.AssistanceLayout(assistanceSession, onCloseAssistance) {
+                        Box(Modifier.fillMaxSize().testTag("route-${route.name.lowercase()}"), contentAlignment = Alignment.TopStart) { content() }
+                    }
                 }
             }
             overlay?.invoke()

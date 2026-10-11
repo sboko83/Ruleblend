@@ -911,6 +911,20 @@ The first implementation supports Claude Code only: native `--prefill` keeps the
 editable without submitting it. Codex is deferred because terminal-screen heuristics do not establish
 safe draft-input readiness across authentication, onboarding and connection failures.
 
+The explicit choices live in `config.json.assistanceAssistants`, independently of assistant
+visibility and external-terminal settings; an absent field selects nothing. Library launches only
+saved user-owned rules, MCP entries, subagents and skills; a dirty editor must be saved first.
+While its embedded CLI runs, Library reuses its normal disk loader without waiting for window focus:
+clean editors follow external writes and dirty drafts remain in memory.
+
+One application-owned controller serializes terminal launches and binds close/replacement approvals
+to the current process. Navigation only changes focus; natural exit retains the terminal screen.
+Window close and native application quit share the same approval path; the shell leaves AWT focus
+with the terminal instead of reclaiming it through the Compose focus tree.
+PTY launch and bounded termination run off EDT, Swing work runs on EDT, and launch failure cleans
+up any created child. The CLI inherits the normal environment with the detected PATH and terminal
+type. JediTerm/Pty4J live in `app`; their native libraries and license notices ship with the runtime.
+
 Compose Desktop uses a shared collapsible navigation sidebar and 44 dp top bar over typed application
 routes. The sidebar animates between 204 dp and 68 dp without swapping layouts: icons keep one column,
 labels fade out before the width can clip them, and the collapsed state keeps every destination as a

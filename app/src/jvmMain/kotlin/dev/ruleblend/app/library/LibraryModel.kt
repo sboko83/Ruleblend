@@ -217,6 +217,8 @@ class LibraryModel(
 
     /** Assigns [loaded], unless a write has already landed a newer library since that read began. */
     internal fun land(loaded: Loaded) {
+        val preserveBlockDraft = dirty
+        val preserveSkillDraft = skillDirty
         val config = loaded.config
         columnWidths = config.columnWidths
         if (loaded.stamp == listsStamp) {
@@ -228,6 +230,11 @@ class LibraryModel(
             modUi.land(loaded.mods)
             ruleScopes = config.ruleScopes
             projectScopes = config.knownProjectScopes()
+            if (!preserveBlockDraft) {
+                draft = draft?.let { current -> blocks.find { it.id == current.id } }
+                draftScope = draft?.let { scopeOf(it.id) }
+            }
+            if (!preserveSkillDraft) skillDraft = skillDraft?.let { current -> skills.find { it.id == current.id } }
         }
         normalizeCatalogSelection()
         // Keep an in-flight edit of the selected group across a tab switch, the way the block draft

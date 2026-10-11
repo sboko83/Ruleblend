@@ -3,6 +3,11 @@ package dev.ruleblend.app.library
 import dev.ruleblend.core.config.ConfigStore
 import dev.ruleblend.core.exchange.LibraryArchive
 import dev.ruleblend.core.model.Block
+import dev.ruleblend.core.model.Skill
+import dev.ruleblend.core.model.SkillSnapshot
+import dev.ruleblend.core.model.SkillFile
+import dev.ruleblend.app.assistance.assistanceObject
+import dev.ruleblend.app.assistance.assistanceDraftDirty
 import dev.ruleblend.core.storage.LibraryRepository
 import kotlinx.coroutines.runBlocking
 import java.nio.file.Files
@@ -11,6 +16,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 class LibraryLoadRaceTest {
     private lateinit var root: Path
@@ -55,5 +63,38 @@ class LibraryLoadRaceTest {
         model.land(runBlocking { model.read() })
 
         assertEquals("Written elsewhere", model.blocks.single { it.id == "outside" }.content)
+    }
+
+    @Test fun `external writes update clean editors and preserve local drafts`() = runBlocking {
+        model.selectBlock("scoped")
+        repository.saveBlock(Block(id = "scoped", name = "Renamed by MCP", content = "External one"))
+        model.load()
+        assertEquals("External one", model.draft?.content)
+        assertFalse(model.dirty)
+        assertEquals("Renamed by MCP", model.assistanceObject()?.name)
+        model.editDraft { it.copy(content = "Unsaved local") }
+        repository.saveBlock(Block(id = "scoped", name = "Renamed again", content = "External two"))
+        model.load()
+        assertEquals("External two", model.blocks.single().content)
+        assertEquals("Unsaved local", model.draft?.content)
+        assertTrue(model.assistanceDraftDirty())
+    }
+
+    @Test fun `skill drafts follow the same external update contract`() = runBlocking {
+        repository.writeSkill(SkillSnapshot(Skill(id = "scoped", name = "Skill", content = "Initial"),
+            listOf(SkillFile("SKILL.md", "Initial".toByteArray()))))
+        model.load()
+        model.selectSkill("scoped")
+        repository.saveSkill(Skill(id = "scoped", name = "Skill", content = "External"))
+        model.load()
+        assertEquals("External", model.skillDraft?.content)
+        assertFalse(model.skillDirty)
+        model.editSkillDraft { it.copy(content = "Local" ) }
+        repository.saveSkill(Skill(id = "scoped", name = "Skill", content = "External two"))
+        model.load()
+        assertEquals("Local", model.skillDraft?.content)
+        assertTrue(model.skillDirty)
+        model.clearCatalogSelection()
+        assertNull(model.assistanceObject())
     }
 }

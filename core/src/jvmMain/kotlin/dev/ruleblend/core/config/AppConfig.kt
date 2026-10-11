@@ -40,6 +40,8 @@ data class AppConfig(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Whether the navigation sidebar shows labels; `false` folds it to icons. */
     val sidebarExpanded: Boolean = true,
+    /** Explicit embedded-terminal choices, independent of visibility and external launch settings. */
+    val assistanceAssistants: List<String> = emptyList(),
     /** Whether grouped lists open their sections when the corresponding screen is first entered. */
     val groupsExpandedByDefault: Boolean = true,
     /** Whether the place list shows the Recent shortcut section; visits are recorded either way. */

@@ -246,6 +246,15 @@ interface Strings {
     val coverageCellSplit: (Int, Int, Int) -> String
 
     // Common
+    val assistanceCloseConfirm: (String) -> String
+    val assistanceCloseFailed: String
+    val assistanceOpen: String
+    val assistanceSettingsTitle: String
+    val assistanceSettingsHint: String
+    val assistanceUnavailable: String
+    val assistanceSaveFirst: String
+    val assistanceReplaceConfirm: (String) -> String
+    val assistanceLaunchFailed: String
     val actionSave: String
     val actionDuplicate: String
     val actionDelete: String
@@ -1225,6 +1234,15 @@ object EnStrings : Strings {
     override val actionDuplicate = "Duplicate"
     override val actionDelete = "Delete"
     override val actionCancel = "Cancel"
+    override val assistanceCloseConfirm = { assistant: String -> "Stop $assistant and close the terminal?" }
+    override val assistanceCloseFailed = "Could not stop the assistant"
+    override val assistanceOpen = "AI help"
+    override val assistanceSettingsTitle = "Embedded assistant terminal"
+    override val assistanceSettingsHint = "Select assistants for AI help. Requires the CLI, current Ruleblend MCP and skill. Connect or update above."
+    override val assistanceUnavailable = "CLI, MCP and skill required"
+    override val assistanceSaveFirst = "Save your draft before opening AI help"
+    override val assistanceReplaceConfirm = { name: String -> "Stop the current assistant and open $name?" }
+    override val assistanceLaunchFailed = "Could not open the assistant"
     override val actionClose = "Close"
     override val actionCreate = "Create"
     override val actionUpdate = "Update"
@@ -2189,6 +2207,15 @@ object RuStrings : Strings {
     override val actionDuplicate = "Дублировать"
     override val actionDelete = "Удалить"
     override val actionCancel = "Отмена"
+    override val assistanceCloseConfirm = { assistant: String -> "Завершить $assistant и закрыть терминал?" }
+    override val assistanceCloseFailed = "Не удалось завершить ассистента"
+    override val assistanceOpen = "AI-помощь"
+    override val assistanceSettingsTitle = "Встроенный терминал ассистента"
+    override val assistanceSettingsHint = "Выберите ассистентов для AI-помощи. Нужны CLI, актуальные Ruleblend MCP и skill. Подключение и обновление — выше."
+    override val assistanceUnavailable = "Нужны CLI, MCP и skill"
+    override val assistanceSaveFirst = "Сохраните черновик перед вызовом AI-помощи"
+    override val assistanceReplaceConfirm = { name: String -> "Завершить текущего ассистента и открыть $name?" }
+    override val assistanceLaunchFailed = "Не удалось открыть ассистента"
     override val actionClose = "Закрыть"
     override val actionCreate = "Создать"
     override val actionUpdate = "Обновить"

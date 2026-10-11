@@ -46,6 +46,7 @@ class ConfigStoreTest {
             projects = listOf("/a", "/b"),
             ruleScopes = mapOf("project-rule" to "/a"),
             disabledAgents = mapOf("/a" to listOf("codex")),
+            assistanceAssistants = listOf("claude-code"),
         )
         store.save(config)
 

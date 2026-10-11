@@ -1,0 +1,191 @@
+package dev.ruleblend.e2e
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
+import dev.ruleblend.app.App
+import dev.ruleblend.app.assistance.AssistanceLaunch
+import dev.ruleblend.app.assistance.AssistanceSessions
+import dev.ruleblend.app.assistance.AssistanceTerminal
+import dev.ruleblend.app.assistance.LocalAssistanceSessions
+import dev.ruleblend.app.assistance.LocalAssistanceTerminalView
+import dev.ruleblend.app.i18n.EnStrings
+import dev.ruleblend.app.openConfigStore
+import dev.ruleblend.app.theme.RuleblendTheme
+import dev.ruleblend.app.util.CliProbe
+import dev.ruleblend.app.util.DesktopActions
+import dev.ruleblend.app.util.DesktopEnvironment
+import dev.ruleblend.app.util.uiTarget
+import dev.ruleblend.core.config.ThemeMode
+import dev.ruleblend.core.model.Block
+import dev.ruleblend.core.storage.LibraryRepository
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.CopyOnWriteArrayList
+import javax.swing.JPanel
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.skia.Image
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.RuleChain
+import org.junit.rules.TestRule
+import org.junit.runners.model.Statement
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/** Full root flow, isolated profiles and a controllable offline terminal; native input is separate. */
+class AssistanceUiTest {
+    private val root = Path.of(requireNotNull(System.getProperty("ruleblend.e2e.root")))
+    private val artifacts = Files.createDirectories(root.resolve("artifacts/assistance-${System.getProperty("ruleblend.e2e.stage")}"))
+    private val compose = createComposeRule()
+    private val children = CopyOnWriteArrayList<FakeTerminal>()
+    private val launches = CopyOnWriteArrayList<AssistanceLaunch>()
+    private val sessions = AssistanceSessions { launch ->
+        launches += launch
+        FakeTerminal().also(children::add)
+    }
+    private class FakeTerminal : AssistanceTerminal {
+        override val component = JPanel()
+        private val exit = CountDownLatch(1)
+        override val isAlive get() = exit.count != 0L
+        override fun waitForExit(): Int { check(exit.await(60, TimeUnit.SECONDS)); return 0 }
+        override fun focus() = Unit
+        override fun close() { exit.countDown() }
+        fun finish() { exit.countDown() }
+    }
+    private val environment = TestRule { base, _ -> object : Statement() {
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+        override fun evaluate() {
+            val security = System.getSecurityManager()
+            val actions = DesktopEnvironment.actions
+            System.setSecurityManager(SandboxWrites(root))
+            DesktopEnvironment.actions = object : DesktopActions by actions {
+                override fun probe(executable: String) = CliProbe(root.resolve("bin/$executable").toString(), true, root.resolve("bin").toString())
+            }
+            try { base.evaluate() } finally {
+                runBlocking { sessions.shutdown() }
+                DesktopEnvironment.actions = actions
+                System.setSecurityManager(security)
+            }
+        }
+    } }
+    @get:Rule val rules: RuleChain = RuleChain.outerRule(environment).around(compose)
+
+    private fun present(tag: String) = compose.waitUntil(15_000) {
+        compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+    }
+    private fun select(id: String) {
+        compose.onNodeWithTag("nav-library").performClick()
+        present("library-search")
+        compose.onNodeWithTag("library-search").performTextReplacement("")
+        val row = uiTarget("library", "RULE:$id", "catalog", "select")
+        present(row)
+        compose.onNodeWithTag(row).performClick()
+        present(uiTarget("library", "RULE:$id", "inspector", "selected"))
+    }
+
+    @Test fun A01_settingsLaunchNavigationReloadAndConfirmedClose() {
+        val config = openConfigStore()
+        val restart = System.getProperty("ruleblend.e2e.stage") == "restart"
+        if (!restart) config.update { it.copy(assistanceAssistants = emptyList(), hiddenAgents = emptyList(), language = "en") }
+        val library = root.resolve("home/.ruleblend/library")
+        val repository = LibraryRepository(library).also { it.init() }
+        repository.saveBlock(Block(id = "assistance-one", name = "Assistance one", content = "Initial saved body"))
+        repository.saveBlock(Block(id = "assistance-two", name = "Assistance two", content = "Second body"))
+        compose.setContent {
+            RuleblendTheme(ThemeMode.LIGHT) {
+                CompositionLocalProvider(
+                    LocalAssistanceSessions provides sessions,
+                    LocalAssistanceTerminalView provides { _: AssistanceTerminal, modifier: Modifier ->
+                        Box(modifier.fillMaxSize()) { Text("Offline terminal · editable CLI draft") }
+                    },
+                ) { App(config, onThemeModeChanged = {}) }
+            }
+        }
+        present("nav-library")
+        select("assistance-one")
+        if (restart) {
+            assertEquals(listOf("claude-code"), config.load().assistanceAssistants)
+            compose.onNodeWithTag("assistance-open").performClick()
+            present("assistance-panel")
+            assertEquals(1, launches.size)
+            children.single().finish()
+            compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
+            compose.onNodeWithTag("assistance-close").performClick()
+            compose.waitUntil(5_000) { sessions.state.value.session == null }
+            return
+        }
+        compose.onNodeWithTag("assistance-open").performClick()
+        present("settings-panel-agents")
+        val toggle = compose.onNodeWithTag("settings-assistance-claude-code")
+        toggle.performScrollTo()
+        toggle.assertIsNotEnabled()
+        assertTrue(config.load().assistanceAssistants.isEmpty())
+        compose.onNodeWithTag("settings-connect-claude-code").performScrollTo().performClick()
+        compose.waitUntil(15_000) {
+            runCatching { toggle.assertIsNotEnabled() }.isFailure
+        }
+        toggle.performScrollTo().performClick()
+        compose.waitUntil(5_000) { config.load().assistanceAssistants == listOf("claude-code") }
+        select("assistance-one")
+        compose.onNodeWithTag("assistance-open").performClick()
+        present("assistance-panel")
+        assertEquals(1, launches.size)
+        assertEquals(listOf(launches.single().assistant.cli.path, "--prefill", launches.single().target.draft(dev.ruleblend.app.i18n.Language.EN)), launches.single().command)
+        compose.onNodeWithTag("nav-home").performClick()
+        compose.onNodeWithTag("assistance-panel").assertIsDisplayed()
+        select("assistance-one")
+        compose.onNodeWithTag("assistance-open").performClick()
+        compose.waitForIdle()
+        assertEquals(1, launches.size)
+        repository.saveBlock(Block(id = "assistance-one", name = "Assistance updated", content = "Written by external MCP"))
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag(uiTarget("library", "RULE:assistance-one", "inspector", "selected")).fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodes(androidx.compose.ui.test.hasText("Assistance updated")).fetchSemanticsNodes().isNotEmpty()
+        }
+        select("assistance-two")
+        compose.onNodeWithTag("assistance-open").performClick()
+        present("dialog-confirm")
+        compose.onNodeWithTag("dialog-dismiss").performClick()
+        compose.waitForIdle()
+        assertEquals(1, launches.size)
+        assertTrue(children.single().isAlive)
+        compose.onNodeWithTag("assistance-open").performClick()
+        present("dialog-confirm")
+        compose.onNodeWithTag("dialog-confirm").performClick()
+        compose.waitUntil(5_000) { launches.size == 2 }
+        assertFalse(children.first().isAlive)
+        compose.onNodeWithTag("assistance-panel").assertIsDisplayed()
+        val bitmap = compose.onRoot().captureToImage().asSkiaBitmap()
+        Image.makeFromBitmap(bitmap).use { image ->
+            image.encodeToData()!!.use { Files.write(artifacts.resolve("assistance-panel.png"), it.bytes) }
+        }
+        compose.onNodeWithTag("assistance-close").performClick()
+        present("dialog-confirm")
+        compose.onNodeWithTag("dialog-dismiss").performClick()
+        compose.waitForIdle()
+        assertTrue(children.last().isAlive)
+        children.last().finish()
+        compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
+        compose.onNodeWithTag("assistance-close").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
+        assertTrue(children.none { it.isAlive })
+    }
+}

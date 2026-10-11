@@ -232,11 +232,11 @@ fun FieldClearButton(description: String, onClick: () -> Unit) {
  * field, this one is the way out of a form.
  */
 @Composable
-fun DialogCloseButton(description: String, onClick: () -> Unit) {
+fun DialogCloseButton(description: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     RuleblendTooltip(description) {
         Box(
-            Modifier
+            modifier
                 .size(DialogCloseSize)
                 .clip(StatusDotShape)
                 .clickable(onClick = onClick)
@@ -685,7 +685,7 @@ fun SegmentedControl(
 
 /** The design's `.sw`: a 30 × 18 dp switch, accent when on, faint when off. */
 @Composable
-fun MiniSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+fun MiniSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val track = if (checked) MaterialTheme.colorScheme.primary else RuleblendTheme.extraColors.faint
     val thumbOffset by animateDpAsState(if (checked) 14.dp else 2.dp)
     Box(
@@ -693,7 +693,7 @@ fun MiniSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: M
             .size(width = 30.dp, height = 18.dp)
             .clip(RoundedCornerShape(50))
             .background(track)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+            .toggleable(value = checked, role = Role.Switch, enabled = enabled, onValueChange = onCheckedChange),
     ) {
         Box(
             Modifier

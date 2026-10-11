@@ -43,6 +43,11 @@ python3 -B tools/mcp_contract.py
 
 Команды изолированной проверки встроенного терминала и offline-эксперимента CLI описаны в
 [основном CONTRIBUTING](../../CONTRIBUTING.md#build-and-test).
+`./gradlew :app:checkAssistanceLifecycle` проверяет владельца сессии и terminal backend приложения
+с локальной фикстурой CLI, без обращения к AI и изменений настоящих профилей.
+`:app:assistanceNativeCheck` открывает настоящее окно с временными профилями и offline CLI;
+`:app:packageAssistanceNativeCheck` собирает отдельный app image с упакованной Java.
+Сценарий первого запуска и cold restart: `python3 -B tools/ui_e2e.py ui --tests '*AssistanceUiTest*'`.
 
 ## Гарантии записи файлов
 

@@ -13,7 +13,7 @@ plugins {
 // Single source of truth for the displayed version. These feed both the native distribution
 // below and the generated BuildInfo.kt consumed at runtime (e.g. the Settings tab footer).
 val appVersion = "0.5.0"
-val appBuild = "269"
+val appBuild = "270"
 
 // MSI compares only three numeric fields. Keep builds increasing across patch releases.
 val windowsVersion = appVersion.split('.').take(2).plus(appBuild).joinToString(".")
@@ -153,6 +153,7 @@ kotlin {
         val main = compilations.getByName("main")
         // Opt-in feasibility harness. Its terminal libraries never enter the application runtime.
         val assistantSpike = compilations.create("assistantSpike") {
+            associateWith(main)
             defaultSourceSet.kotlin.srcDir("src/assistantSpike/kotlin")
             defaultSourceSet.dependencies {
                 implementation(spikeDesktopRuntime)
@@ -175,14 +176,48 @@ kotlin {
                 if (taskName.startsWith("check")) args("--check")
             }
         }
+        tasks.register<JavaExec>("checkAssistanceLifecycle") {
+            group = "verification"
+            description = "Checks the application session owner with an offline PTY child; no AI requests"
+            classpath = assistantSpike.output.allOutputs + assistantSpike.runtimeDependencyFiles
+            mainClass.set("dev.ruleblend.app.spike.AssistanceLifecycleCheckKt")
+            javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) })
+            systemProperty("ruleblend.lifecycle.fixture", rootProject.file("tools/assistant_lifecycle_fixture.py").absolutePath)
+            systemProperty("ruleblend.lifecycle.python", providers.gradleProperty("spikePython").orElse("/usr/bin/python3").get())
+            environment("RULEBLEND_LIFECYCLE_TEST", "preserved")
+        }
+        tasks.register<JavaExec>("assistanceNativeCheck") {
+            group = "verification"
+            description = "Opens the real application with isolated profiles and an offline assistant"
+            classpath = assistantSpike.output.allOutputs + assistantSpike.runtimeDependencyFiles
+            mainClass.set("dev.ruleblend.app.spike.AssistanceNativeCheckKt")
+            javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) })
+            systemProperty("ruleblend.lifecycle.fixture", rootProject.file("tools/assistant_lifecycle_fixture.py").absolutePath)
+            doFirst {
+                val root = Files.createTempDirectory("ruleblend-assistance-native-").toFile()
+                val home = root.resolve("home").apply { mkdirs() }
+                val temp = root.resolve("tmp").apply { mkdirs() }
+                systemProperty("ruleblend.native.root", root.absolutePath)
+                systemProperty("user.home", home.absolutePath)
+                systemProperty("java.io.tmpdir", temp.absolutePath)
+                setEnvironment(mapOf(
+                    "HOME" to home.absolutePath, "PATH" to "/usr/bin:/bin", "TMPDIR" to temp.absolutePath,
+                    "CLAUDE_CONFIG_DIR" to home.resolve(".claude").absolutePath,
+                    "CODEX_HOME" to home.resolve(".codex").absolutePath,
+                    "RULEBLEND_LIBRARY" to home.resolve(".ruleblend/library").absolutePath,
+                    "LANG" to "en_US.UTF-8",
+                ))
+            }
+        }
         val spikeJar = tasks.register<Jar>("assistantSpikeJar") {
+            from(main.output.allOutputs)
             from(assistantSpike.output.allOutputs)
             archiveFileName.set("ruleblend-assistant-spike.jar")
             destinationDirectory.set(layout.buildDirectory.dir("assistant-spike/jar"))
         }
         val spikeInput = tasks.register<Sync>("prepareAssistantSpikePackage") {
             from(spikeJar)
-            from(assistantSpike.runtimeDependencyFiles)
+            from(assistantSpike.runtimeDependencyFiles.filter { it.isFile })
             into(layout.buildDirectory.dir("assistant-spike/input"))
         }
         tasks.register<Exec>("packageAssistantTerminalSpike") {
@@ -209,6 +244,32 @@ kotlin {
                     "--java-options", "-Druleblend.spike.fixture=${rootProject.file("tools/assistant_terminal_fixture.py").absolutePath}",
                     "--java-options", "-Druleblend.spike.python=${providers.gradleProperty("spikePython").orElse("/usr/bin/python3").get()}",
                 )
+            }
+        }
+        tasks.register<Exec>("packageAssistanceNativeCheck") {
+            group = "verification"
+            description = "Packages an isolated native acceptance app with the application's Java runtime"
+            dependsOn(spikeInput, "createDistributable")
+            onlyIf { isMacOs }
+            val launcher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) }
+            doFirst {
+                val root = Files.createTempDirectory("ruleblend-assistance-native-package-").toFile()
+                val home = root.resolve("home").apply { mkdirs() }
+                val temp = root.resolve("tmp").apply { mkdirs() }
+                val runtime = layout.buildDirectory.dir("compose/binaries/main/app/Ruleblend.app/Contents/runtime").get().asFile
+                commandLine(
+                    launcher.get().metadata.installationPath.file("bin/jpackage").asFile.absolutePath,
+                    "--type", "app-image", "--name", "RuleblendAssistanceCheck", "--app-version", "1.0",
+                    "--mac-package-identifier", "dev.ruleblend.assistancecheck",
+                    "--input", layout.buildDirectory.dir("assistant-spike/input").get().asFile.absolutePath,
+                    "--dest", root.absolutePath, "--runtime-image", runtime.absolutePath,
+                    "--main-jar", "ruleblend-assistant-spike.jar", "--main-class", "dev.ruleblend.app.spike.AssistanceNativeCheckKt",
+                    "--java-options", "-Druleblend.native.root=${root.absolutePath}",
+                    "--java-options", "-Duser.home=${home.absolutePath}",
+                    "--java-options", "-Djava.io.tmpdir=${temp.absolutePath}",
+                    "--java-options", "-Druleblend.lifecycle.fixture=${rootProject.file("tools/assistant_lifecycle_fixture.py").absolutePath}",
+                )
+                println("Offline native acceptance app: ${root.resolve("RuleblendAssistanceCheck.app")}")
             }
         }
         val uiE2e = compilations.create("uiE2e") {
@@ -306,6 +367,9 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.compose.material3)
             implementation(libs.kotlinx.coroutines.core)
+            implementation("org.jetbrains.jediterm:jediterm-ui:3.76")
+            implementation("org.jetbrains.jediterm:jediterm-core:3.76")
+            implementation("org.jetbrains.pty4j:pty4j:0.14.0")
         }
 
         jvmTest.dependencies {

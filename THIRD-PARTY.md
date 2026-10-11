@@ -98,6 +98,14 @@ Skiko's native runtime variant is selected for Windows x64 or macOS arm64/x64.
 | `org.jspecify:jspecify` | `1.0.0` | [Apache-2.0](licenses/Apache-2.0.txt) | [POM](https://repo.maven.apache.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.pom) |
 | `org.slf4j:slf4j-api` | `2.0.18` | [MIT](licenses/SLF4J.txt) | [POM](https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.pom) |
 | `org.slf4j:slf4j-nop` | `2.0.18` | [MIT](licenses/SLF4J.txt) | [POM](https://repo.maven.apache.org/maven2/org/slf4j/slf4j-nop/2.0.18/slf4j-nop-2.0.18.pom) |
+| `net.java.dev.jna:jna-platform` | `5.19.1` | [Apache-2.0](licenses/Apache-2.0.txt) | [POM](https://repo.maven.apache.org/maven2/net/java/dev/jna/jna-platform/5.19.1/jna-platform-5.19.1.pom) |
+| `net.java.dev.jna:jna` | `5.19.1` | [Apache-2.0](licenses/Apache-2.0.txt) | [POM](https://repo.maven.apache.org/maven2/net/java/dev/jna/jna/5.19.1/jna-5.19.1.pom) |
+| `org.jetbrains.jediterm:jediterm-core` | `3.76` | [Apache-2.0](licenses/JediTerm.txt) | [POM](https://repo.maven.apache.org/maven2/org/jetbrains/jediterm/jediterm-core/3.76/jediterm-core-3.76.pom) |
+| `org.jetbrains.jediterm:jediterm-ui` | `3.76` | [Apache-2.0](licenses/JediTerm.txt) | [POM](https://repo.maven.apache.org/maven2/org/jetbrains/jediterm/jediterm-ui/3.76/jediterm-ui-3.76.pom) |
+| `org.jetbrains.kotlin:kotlin-stdlib` | `2.4.20` | [Apache-2.0](licenses/Apache-2.0.txt) | [POM](https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.4.20/kotlin-stdlib-2.4.20.pom) |
+| `org.jetbrains.pty4j:pty4j` | `0.14.0` | [EPL-1.0](licenses/Pty4J.txt) | [POM](https://repo.maven.apache.org/maven2/org/jetbrains/pty4j/pty4j/0.14.0/pty4j-0.14.0.pom) |
+| `org.jetbrains:annotations` | `26.1.0` | [Apache-2.0](licenses/Apache-2.0.txt) | [POM](https://repo.maven.apache.org/maven2/org/jetbrains/annotations/26.1.0/annotations-26.1.0.pom) |
+| `org.slf4j:slf4j-api` | `2.0.19` | [MIT](licenses/SLF4J.txt) | [POM](https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.19/slf4j-api-2.0.19.pom) |
 
 ## Native graphics and codecs
 
@@ -136,6 +144,19 @@ the operating system and the Java runtime.
 
 Gradle's wrapper scripts and wrapper JAR are distributed in the source tree under
 [Apache-2.0](licenses/Apache-2.0.txt); they are not part of the app runtime.
+
+## Embedded terminal
+
+JediTerm 3.76 is used under its Apache-2.0 option; its POM lists LGPL, but the
+[upstream dual-license declaration](https://github.com/JetBrains/jediterm#licenses) permits either.
+The selected text is in [JediTerm.txt](licenses/JediTerm.txt). JNA's Apache-2.0 option
+is selected; its declaration is in [JNA.txt](licenses/JNA.txt). Pty4J 0.14.0 retains
+[EPL-1.0](licenses/Pty4J.txt); its unmodified source is available from
+[JetBrains](https://github.com/JetBrains/pty4j) and the
+[source artifact](https://repo.maven.apache.org/maven2/org/jetbrains/pty4j/pty4j/0.14.0/pty4j-0.14.0-sources.jar).
+Pty4J and JNA native binaries stay in their original JARs, including platform variants.
+Their native dependencies retain the [libffi](licenses/Libffi.txt), [WinPTY](licenses/WinPTY.txt)
+and [Windows Terminal / ConPTY](licenses/Windows-Terminal.txt) notices.
 
 ## Maintenance
 

@@ -18,6 +18,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   updates and removal previews, with separate library/runtime revisions and reload notices.
 - app: Saving a found file with several sections to the library can keep it whole as one rule.
 - app: Settings → General → Workspace can hide the Recent section of the project list.
+- app: AI help opens Claude Code in a resizable embedded terminal for saved Library objects,
+  with an editable starting message, explicit assistant selection and confirmed process closure.
 
 ### Fixed
 - Codex subagents can be installed into projects (`.codex/agents/`), including through profiles;

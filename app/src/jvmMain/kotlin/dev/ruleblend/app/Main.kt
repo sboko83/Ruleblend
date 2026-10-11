@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +37,15 @@ import java.awt.GraphicsEnvironment
 import java.awt.Taskbar
 import javax.imageio.ImageIO
 import dev.ruleblend.app.i18n.LocalStrings
+import dev.ruleblend.app.i18n.Language
+import dev.ruleblend.app.assistance.AssistanceSessions
+import dev.ruleblend.app.assistance.AssistanceAction
+import dev.ruleblend.app.assistance.AssistanceState
+import dev.ruleblend.app.assistance.AssistanceButton
+import dev.ruleblend.app.assistance.assistanceObject
+import dev.ruleblend.app.assistance.assistanceDraftDirty
+import dev.ruleblend.app.assistance.prepareClaudeAssistanceLaunch
+import dev.ruleblend.app.assistance.LocalAssistanceSessions
 import dev.ruleblend.app.i18n.Strings
 import dev.ruleblend.app.i18n.stringsFor
 import dev.ruleblend.app.command.CommandItem
@@ -202,8 +212,32 @@ fun main(args: Array<String>) {
         return
     }
     applyMacOsIdentity()
+    System.setProperty("compose.interop.blending", "true")
     application {
         val configStore = remember { openConfigStore() }
+        val assistance = remember { AssistanceSessions() }
+        val assistanceState by assistance.state.collectAsState()
+        val assistanceScope = rememberCoroutineScope()
+        var assistanceCloseError by remember { mutableStateOf<String?>(null) }
+        fun closeApplication() {
+            assistanceScope.launch {
+                runCatching {
+                    if (assistance.requestClose(exitApplication = true)) {
+                        assistance.shutdown()
+                        exitApplication()
+                    }
+                }.onFailure { assistanceCloseError = it.message ?: it.toString() }
+            }
+        }
+        DisposableEffect(Unit) {
+            val desktop = if (java.awt.Desktop.isDesktopSupported()) java.awt.Desktop.getDesktop() else null
+            val handlesQuit = desktop?.isSupported(java.awt.Desktop.Action.APP_QUIT_HANDLER) == true
+            if (handlesQuit) desktop.setQuitHandler { _, response ->
+                response.cancelQuit()
+                closeApplication()
+            }
+            onDispose { if (handlesQuit) desktop.setQuitHandler(null) }
+        }
         var themeMode by remember { mutableStateOf(configStore.load().themeMode) }
         // The frame is the user's, once they have set one: only a first run is sized from the screen.
         val savedWindow = remember { configStore.load().window?.let { restoreWindow(it, usableScreens()) } }
@@ -218,7 +252,7 @@ fun main(args: Array<String>) {
             } ?: defaultWindowSize(),
         )
         RememberWindowFrame(windowState, configStore)
-        Window(onCloseRequest = ::exitApplication, title = "Ruleblend", icon = appIcon, state = windowState) {
+        Window(onCloseRequest = ::closeApplication, title = "Ruleblend", icon = appIcon, state = windowState) {
             // The floor is enforced by the window manager rather than by the layout: below it the
             // centre column is under its own minimum and both side panes are already at theirs, so
             // there is nothing left for the layout to give up.
@@ -227,7 +261,38 @@ fun main(args: Array<String>) {
             }
             RuleblendTheme(themeMode) {
                 Surface(Modifier.fillMaxSize()) {
-                    App(configStore = configStore, onThemeModeChanged = { themeMode = it })
+                    CompositionLocalProvider(LocalAssistanceSessions provides assistance) {
+                        App(configStore = configStore, onThemeModeChanged = { themeMode = it })
+                    }
+                }
+                val strings = stringsFor(Language.fromCode(configStore.load().language))
+                assistanceState.confirmation?.takeIf { it.action == AssistanceAction.ExitApplication }?.let { confirmation ->
+                    RuleblendDialog(
+                        title = strings.assistanceCloseConfirm(confirmation.session.launch.assistant.name),
+                        confirmLabel = strings.actionClose,
+                        dismissLabel = strings.actionCancel,
+                        destructive = true,
+                        onDismiss = { assistanceScope.launch { assistance.cancel(confirmation) } },
+                        onConfirm = {
+                            assistanceScope.launch {
+                                runCatching {
+                                    if (assistance.confirm(confirmation)) {
+                                        assistance.shutdown()
+                                        exitApplication()
+                                    }
+                                }.onFailure { assistanceCloseError = it.message ?: it.toString() }
+                            }
+                        },
+                    )
+                }
+                assistanceCloseError?.let { error ->
+                    RuleblendDialog(
+                        onDismiss = { assistanceCloseError = null },
+                        title = strings.assistanceCloseFailed,
+                        text = error,
+                        confirmLabel = strings.actionOk,
+                        onConfirm = { assistanceCloseError = null },
+                    )
                 }
             }
         }
@@ -298,6 +363,9 @@ internal fun App(
     focusSyncNow: () -> Long = System::currentTimeMillis,
     focusEvents: Flow<Unit> = emptyFlow(),
 ) {
+    val assistance = LocalAssistanceSessions.current
+    val assistanceState = assistance?.state?.collectAsState()?.value ?: AssistanceState()
+    var assistanceFailure by remember { mutableStateOf<String?>(null) }
     val libraryPath = remember { configStore.load().libraryPath?.let(Path::of) ?: DEFAULT_LIBRARY_PATH }
     val libraryGit = remember {
         LibraryGit(libraryPath, interProcessLock, remoteConfig = { configStore.load().remoteGit },
@@ -543,6 +611,7 @@ internal fun App(
             // Settings reports the library's size next to its path — the same read Library does.
             AppRoute.SETTINGS -> {
                 library.load()
+                settings.refreshAssistanceAssistants()
                 settings.refreshRemoteSync()
                 settings.refreshAgentVisibility()
                 home.refreshSourceUpdates()
@@ -553,6 +622,20 @@ internal fun App(
     // The MCP server may have changed the library or config while the window was in the background;
     // both models re-read disk on load, so regaining focus is the cheap moment to catch up.
     val windowInfo = LocalWindowInfo.current
+    // An embedded CLI writes through MCP without changing window focus. Reuse the normal disk load
+    // while Library and its terminal are visible; clean editors follow disk, dirty drafts survive.
+    LaunchedEffect(route, assistanceState.session?.terminal) {
+        val terminal = assistanceState.session?.terminal ?: return@LaunchedEffect
+        if (route != AppRoute.LIBRARY) return@LaunchedEffect
+        while (terminal.isAlive) {
+            kotlinx.coroutines.delay(1_000)
+            val beforeBlocks = library.blocks
+            val beforeSkills = library.skills
+            library.load()
+            if (beforeBlocks != library.blocks || beforeSkills != library.skills) library.refreshUsage()
+        }
+        library.load()
+    }
     LaunchedEffect(Unit) {
         merge(snapshotFlow { windowInfo.isWindowFocused }.drop(1).filter { it }.map { Unit }, focusEvents)
             .collect {
@@ -652,7 +735,33 @@ internal fun App(
                     commandsOpen = true
                 },
                 // Settings is the only surface whose subject is a folder on this machine.
-                topBarAction = if (route != AppRoute.SETTINGS) null else {
+                assistanceSession = assistanceState.session,
+                onCloseAssistance = {
+                    appScope.launch {
+                        runCatching { assistance?.requestClose() }
+                            .onFailure { assistanceFailure = it.message ?: it.toString() }
+                    }
+                },
+                topBarAction = if (route == AppRoute.LIBRARY && assistance != null) {
+                    {
+                        AssistanceButton(
+                            target = library.assistanceObject(),
+                            dirty = library.assistanceDraftDirty(),
+                            settings = settings,
+                            onConfigure = { settingsSection = SettingsSection.AGENTS; route = AppRoute.SETTINGS },
+                            onLaunch = { target, assistant ->
+                                appScope.launch {
+                                    runCatching {
+                                        assistance.open(prepareClaudeAssistanceLaunch(
+                                            assistant, target, settings.language, libraryPath.toAbsolutePath(),
+                                        ))
+                                    }.onFailure { assistanceFailure = it.message ?: it.toString() }
+                                }
+                            },
+                            onFailure = { assistanceFailure = it },
+                        )
+                    }
+                } else if (route != AppRoute.SETTINGS) null else {
                     {
                         CompactGhostButton(
                             onClick = { revealInFileManager(CONFIG_PATH) },
@@ -783,6 +892,31 @@ internal fun App(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+            }
+            assistanceState.confirmation?.takeIf { it.action != AssistanceAction.ExitApplication }?.let { confirmation ->
+                RuleblendDialog(
+                    title = when (val action = confirmation.action) {
+                        is AssistanceAction.Replace -> strings.assistanceReplaceConfirm(action.launch.target.name)
+                        else -> strings.assistanceCloseConfirm(confirmation.session.launch.assistant.name)
+                    },
+                    confirmLabel = strings.actionClose,
+                    dismissLabel = strings.actionCancel,
+                    destructive = true,
+                    onDismiss = { appScope.launch { assistance?.cancel(confirmation) } },
+                    onConfirm = {
+                        appScope.launch {
+                            runCatching { assistance?.confirm(confirmation) }
+                                .onFailure { assistanceFailure = it.message ?: it.toString() }
+                        }
+                    },
+                )
+            }
+            assistanceFailure?.let { error ->
+                RuleblendDialog(
+                    title = strings.assistanceLaunchFailed, text = error,
+                    confirmLabel = strings.actionOk,
+                    onDismiss = { assistanceFailure = null }, onConfirm = { assistanceFailure = null },
+                )
             }
             brokenConfig?.let { moved ->
                 RuleblendDialog(

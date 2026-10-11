@@ -1,5 +1,8 @@
 package dev.ruleblend.app.settings
 
+import dev.ruleblend.app.assistance.ReadyAssistanceAssistant
+import dev.ruleblend.app.assistance.discoverAssistanceAssistants
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -214,6 +217,25 @@ class SettingsModel(
     var integrationStates by mutableStateOf(emptyList<AgentIntegrationState>())
         private set
 
+    var assistanceAssistants by mutableStateOf(emptySet<String>())
+        private set
+    var readyAssistanceAssistants by mutableStateOf(emptyList<ReadyAssistanceAssistant>())
+        private set
+
+    suspend fun refreshAssistanceAssistants() {
+        assistanceAssistants = withContext(Dispatchers.IO) { configStore.load().assistanceAssistants.toSet() }
+        refreshConnectStates()
+    }
+
+    fun setAssistanceAssistant(id: String, selected: Boolean) {
+        if (selected && readyAssistanceAssistants.none { it.id == id }) return
+        val updated = configStore.update { config ->
+            config.copy(assistanceAssistants = if (selected) (config.assistanceAssistants + id).distinct()
+                else config.assistanceAssistants - id)
+        }
+        assistanceAssistants = updated.assistanceAssistants.toSet()
+    }
+
     /** Connection state per connector [McpConnector.agentId]; only available agents appear. */
     val connectStates: Map<String, ConnectState>
         get() = integrationStates.mapNotNull { state -> state.mcp?.let { state.agentId to connectState(state) } }.toMap()
@@ -264,6 +286,7 @@ class SettingsModel(
         placeSubagentsExpandedByDefault = config.placeSubagentsExpandedByDefault
         placeMcpExpandedByDefault = config.placeMcpExpandedByDefault
         hiddenAgents = config.hiddenAgents.toSet()
+        assistanceAssistants = config.assistanceAssistants.toSet()
         nameFormat = config.nameFormat
         lineEnding = config.lineEnding
         loadRemote(config.remoteGit)
@@ -276,6 +299,7 @@ class SettingsModel(
         translation = config.translation
         libraryHistory = loaded.history
         integrationStates = loaded.integrationStates
+        readyAssistanceAssistants = discoverAssistanceAssistants(agents, { integrationStates })
     }
 
     private fun loadRemote(config: RemoteGitConfig?) {
@@ -518,6 +542,7 @@ class SettingsModel(
 
     private suspend fun refreshConnectStates() {
         integrationStates = withContext(Dispatchers.IO) { integration.states() }
+        readyAssistanceAssistants = discoverAssistanceAssistants(agents, { integrationStates })
     }
 
     private fun connectState(state: AgentIntegrationState): ConnectState {

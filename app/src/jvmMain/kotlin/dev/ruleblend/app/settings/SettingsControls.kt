@@ -45,6 +45,7 @@ internal fun SettingsSectionBlock(
     section: SettingsSection,
     title: String,
     summary: String?,
+    tag: String = "settings-panel-${section.name.lowercase()}",
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -62,7 +63,7 @@ internal fun SettingsSectionBlock(
             }
         }
         Surface(
-            Modifier.fillMaxWidth().testTag("settings-panel-${section.name.lowercase()}"),
+            Modifier.fillMaxWidth().testTag(tag),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),

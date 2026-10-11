@@ -15,6 +15,18 @@
     "sha256": "657a3c8185dd5ab1e9997f675ad3bcc79ca87249da08b12d4138212d2ae74262",
     "source": "https://repo.maven.apache.org/maven2/org/eclipse/jgit/org.eclipse.jgit/7.7.1.202607240634-r/org.eclipse.jgit-7.7.1.202607240634-r.jar!/about.html"
   },
+  "licenses/JNA.txt": {
+    "sha256": "07c938b23950ab7d47a24ef35f9f5da3a05ae164278dc959ad6994135ed59ff1",
+    "source": "https://repo.maven.apache.org/maven2/net/java/dev/jna/jna/5.19.1/jna-5.19.1.jar!/META-INF/LICENSE"
+  },
+  "licenses/JediTerm.txt": {
+    "sha256": "2245a990b635558be210fb3eb4f8a6f7a49aebc0fefbf5859146a65ddc7ddcf3",
+    "source": "https://raw.githubusercontent.com/JetBrains/jediterm/master/LICENSE-APACHE-2.0.txt"
+  },
+  "licenses/Libffi.txt": {
+    "sha256": "2c9c2acb9743e6b007b91350475308aee44691d96aa20eacef8e199988c8c388",
+    "source": "https://raw.githubusercontent.com/java-native-access/jna/a800ca8313076bc0375fed8bd4efd829eb61b0b0/native/libffi/LICENSE"
+  },
   "licenses/Lucide.txt": {
     "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
     "source": "https://raw.githubusercontent.com/lucide-icons/lucide/main/LICENSE"
@@ -22,6 +34,10 @@
   "licenses/MCP-SDK.txt": {
     "sha256": "7c6a686d2b34b86ad8c726e0ac4d76903b525f251d73e617f8db3879fa8f11fc",
     "source": "https://raw.githubusercontent.com/modelcontextprotocol/kotlin-sdk/0.15.0/LICENSE"
+  },
+  "licenses/Pty4J.txt": {
+    "sha256": "3a4a6fe55f67f02b92be0ec9907e347de8ab5c8edf9214c5c8019e5820517884",
+    "source": "https://raw.githubusercontent.com/JetBrains/pty4j/master/LICENSE"
   },
   "licenses/SLF4J.txt": {
     "sha256": "4e7f90c86ab51278228bce153122f1d8df30149d13ce9ef524c8444a84c32dcc",
@@ -34,6 +50,14 @@
   "licenses/Skiko-NOTICE.txt": {
     "sha256": "35dd077c24768b53625101cfcc0ad853ae7e2abc08bd2a111a0267760d1406d8",
     "source": "https://raw.githubusercontent.com/JetBrains/skiko/v0.144.6/NOTICE"
+  },
+  "licenses/WinPTY.txt": {
+    "sha256": "c39e428064b4f3e4fe81a975bf0fd3b845922b431bc4d9a7ffc8bfb091981836",
+    "source": "https://raw.githubusercontent.com/rprichard/winpty/master/LICENSE"
+  },
+  "licenses/Windows-Terminal.txt": {
+    "sha256": "5d177f23ecfeb0ea8e050b6a5a16355e1ae9a0b286436ca8f83ed08b3795be6b",
+    "source": "https://raw.githubusercontent.com/microsoft/terminal/main/LICENSE"
   },
   "licenses/skia/include/third_party/vulkan/LICENSE": {
     "sha256": "e59bb5c5c6ba426a9ac4ba9fe667ad14c5166b12aa25be8af1d122b14fbe2e36",

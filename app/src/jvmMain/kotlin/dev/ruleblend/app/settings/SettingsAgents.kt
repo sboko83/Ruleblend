@@ -103,6 +103,24 @@ internal fun AgentsSection(model: SettingsModel) {
         RowDivider()
         Foot(strings.setAgentsFoot)
     }
+    SettingsSectionBlock(SettingsSection.AGENTS, strings.assistanceSettingsTitle, null, tag = "settings-panel-assistance") {
+        Text(strings.assistanceSettingsHint, style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(14.dp))
+        model.agents.filter { it.id == "claude-code" }.forEach { agent ->
+            val ready = model.readyAssistanceAssistants.any { it.id == agent.id }
+            ControlRow(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Text(agent.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                if (!ready) Text(strings.assistanceUnavailable, style = MaterialTheme.typography.bodySmall,
+                    color = RuleblendTheme.extraColors.faint)
+                MiniSwitch(
+                    checked = agent.id in model.assistanceAssistants,
+                    onCheckedChange = { model.setAssistanceAssistant(agent.id, it) },
+                    enabled = ready || agent.id in model.assistanceAssistants,
+                    modifier = Modifier.testTag("settings-assistance-${agent.id}"),
+                )
+            }
+        }
+    }
 }
 
 /**

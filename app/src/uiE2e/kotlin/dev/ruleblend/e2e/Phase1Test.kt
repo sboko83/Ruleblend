@@ -145,7 +145,9 @@ class Phase1Test {
     private fun select(path: Path, section: String = "ungrouped") {
         route("place")
         val tag = uiTarget("place", "project:${path.projectKey()}", section, "select")
-        compose.onNodeWithTag("place-list").performScrollToNode(hasTestTag(tag))
+        compose.waitUntil(15_000) {
+            runCatching { compose.onNodeWithTag("place-list").performScrollToNode(hasTestTag(tag)) }.isSuccess
+        }
         compose.onNodeWithTag(tag).performClick()
         compose.onNodeWithTag(tag).assertIsDisplayed()
     }
@@ -314,6 +316,7 @@ class Phase1Test {
         assertFalse(Files.exists(project.resolve(".codex/agents/e2e-agent.toml")))
         assertTrue(project.resolve(".codex/config.toml").readText().contains("e2e-server"))
         assertTrue(project.resolve(".kimi-code/mcp.json").readText().contains("e2e-server"))
+        assertTrue(project.resolve(".pi/mcp.json").readText().contains("e2e-server"))
         assertTrue(home.resolve(".ruleblend/skill-state.json").readText().contains("e2e-skill"))
         assertTrue(home.resolve(".ruleblend/subagent-state.json").readText().contains("e2e-agent"))
         assertTrue(home.resolve(".ruleblend/mcp-state.json").readText().contains("e2e-server"))
@@ -436,7 +439,7 @@ class Phase1Test {
         start()
         if (stage == "first") fourIntoProject() else select(project)
         assertProjectFiles()
-        for ((tab, count) in listOf("rules" to "1", "skills" to "5/0", "subagents" to "2/0", "mcp" to "3/0")) {
+        for ((tab, count) in listOf("rules" to "1", "skills" to "5/0", "subagents" to "2/0", "mcp" to "4/0")) {
             compose.onNodeWithTag("place-tab-$tab").assertIsDisplayed().performClick()
             compose.onNodeWithTag("place-tab-$tab").assertTextContains(count, substring = true)
         }

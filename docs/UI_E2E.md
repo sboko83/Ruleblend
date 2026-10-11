@@ -42,6 +42,7 @@ a new root and preserves the previous report.
 # Root UI and cold restart in a new JVM, sharing one temporary root.
 python3 -B tools/ui_e2e.py ui
 python3 -B tools/ui_e2e.py ui --tests '*RootSmokeTest*' --timeout 240
+python3 -B tools/ui_e2e.py ui --tests '*AssistanceUiTest*' --timeout 240
 
 # Phase 1: each P-01…P-12 scenario has its own temporary root.
 python3 -B tools/ui_e2e.py projects
