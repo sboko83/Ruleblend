@@ -704,6 +704,8 @@ interface Strings {
     /** Tooltip on the CLAUDE.md chip: a managed @AGENTS.md import so Claude Code finds the rules. */
     val intAdoptTitle: (String) -> String
     val intAdoptReplaceLabel: String
+    /** Adopt dialog: saves a file found to have several sections as one rule. */
+    val intAdoptKeepWholeLabel: String
     val intAdoptOrderBlocked: (String) -> String
     val intAdoptOrderAroundRun: String
     val intAdoptSizeWarning: (Int, Int) -> String
@@ -1646,6 +1648,7 @@ object EnStrings : Strings {
     override val intSkills = "Skills"
     override val intAdoptTitle = { file: String -> "Save $file to library" }
     override val intAdoptReplaceLabel = "Replace the original text with a managed region"
+    override val intAdoptKeepWholeLabel = "Save as one rule without splitting into sections"
     override val intAdoptOrderBlocked = { names: String ->
         "Replacing would move text: $names sits between the chosen sections and would end up outside the managed region. Tick it too, or clear the replace option."
     }
@@ -2617,6 +2620,7 @@ object RuStrings : Strings {
     override val intSkills = "Skills"
     override val intAdoptTitle = { file: String -> "Сохранить $file в библиотеку" }
     override val intAdoptReplaceLabel = "Заменить исходный текст управляемым блоком"
+    override val intAdoptKeepWholeLabel = "Сохранить одним правилом, не разбивая на разделы"
     override val intAdoptOrderBlocked = { names: String ->
         "Замена переставила бы текст: $names стоит между выбранными секциями и оказался бы за пределами управляемого блока. Отметьте и его или снимите замену."
     }

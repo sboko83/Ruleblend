@@ -681,7 +681,8 @@ project is the first move there, and it is the only surface that offers it.
   and the run already in the file must form one unbroken stretch, and the run takes that stretch's
   place. A kept section inside it would have to move to one side of the run, so the dialog refuses
   such a selection before anything is saved and names the section in the way; the write refuses it
-  too, and refuses a plan whose text no longer matches the file.
+  too, and refuses a plan whose text no longer matches the file. Headings are only a guess at the
+  grain, so the dialog can also save the whole text as one rule, through the single-section path.
 - **Split** (`Splitter` in `core`) cuts a rule into several along arbitrary boundaries, from the
   Library editor or from an adopt-dialog section row. In Library mode the source block is left
   untouched and group memberships are mirrored onto the parts.

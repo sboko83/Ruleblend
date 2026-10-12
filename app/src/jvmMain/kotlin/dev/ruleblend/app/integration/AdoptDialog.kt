@@ -125,7 +125,11 @@ internal fun AdoptDialog(
     // Index into [candidates] of the section the user is splitting further; null when the splitter
     // is closed. Kept here so a Split cascades back into the section list this dialog owns.
     var splittingIndex by remember(file) { mutableStateOf<Int?>(null) }
-    val multiSection = candidates.count { it.section.offerable } >= 2
+    val hasSections = candidates.count { it.section.offerable } >= 2
+    // The headings are a guess at the grain: a block the user keeps as one rule is saved as one,
+    // exactly as the single-section form does it.
+    var keepWhole by remember(file) { mutableStateOf(false) }
+    val multiSection = hasSections && !keepWhole
     // Advisory pre-save scan. Whole-file view in single-section mode, per-section view otherwise —
     // the WARN badge on a section row tells the user which one carries the finding.
     val wholeScan = remember(file) { scan(file.content.text) }
@@ -238,6 +242,13 @@ internal fun AdoptDialog(
                     }
                 }
             }
+        }
+        if (hasSections) Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            SquareCheckbox(checked = keepWhole, onCheckedChange = { keepWhole = it }, modifier = Modifier.testTag("adopt-keep-whole"))
+            Text(strings.intAdoptKeepWholeLabel, style = MaterialTheme.typography.bodySmall)
         }
         if (multiSection) SectionsPanel(
             candidates = candidates,

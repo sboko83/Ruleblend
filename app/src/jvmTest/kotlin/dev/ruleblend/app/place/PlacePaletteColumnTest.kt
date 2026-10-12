@@ -349,6 +349,32 @@ class PlacePaletteColumnTest {
         assertTrue(blocks.any { "One reviewer minimum" in it.content })
     }
 
+    @Test fun `a found file with several sections can be adopted whole as one rule`() {
+        project.resolve("AGENTS.md").writeText(
+            WrappedRun(TargetOwnershipMode.PARTIAL).upsert(
+                "# ledger-kmp\n\n## Naming\nUse lowerCamelCase.\n\n## Reviews\nOne reviewer minimum.\n",
+                regionFor(installed),
+            ),
+        )
+        val model = model()
+        val before = repository.listBlocks().map { it.id }.toSet()
+        val revision = model.writeRevision
+        compose.setContent { RuleblendTheme(ThemeMode.LIGHT) { PlacePaletteColumn(model, onEditFile = {}) } }
+
+        compose.onNodeWithText(strings.actionAdopt).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("adopt-keep-whole").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("adopt-name").assertIsDisplayed()
+        compose.onAllNodesWithText(strings.actionAdopt).onLast().performClick()
+        compose.waitUntil { model.writeRevision > revision }
+        compose.waitForIdle()
+
+        val added = repository.listBlocks().filter { it.id !in before }
+        assertEquals(1, added.size, "a file kept whole is one rule")
+        assertTrue("lowerCamelCase" in added.single().content && "One reviewer minimum" in added.single().content)
+    }
+
     @Test fun `the found row hands its own file to the editor`() {
         var edited: Path? = null
         val model = model()

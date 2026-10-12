@@ -16,6 +16,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   keep-data uninstall, with drift protection and recovery after interrupted CLI operations.
 - app: Library and Global → Claude Code offer complete mod import, group installation, explicit
   updates and removal previews, with separate library/runtime revisions and reload notices.
+- app: Saving a found file with several sections to the library can keep it whole as one rule.
 
 ### Fixed
 - Tooltips appear above and to the right of the pointer, keeping controls clickable.
