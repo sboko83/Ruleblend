@@ -49,6 +49,8 @@ fun placeSections(
      */
     keep: String? = null,
     marks: (Target) -> Set<StatusMark> = { emptySet() },
+    /** `false` drops the Recent section; the board keeps recording visits for when it comes back. */
+    showRecent: Boolean = true,
 ): List<PlaceSection> {
     val pinned = board.pinned.toSet()
     val entries = targets.all.associate { target ->
@@ -71,7 +73,9 @@ fun placeSections(
 
     return buildList {
         add(section("pinned", PlaceSectionKind.PINNED, board.pinned.mapNotNull(entries::get)))
-        add(section("recent", PlaceSectionKind.RECENT, board.recent.filterNot { it in pinned }.mapNotNull(entries::get)))
+        if (showRecent) {
+            add(section("recent", PlaceSectionKind.RECENT, board.recent.filterNot { it in pinned }.mapNotNull(entries::get)))
+        }
         add(section("agents", PlaceSectionKind.AGENTS, entriesOf(targets.agents)))
         board.sets.forEach { set ->
             add(

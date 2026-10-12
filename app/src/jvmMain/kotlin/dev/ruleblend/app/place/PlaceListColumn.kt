@@ -68,6 +68,7 @@ import kotlinx.coroutines.launch
 fun PlaceListColumn(
     model: IntegrationModel,
     groupsExpandedByDefault: Boolean = true,
+    showRecent: Boolean = true,
     onRemoveProject: (ProjectTarget) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,6 +86,7 @@ fun PlaceListColumn(
         query = query,
         keep = selectedId,
         marks = model::dotMarks,
+        showRecent = showRecent,
     )
 
     Column(modifier.fillMaxSize()) {

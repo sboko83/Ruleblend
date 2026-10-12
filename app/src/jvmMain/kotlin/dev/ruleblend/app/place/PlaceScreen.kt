@@ -64,6 +64,7 @@ fun PlaceScreen(
     useExternalEditor: Boolean = false,
     externalEditor: Path? = null,
     groupsExpandedByDefault: Boolean = true,
+    showRecentPlaces: Boolean = true,
     placeLibraryExpandedByDefault: Boolean = true,
     placeRulesExpandedByDefault: Boolean = false,
     placeSkillsExpandedByDefault: Boolean = false,
@@ -107,6 +108,7 @@ fun PlaceScreen(
                     PlaceListColumn(
                         model,
                         groupsExpandedByDefault = groupsExpandedByDefault,
+                        showRecent = showRecentPlaces,
                         onRemoveProject = { removingProject = it },
                     )
                 }

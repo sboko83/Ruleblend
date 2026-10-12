@@ -61,6 +61,17 @@ class PlaceListTest {
     }
 
     @Test
+    fun `turning recent off drops only its section`() {
+        val board = PlaceBoard(
+            pinned = listOf("project:/code/atlas"),
+            recent = listOf("project:/code/orbit"),
+        )
+        val shown = placeSections(targets, AppConfig(places = board).normalizedKeys().places, showRecent = false)
+
+        assertEquals(listOf("pinned", "agents", "ungrouped"), shown.map { it.key })
+    }
+
+    @Test
     fun `a pin left over from a place that is gone is skipped`() {
         val board = PlaceBoard(pinned = listOf("project:/code/deleted"), recent = listOf("agent:codex"))
 

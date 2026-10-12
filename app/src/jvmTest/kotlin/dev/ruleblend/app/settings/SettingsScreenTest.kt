@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -139,6 +140,11 @@ class SettingsScreenTest {
         compose.runOnIdle {
             assertEquals(ThemeMode.DARK, model.themeMode)
             assertEquals(ThemeMode.DARK, configStore.load().themeMode)
+        }
+        compose.onNodeWithTag(SettingsShowRecentSwitchTag).performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(false, model.showRecentPlaces)
+            assertEquals(false, configStore.load().showRecentPlaces)
         }
         goTo(SettingsSection.FOLDING)
         compose.onNodeWithTag("settings-groups-collapsed").performClick()

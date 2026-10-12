@@ -714,6 +714,7 @@ internal fun App(
                         useExternalEditor = settings.useExternalEditor,
                         externalEditor = settings.externalEditorPath,
                         groupsExpandedByDefault = settings.groupsExpandedByDefault,
+                        showRecentPlaces = settings.showRecentPlaces,
                         placeLibraryExpandedByDefault = settings.placeLibraryExpandedByDefault,
                         placeRulesExpandedByDefault = settings.placeRulesExpandedByDefault,
                         placeSkillsExpandedByDefault = settings.placeSkillsExpandedByDefault,

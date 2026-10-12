@@ -828,6 +828,7 @@ interface Strings {
     val setWorkspaceHint: String
     val setResetColumns: String
     val setResetColumnsDone: String
+    val setShowRecent: String
     val setClearRecent: String
     val setClearRecentDone: String
     val setWorkspaceNote: String
@@ -1757,6 +1758,7 @@ object EnStrings : Strings {
     override val setWorkspaceHint = "Layout state kept on this machine."
     override val setResetColumns = "Reset column widths"
     override val setResetColumnsDone = "Layout reset"
+    override val setShowRecent = "Show recent targets"
     override val setClearRecent = "Clear recent targets"
     override val setClearRecentDone = "Cleared"
     override val setWorkspaceNote = "Pinned targets and project sets are kept."
@@ -2733,6 +2735,7 @@ object RuStrings : Strings {
     override val setWorkspaceHint = "Состояние раскладки на этой машине."
     override val setResetColumns = "Сбросить ширины колонок"
     override val setResetColumnsDone = "Раскладка сброшена"
+    override val setShowRecent = "Показывать недавние проекты"
     override val setClearRecent = "Очистить недавние проекты"
     override val setClearRecentDone = "Очищено"
     override val setWorkspaceNote = "Закреплённые проекты и их наборы сохраняются."

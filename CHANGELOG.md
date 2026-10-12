@@ -17,6 +17,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - app: Library and Global → Claude Code offer complete mod import, group installation, explicit
   updates and removal previews, with separate library/runtime revisions and reload notices.
 - app: Saving a found file with several sections to the library can keep it whole as one rule.
+- app: Settings → General → Workspace can hide the Recent section of the project list.
 
 ### Fixed
 - Tooltips appear above and to the right of the pointer, keeping controls clickable.

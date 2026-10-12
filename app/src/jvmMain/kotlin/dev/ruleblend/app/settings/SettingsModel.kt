@@ -111,6 +111,9 @@ class SettingsModel(
     var groupsExpandedByDefault by mutableStateOf(true)
         private set
 
+    var showRecentPlaces by mutableStateOf(true)
+        private set
+
     var sourceCheck by mutableStateOf(SourceCheckMode.MANUAL)
         private set
 
@@ -253,6 +256,7 @@ class SettingsModel(
         language = Language.fromCode(config.language)
         themeMode = config.themeMode
         groupsExpandedByDefault = config.groupsExpandedByDefault
+        showRecentPlaces = config.showRecentPlaces
         sourceCheck = config.sourceCheck
         placeLibraryExpandedByDefault = config.placeLibraryExpandedByDefault
         placeRulesExpandedByDefault = config.placeRulesExpandedByDefault
@@ -549,6 +553,11 @@ class SettingsModel(
     /** Forgets every persisted pane width; the screens pick the defaults up on their next load. */
     fun resetColumnWidths() {
         configStore.update { it.copy(columnWidths = ColumnWidths()) }
+    }
+
+    fun changeShowRecentPlaces(value: Boolean) {
+        configStore.update { it.copy(showRecentPlaces = value) }
+        showRecentPlaces = value
     }
 
     /** Clears the recently opened places; pins and project sets are untouched. */

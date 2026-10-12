@@ -42,6 +42,8 @@ data class AppConfig(
     val sidebarExpanded: Boolean = true,
     /** Whether grouped lists open their sections when the corresponding screen is first entered. */
     val groupsExpandedByDefault: Boolean = true,
+    /** Whether the place list shows the Recent shortcut section; visits are recorded either way. */
+    val showRecentPlaces: Boolean = true,
     /** When imported Git skill sources are checked for updates. */
     val sourceCheck: SourceCheckMode = SourceCheckMode.MANUAL,
     /** Whether the library section of the Place palette opens its type sections when a place is entered. */

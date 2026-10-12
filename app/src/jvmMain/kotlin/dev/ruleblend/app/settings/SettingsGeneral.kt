@@ -126,6 +126,18 @@ internal fun GeneralSection(model: SettingsModel, narrow: Boolean, operationScop
         RowDivider()
         SettingsRow(strings.setWorkspace, strings.setWorkspaceHint, narrow) {
             ControlRow {
+                MiniSwitch(
+                    checked = model.showRecentPlaces,
+                    onCheckedChange = model::changeShowRecentPlaces,
+                    modifier = Modifier.testTag(SettingsShowRecentSwitchTag),
+                )
+                Text(
+                    strings.setShowRecent,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            ControlRow {
                 FlashButton(strings.setResetColumns, strings.setResetColumnsDone, model::resetColumnWidths,
                     tag = "settings-reset-columns")
                 FlashButton(strings.setClearRecent, strings.setClearRecentDone, model::clearRecentPlaces,
@@ -135,6 +147,9 @@ internal fun GeneralSection(model: SettingsModel, narrow: Boolean, operationScop
         }
     }
 }
+
+/** Test handle for the switch that hides the Recent section of the place list. */
+internal const val SettingsShowRecentSwitchTag = "settings-show-recent"
 
 /** Test handle for the switch that takes translation out of the app. */
 internal const val SettingsTranslationSwitchTag = "settings-translation-enabled"
