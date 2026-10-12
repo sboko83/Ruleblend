@@ -6,14 +6,11 @@ build/
 local.properties
 .idea/
 .zcode/
-/AGENTS.md
-/CLAUDE.md
 /private/
 /.claude/
 /.codex/
 /.agents/
 /.vscode/
-/docs/todo/
 *.log
 .swiftpm/
 .build/
