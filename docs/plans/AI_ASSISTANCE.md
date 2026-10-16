@@ -1,6 +1,6 @@
 # Embedded AI-assistant terminal — implementation plan
 
-Created: 2026-10-10. Refined: 2026-10-11.
+Created: 2026-10-10. Refined: 2026-10-11; phase 7 added 2026-10-16.
 Status: **IN PROGRESS**; work resumed 2026-10-11.
 Scope of the current session: the user asked to finish the whole plan, including phases 3–6.
 Branch: `feat/ai-assistance`, appBuild 270. Next unfinished phase — **6**.
@@ -80,6 +80,62 @@ Mockup approved (the mockup files are not kept in the repository).
   Compose field either; this does not count as successful acceptance.
 - macOS arm64 is the first platform; macOS x64 and Windows are accepted separately.
 
+## Phase 7: project profile selection
+
+Picking a profile for a project from a large library is manual today: hundreds of items, extras
+bloat the assistant's context, missing ones leave it without instructions. The approach was tried
+outside Ruleblend in a course experiment (2026-10-16): a local model picked profiles from a
+269-item library for three projects and was checked against a frozen reference. This phase moves
+what it found into Ruleblend. Direction approved by the user 2026-10-16; the entry point and the
+starting text below are a proposal and need approval before code.
+
+Behaviour:
+
+- A project in Place gets the same assistance button. Its starting text names the project and
+  its absolute path and asks to pick a profile through Ruleblend MCP and the ruleblend skill,
+  discussing first. Prefill, no automatic submission, one session — as for Library objects.
+- The assistant in the terminal analyses and installs. Ruleblend adds no selection engine,
+  model calls, ranking or profile wizard; the procedure lives in the bundled skill.
+- The profile targets the project's enabled assistants (`set_project_agents`), not only the one
+  running in the terminal.
+
+Skill section "Picking a profile for a project", the procedure the experiment arrived at:
+
+1. Project facts first, from the repository: languages split into product, tests and auxiliary
+   files; build declarations, commands, CI, existing agent files. Only top-level `docs*`, `site`,
+   `plugins` and hidden directories are auxiliary (a nested `plugins/` package is product code).
+   A `package.json` alone does not make a Node project. Read only: no project commands, and
+   agent files are counted, not followed.
+2. Screening over every candidate, without a size limit. Clearly foreign items (PowerShell,
+   Salesforce, Figma, …) are rejected by description; items touching the project's stack and all
+   MCP configs are read in full through `get_*`. Descriptions alone mislead.
+3. Selection over the shortlist as a whole. One of several overlapping items: a broad
+   `frontend-developer` over narrow React/Vue agents, the `playwright` MCP over browser skills.
+   Stack-agnostic generic agents stay out. Ordered by need, at most 10; the reference took 2–6.
+   Why two stages: a single pass judged each item alone and took up to 31 items; a limit stated
+   in the prompt was ignored. Measured on a local model; not yet tried with Claude Code.
+4. Every picked item cites a project fact (file and line); an item without one is dropped.
+5. Before any write: the composition with reasons and the exact MCP calls (`create_profile` or
+   `update_profile`, `set_project_agents`, `install` with `profile_id`). Write after the user
+   confirms. One profile per project; another profile already attached stops the flow and is
+   reported. A repeat brings the profile to the agreed composition. Afterwards `target_status`
+   shows every member `synced`.
+
+Acceptance:
+
+- Rebase the branch onto `main` first: project subagents for Codex and MCP installation with a
+  working directory containing `.ruleblend` need `e2ca27f`. The branch is local, never pushed.
+- Reference: course repository `AIAC9`, `week-7-task-5/reference/` — project facts and a decision
+  with reasons for each of 269 candidates for alkaa, jrnl and number-flow, pinned to project and
+  source SHAs; `week-7-task-5/tools/build_library.py` rebuilds that library. Compare the
+  assistant's picks for alkaa at least: matches, extras, misses, with both sides' reasons.
+- The live run uses a project clone and an isolated library, never the user's projects or
+  library. Ruleblend takes every path from the JVM `user.home`, not `$HOME`: isolate with
+  `-Duser.home` in `JAVA_TOOL_OPTIONS` plus `CODEX_HOME` and `CLAUDE_CONFIG_DIR`.
+  Library's Mods section runs `claude plugin`, which creates `CLAUDE_CONFIG_DIR` and makes
+  Claude Code look available (checked 2026-10-16). Open: how the terminal's Claude Code stays
+  authenticated while the library is isolated — decide before the live run.
+
 ## Next step
 
 Phase 6: finish interactive acceptance in an active native window and the other platform checks.
@@ -95,6 +151,7 @@ Phase 6: finish interactive acceptance in an active native window and the other 
 | 4 | Bottom panel and Settings in the existing design | DONE 2026-10-11 |
 | 5 | Invocation from Library and consistent refresh of its data | DONE 2026-10-11 |
 | 6 | Automated checks and macOS arm64 packaging done; interactive and platform gates open | IN PROGRESS |
+| 7 | Project profile selection: Place entry point, skill procedure, reference check | TODO |
 
 Keep the previously agreed control points after 0–1, 2–3, 4–5 and the final one in 6: check
 against the task, review the diff and check the changed behaviour. Control for 0–1, 2–3 and 4–5
@@ -108,6 +165,7 @@ closed 2026-10-11. Additional assistants and more sessions are separate tasks.
 - The working document is this file; `CLAUDE_CODE_MODS.md` belongs to another task.
 - Do not commit an unfinished prototype. After the corresponding step and its checks are done —
   a normal commit per the repository rules; no push.
+- Phase 7 does not depend on the open phase 6 gates; its UX needs approval first.
 - No live AI requests were made; they need a separately agreed scenario. Launching the CLI
   without submitting and local fake checks are allowed. Do not change real profiles for tests.
 - Report checks and their output in chat; do not accumulate a run log here. For a finished
