@@ -17,9 +17,11 @@ import dev.ruleblend.core.model.BlockType
 import dev.ruleblend.core.model.McpConfigCodec
 import dev.ruleblend.core.model.McpServerConfig
 import dev.ruleblend.core.storage.InterProcessLock
+import dev.ruleblend.core.storage.LockTimeoutException
 import dev.ruleblend.core.storage.TargetMutationCoordinator
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
 import kotlin.concurrent.thread
 import kotlin.io.path.createDirectories
@@ -94,6 +96,53 @@ class McpInstallServiceTest {
             blocks.associate { it.id to InstallStatus.SYNCED },
             blocks.associate { it.id to shared.status(globalClaude, it)?.status },
         )
+    }
+
+    /**
+     * A path is itself an `Iterable<Path>`, so adding the state file to a list of paths can append
+     * its name components instead. Those resolve against the working directory: one that holds a
+     * directory of the same name as a component made the snapshot read fail with "Is a directory".
+     */
+    @Test
+    fun `install snapshots the state file itself, not its name components under the working directory`() {
+        val base = Path.of("").toAbsolutePath().resolve("build").resolve("tmp").createDirectories()
+        val cwdHome = Files.createTempDirectory(base, "ruleblend-mcp-cwd-home")
+        try {
+            cwdHome.resolve(".codex").createDirectories()
+            val cwdService = McpInstallService(
+                installers = listOf(CodexMcpInstaller(cwdHome)),
+                state = McpStateStore(cwdHome.resolve(".ruleblend")),
+            )
+            val target = AgentGlobalTarget(CodexAdapter(cwdHome))
+
+            cwdService.install(target, stdioBlock)
+
+            assertEquals(InstallStatus.SYNCED, cwdService.status(target, stdioBlock)?.status)
+        } finally {
+            cwdHome.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `lock timeout names only the config and state files of the target`() {
+        val lock = InterProcessLock(home.resolve("ruleblend.lock"), timeoutMs = 100)
+        val coordinator = TargetMutationCoordinator(lock)
+        val locked = McpInstallService(
+            installers = listOf(CodexMcpInstaller(home, coordinator)),
+            state = McpStateStore(home.resolve(".ruleblend"), coordinator),
+            coordinator = coordinator,
+        )
+        val held = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val holder = thread { lock.withLock { held.countDown(); release.await() } }
+        held.await()
+        try {
+            val failure = assertFailsWith<LockTimeoutException> { locked.install(globalCodex, stdioBlock) }
+            assertTrue(failure.message.orEmpty().endsWith("; config.toml, mcp-state.json left unchanged"), failure.message)
+        } finally {
+            release.countDown()
+            holder.join()
+        }
     }
 
     @Test

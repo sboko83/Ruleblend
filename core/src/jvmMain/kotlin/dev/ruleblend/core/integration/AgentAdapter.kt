@@ -149,6 +149,8 @@ class CodexAdapter(
     override val subagentFormat = CodexSubagentFormat
 
     override fun globalSubagentDirectory(): Path = paths.codex.resolve("agents")
+
+    override fun projectSubagentDirectory(projectDir: Path): Path = projectDir.resolve(".codex").resolve("agents")
 }
 
 class KimiCodeAdapter(home: KimiCodeHome = KimiCodeHome.current()) : AgentAdapter {

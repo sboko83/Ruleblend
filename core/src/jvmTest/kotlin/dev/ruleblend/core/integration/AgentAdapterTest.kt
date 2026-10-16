@@ -94,7 +94,7 @@ class AgentAdapterTest {
         assertEquals(project.resolve("AGENTS.md"), CodexAdapter(home).projectFile(project))
         assertEquals(SubagentSupport.SUPPORTED, CodexAdapter(home).subagentSupport)
         assertEquals(home.resolve(".codex/agents/review.toml"), CodexAdapter(home).globalSubagentFile("review"))
-        assertNull(CodexAdapter(home).projectSubagentFile(project, "review"))
+        assertEquals(project.resolve(".codex/agents/review.toml"), CodexAdapter(home).projectSubagentFile(project, "review"))
         assertEquals(
             listOf(
                 SkillDirectory("native", home.resolve(".codex/skills")),
@@ -205,12 +205,9 @@ class AgentAdapterTest {
     }
 
     @Test
-    fun capabilityMatrixNamesGlobalOnlyCodexSubagentsAndUnsupportedAgents() {
+    fun capabilityMatrixNamesProjectCodexSubagentsAndUnsupportedAgents() {
         assertEquals(CapabilityState.SUPPORTED, ClaudeCodeAdapter(home).capabilities().subagents.state)
-        assertEquals(
-            AgentCapability(CapabilityState.PARTIAL, CapabilityLimit.GLOBAL_ONLY),
-            CodexAdapter(home).capabilities().subagents,
-        )
+        assertEquals(AgentCapability(CapabilityState.SUPPORTED), CodexAdapter(home).capabilities().subagents)
         assertEquals(
             AgentCapability(CapabilityState.SUPPORTED),
             PiAdapter(home).capabilities().mcp,

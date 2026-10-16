@@ -4,7 +4,10 @@ import dev.ruleblend.core.blockFileReplacement
 import dev.ruleblend.core.model.Skill
 import dev.ruleblend.core.model.SkillFile
 import dev.ruleblend.core.model.SkillSnapshot
+import dev.ruleblend.core.storage.InterProcessLock
 import dev.ruleblend.core.storage.LocalSkillCapture
+import dev.ruleblend.core.storage.LockTimeoutException
+import dev.ruleblend.core.storage.TargetMutationCoordinator
 import dev.ruleblend.core.storage.skillTreeFingerprint
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
@@ -22,6 +25,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -77,6 +81,25 @@ class SkillInstallServiceTest {
         assertEquals("# Review\n", home.resolve(".agents/skills/review/SKILL.md").readText())
         assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalCodex, skill))
         assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalPi, skill))
+    }
+
+    /** A path is an `Iterable<Path>`: the lock set must name the state file, not its name components. */
+    @Test
+    fun `lock timeout names only the skill tree and the state file`() {
+        val lock = InterProcessLock(home.resolve("ruleblend.lock"), timeoutMs = 100)
+        val agents = listOf(CodexAdapter(home))
+        val locked = SkillInstallService(state, { snapshots[it] }, agentById = { id -> agents.firstOrNull { it.id == id } }, TargetMutationCoordinator(lock))
+        val held = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val holder = thread { lock.withLock { held.countDown(); release.await() } }
+        held.await()
+        try {
+            val failure = assertFailsWith<LockTimeoutException> { locked.install(globalCodex, skill) }
+            assertTrue(failure.message.orEmpty().endsWith("; review, skill-state.json left unchanged"), failure.message)
+        } finally {
+            release.countDown()
+            holder.join()
+        }
     }
 
     @Test

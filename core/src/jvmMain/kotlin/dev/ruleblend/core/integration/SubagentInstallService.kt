@@ -65,7 +65,7 @@ class SubagentInstallService(
             }
             installed
         }
-        allOrNothing(destinations.map { it.file } + state.file) {
+        allOrNothing(destinations.map { it.file }.plusElement(state.file)) {
             destinations.forEach { destination ->
                 val before = preflight.getValue(destination)
                 val rendered = renderedBytes(destination.agent, subagent)
@@ -87,7 +87,7 @@ class SubagentInstallService(
     fun remove(target: Target, subagent: Block) = mutate(target, subagent) {
         val key = skillTargetKey(target)
         val destinations = destinations(target, subagent.id)
-        allOrNothing(destinations.map { it.file } + state.file) {
+        allOrNothing(destinations.map { it.file }.plusElement(state.file)) {
             destinations.forEach { destination ->
                 val installed = fileFingerprint(destination.file)
                 val record = state.find(key, destination.agent.id, subagent.id)
@@ -179,7 +179,7 @@ class SubagentInstallService(
      */
     fun removeOrphan(target: Target, subagentId: String): OrphanRemoval {
         val destinations = orphanDestinations(target, subagentId)
-        return coordinator.mutate(*(destinations.map { it.file } + state.file).toTypedArray()) {
+        return coordinator.mutate(*destinations.map { it.file }.plusElement(state.file).toTypedArray()) {
             val key = skillTargetKey(target)
             val files = destinations.map { destination ->
                 Triple(destination, fileFingerprint(destination.file), state.find(key, destination.agent.id, subagentId))
@@ -187,7 +187,7 @@ class SubagentInstallService(
             if (files.any { (_, installed, record) -> installed != null && installed != record?.fingerprint }) {
                 return@mutate OrphanRemoval.PROTECTED
             }
-            allOrNothing(files.map { it.first.file } + state.file) {
+            allOrNothing(files.map { it.first.file }.plusElement(state.file)) {
                 files.forEach { (destination, installed, _) ->
                     if (installed != null) Files.deleteIfExists(destination.file)
                     state.remove(key, destination.agent.id, subagentId)
@@ -297,7 +297,7 @@ class SubagentInstallService(
     }
 
     private fun <T> mutate(target: Target, subagentId: String, body: () -> T): T =
-        coordinator.mutate(*(destinations(target, subagentId).map { it.file } + state.file).toTypedArray(), body = body)
+        coordinator.mutate(*destinations(target, subagentId).map { it.file }.plusElement(state.file).toTypedArray(), body = body)
 
     private data class Destination(val agent: AgentAdapter, val file: Path)
 

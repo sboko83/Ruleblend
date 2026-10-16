@@ -169,11 +169,23 @@ class ProjectToolsTest {
         repository.saveProfile(Profile("review", "Review", blockIds = listOf("scoped"), subagentIds = listOf("agent")))
         val other = root.resolve("other").createDirectories()
         config.save(AppConfig(projects = listOf(project.projectKey()), ruleScopes = mapOf("scoped" to other.projectKey())))
-        tools.setProjectAgents(args("agent_ids" to listOf("codex")))
+        root.resolve(".pi/agent").createDirectories()
+        tools.setProjectAgents(args("agent_ids" to listOf("pi")))
         val result = tools.attachProfile(args("profile_id" to "review")).jsonObject
         assertEquals(listOf("scoped"), result.ids("skipped_out_of_scope"))
         assertEquals(listOf("agent"), result.ids("skipped_unsupported_subagents"))
         assertTrue(regions().isEmpty())
+    }
+
+    @Test
+    fun `profile installs subagents into a Codex-only project`() {
+        repository.saveBlock(Block("agent", "Agent", type = BlockType.SUBAGENT, content = "Review."))
+        repository.saveProfile(Profile("review", "Review", subagentIds = listOf("agent")))
+        config.save(AppConfig(projects = listOf(project.projectKey())))
+        tools.setProjectAgents(args("agent_ids" to listOf("codex")))
+        val result = tools.attachProfile(args("profile_id" to "review")).jsonObject
+        assertTrue(result.ids("skipped_unsupported_subagents").isEmpty())
+        assertTrue(project.resolve(".codex/agents/agent.toml").readText().contains("Review."))
     }
 
     @Test

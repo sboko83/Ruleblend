@@ -736,7 +736,7 @@ ZCode использует значения таблиц; его [native-ски�
 
 | Агент | Конфигурация / MCP | Скиллы | Субагенты |
 |---|---|---|---|
-| Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Только `~/.codex/agents/*.toml`; формат TOML, не Markdown. |
+| Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml`, `<project>/.codex/agents/*.toml`; формат TOML, не Markdown. |
 | Pi | [Встроенный MCP в 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` и `<project>/.pi/mcp.json`; требуется доверие к проекту. | Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Нет субагентов. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json`, иначе `~/.kimi-code/mcp.json`; `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Последующие файлы переопределяют предыдущие. | `<KIMI_CODE_HOME>/skills/`, `<project>/.kimi-code/skills/`; общий `.agents/skills/` тоже читается. | `<KIMI_CODE_HOME>/agents/*.md`, `<project>/.kimi-code/agents/*.md`; определение в Markdown frontmatter. |
 | ZCode 3.10.1 | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | Стабильного пользовательского/workspace-формата нет. `~/.zcode/cli/agents/` хранит runtime-сессии и не используется для определений; агенты могут поступать из plugins. |
@@ -761,7 +761,7 @@ Pi — только shared, глобально и в проекте/workspace.
 ownership/state: installer отпечатывает ровно записанные байты.
 Claude Code использует `~/.claude/agents/<id>.md`, `<project>/.claude/agents/<id>.md`;
 Kimi Code — аналогичные `~/.kimi-code/agents/`, `<project>/.kimi-code/agents/`;
-Codex — только `~/.codex/agents/<id>.toml`, с escaped-телом в `developer_instructions`.
+Codex — `~/.codex/agents/<id>.toml`, `<project>/.codex/agents/<id>.toml`, с escaped-телом в `developer_instructions`.
 
 `name`, `description` и тело инструкций переносимы, хранятся у `Block`.
 Модель, список tools, цвет одного ассистента не обязаны иметь смысл для другого;
@@ -798,7 +798,7 @@ native key — требуемый синтаксис файла.
 | Агент | Правила | MCP | Скиллы | Субагенты |
 |---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
-| Codex | ✓ | ✓ | ✓ | partial — только глобально |
+| Codex | ✓ | ✓ | ✓ | ✓ |
 | Pi | ✓ | ✓ | ✓ | ✗ — функции нет |
 | Kimi Code | ✓ | ✓ | ✓ — native и shared roots | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✗ — нет стабильного формата |

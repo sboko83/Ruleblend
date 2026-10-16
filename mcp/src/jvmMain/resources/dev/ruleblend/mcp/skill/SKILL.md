@@ -28,8 +28,8 @@ Never hand-edit the installed managed content.
   Installing changes files on disk; it does not add the instructions to the current conversation.
 
 Skills and MCP configs install for Claude Code, Codex, Kimi Code, ZCode and Pi. Pi 1.0+ reads MCP
-configs natively. Subagents install for Claude Code and Kimi Code at both scopes and for Codex
-globally only; ZCode and Pi have no subagent destination.
+configs natively. Subagents install for Claude Code, Codex and Kimi Code at both scopes; ZCode and
+Pi have no subagent destination.
 A project target may cover several enabled assistants. Unsupported destinations are skipped and
 reported in `skipped_unsupported_*`; do not invent a fallback path.
 
@@ -279,4 +279,4 @@ actual installation rechecks the state rather than relying on this advisory resu
 
 Do not work around GUI-only actions by modifying managed files.
 
-<!-- ruleblend-managed skill v10 -->
+<!-- ruleblend-managed skill v11 -->

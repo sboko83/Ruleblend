@@ -20,6 +20,10 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - app: Settings → General → Workspace can hide the Recent section of the project list.
 
 ### Fixed
+- Codex subagents can be installed into projects (`.codex/agents/`), including through profiles;
+  they were previously skipped as unsupported.
+- Installing MCP servers and subagents no longer fails with "Is a directory" or risks
+  touching unrelated files when Ruleblend runs from a folder such as the home directory.
 - Tooltips appear above and to the right of the pointer, keeping controls clickable.
 - The Library label in Settings → About stays on one line.
 - Home reports missing assistant components and moved MCP paths; updating an existing connection

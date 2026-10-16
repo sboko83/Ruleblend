@@ -157,7 +157,7 @@ class SkillInstallService(
      */
     fun removeOrphan(target: Target, skillId: String): OrphanRemoval {
         val destinations = orphanDestinations(target, skillId)
-        return coordinator.mutate(*(destinations.map { it.path } + state.file).toTypedArray()) {
+        return coordinator.mutate(*destinations.map { it.path }.plusElement(state.file).toTypedArray()) {
             val key = skillTargetKey(target)
             val trees = destinations.map { destination ->
                 val record = state.find(key, destination.agent.id, skillId, destination.directory.id)
@@ -352,7 +352,7 @@ class SkillInstallService(
      * write lands, so the check, the write and its record share one lock.
      */
     private fun <T> mutate(target: Target, skillId: String, body: () -> T): T =
-        coordinator.mutate(*(destinations(target, skillId).map { it.path } + state.file).toTypedArray(), body = body)
+        coordinator.mutate(*destinations(target, skillId).map { it.path }.plusElement(state.file).toTypedArray(), body = body)
 
     private data class Destination(val agent: AgentAdapter, val directory: SkillDirectory, val path: Path)
 

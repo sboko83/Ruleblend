@@ -92,15 +92,49 @@ class SubagentInstallServiceTest {
     }
 
     @Test
-    fun `project targets skip Codex and write Claude Code and Kimi Code files`() {
+    fun `project targets write Claude Code, Codex and Kimi Code files`() {
         val target = ProjectTarget(project, listOf(ClaudeCodeAdapter(home), CodexAdapter(home), KimiCodeAdapter(home)))
 
         service.install(target, subagent)
 
         assertTrue(project.resolve(".claude/agents/reviewer.md").exists())
         assertTrue(project.resolve(".kimi-code/agents/reviewer.md").exists())
-        assertFalse(project.resolve(".codex/agents/reviewer.toml").exists())
-        assertEquals(listOf("codex"), service.unsupportedAgents(target))
+        assertTrue(project.resolve(".codex/agents/reviewer.toml").exists())
+        assertEquals(emptyList(), service.unsupportedAgents(target))
+    }
+
+    @Test
+    fun `Codex-only project target installs the TOML subagent and removes it`() {
+        val target = ProjectTarget(project, listOf(CodexAdapter(home)))
+        val file = project.resolve(".codex/agents/reviewer.toml")
+
+        service.install(target, subagent)
+
+        assertEquals(emptyList(), service.unsupportedAgents(target))
+        assertEquals(CodexSubagentFormat.render(subagent, subagent.variant("codex")), file.readText())
+        assertEquals(SubagentInstallStatus(InstallStatus.SYNCED, false), service.status(target, subagent))
+        assertFalse(home.resolve(".codex/agents/reviewer.toml").exists())
+
+        service.remove(target, subagent)
+        assertFalse(file.exists())
+    }
+
+    /** A path is an `Iterable<Path>`: the state file must join the snapshot whole, not as name components. */
+    @Test
+    fun `install snapshots the state file itself, not its name components under the working directory`() {
+        val base = Path.of("").toAbsolutePath().resolve("build").resolve("tmp").createDirectories()
+        val cwdHome = Files.createTempDirectory(base, "ruleblend-subagent-cwd-home")
+        try {
+            val codex = CodexAdapter(cwdHome)
+            cwdHome.resolve(".codex").createDirectories()
+            val cwdService = SubagentInstallService(SubagentInstallStateStore(cwdHome.resolve(".ruleblend")))
+
+            cwdService.install(AgentGlobalTarget(codex), subagent)
+
+            assertTrue(cwdHome.resolve(".codex/agents/reviewer.toml").exists())
+        } finally {
+            cwdHome.toFile().deleteRecursively()
+        }
     }
 
     @Test

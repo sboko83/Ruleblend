@@ -731,7 +731,7 @@ adapter, skill, subagent and MCP sections below; no adapter changes follow from 
 
 | Agent | Configuration / MCP | Skills | Subagents |
 |---|---|---|---|
-| Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml` only; the format is TOML, not Markdown. |
+| Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml`, `<project>/.codex/agents/*.toml`; the format is TOML, not Markdown. |
 | Pi | [Built-in MCP in 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` and `<project>/.pi/mcp.json`; project trust is required. | Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | No subagents. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json` (fall back to `~/.kimi-code/mcp.json`); `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Later files override earlier ones. | `<KIMI_CODE_HOME>/skills/` and `<project>/.kimi-code/skills/`; `.agents/skills/` is also read for shared skills. | `<KIMI_CODE_HOME>/agents/*.md` and `<project>/.kimi-code/agents/*.md`; Markdown frontmatter carries the definition. |
 | ZCode 3.10.1 | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | No stable user or workspace file format. `~/.zcode/cli/agents/` holds runtime sessions and is never a definition destination; plugins may contribute agents. |
@@ -754,8 +754,9 @@ shared copy only, globally and per project or workspace.
 rules and skills. The definition file is always `<id>.<extension>` and is rendered before any
 ownership or state check, so the later installer fingerprints exactly the bytes it writes. Claude
 Code uses `~/.claude/agents/<id>.md` and `<project>/.claude/agents/<id>.md`; Kimi Code the analogous
-`~/.kimi-code/agents/` and `<project>/.kimi-code/agents/` roots; Codex has only
-`~/.codex/agents/<id>.toml`, where the body is escaped into `developer_instructions`.
+`~/.kimi-code/agents/` and `<project>/.kimi-code/agents/` roots; Codex uses
+`~/.codex/agents/<id>.toml` and `<project>/.codex/agents/<id>.toml`, where the body is escaped into
+`developer_instructions`.
 
 `name`, `description` and the instruction body are portable and live on the `Block` itself.
 Everything else is not: a model name, a tool list or a colour valid in one assistant is meaningless
@@ -796,7 +797,7 @@ an instruction file.
 | Agent | Rules | MCP | Skills | Subagents |
 |---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
-| Codex | ✓ | ✓ | ✓ | partial — global only |
+| Codex | ✓ | ✓ | ✓ | ✓ |
 | Pi | ✓ | ✓ | ✓ | ✗ — no subagent feature |
 | Kimi Code | ✓ | ✓ | ✓ — native and shared roots | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✗ — no stable definition format |

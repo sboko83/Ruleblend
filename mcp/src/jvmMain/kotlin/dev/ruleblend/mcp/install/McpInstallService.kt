@@ -252,7 +252,7 @@ class McpInstallService(
      * describing an entry that has since changed.
      */
     private fun <T> mutate(target: Target, body: () -> T): T =
-        coordinator.mutate(*(configFiles(target) + state.file).toTypedArray(), body = body)
+        coordinator.mutate(*configFiles(target).plusElement(state.file).toTypedArray(), body = body)
 
     /**
      * One entry across every agent of [target], or none of them. The agents are separate config
@@ -262,7 +262,7 @@ class McpInstallService(
      * back is named in the error rather than passed off as undone.
      */
     private fun allOrNothing(target: Target, body: () -> Unit) {
-        val rollback = FileRollback(configFiles(target) + state.file)
+        val rollback = FileRollback(configFiles(target).plusElement(state.file))
         runCatching(body).onFailure { failure ->
             val stranded = rollback.restoreAll()
             if (stranded.isEmpty()) throw failure
