@@ -156,7 +156,7 @@ internal fun LibrarySection(
                             ControlRow {
                                 Note(strings.setSourceSkills(source.skillIds.size))
                                 Note(strings.setSourceSubagents(source.subagentIds.size))
-                                if (source.modIds.isNotEmpty()) Note("${strings.libMods}: ${source.modIds.size}")
+                                if (source.modIds.isNotEmpty() && dev.ruleblend.app.library.ModsFeature.enabled) Note("${strings.libMods}: ${source.modIds.size}")
                                 source.remoteHead?.let { Note(strings.setSourceHead(it.take(12))) }
                                 Note(
                                     source.lastCheckedAt?.let(strings.homeSourceLastChecked)

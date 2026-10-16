@@ -73,7 +73,7 @@ class LibraryCatalogTest {
         assertEquals(listOf("global-style"), everything.last().items.map { it.key.id })
         // The other groupings are untouched by any of it.
         assertEquals(
-            LibraryObjectKind.entries.map { "type:${it.name}" },
+            (LibraryObjectKind.entries - LibraryObjectKind.MOD).map { "type:${it.name}" },
             catalog.categories(LibraryGrouping.TYPE, LibraryFilters()).map { it.key },
         )
     }

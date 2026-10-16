@@ -387,7 +387,7 @@ internal fun ImportSkillsDialog(model: LibraryModel, initialRepository: String, 
                         }
                     }
                 }
-                items(currentPlan.mods, key = { "mod:${it.path}" }) { candidate ->
+                items(if (ModsFeature.enabled) currentPlan.mods else emptyList(), key = { "mod:${it.path}" }) { candidate ->
                     Column {
                         if (candidate.snapshot != null) {
                             ImportRow(requireNotNull(candidate.snapshot).mod.name, candidate.path, candidate.path in selected.mods,
@@ -463,7 +463,7 @@ private fun ImportDialog(model: LibraryModel, plan: ImportPlan, onDismiss: () ->
         )
     }
     var modIds by remember(plan) {
-        mutableStateOf(plan.actionableMods.filter { it.kind != ChangeKind.CONFLICT }.map { it.incoming.mod.id }.toSet())
+        mutableStateOf(if (!ModsFeature.enabled) emptySet() else plan.actionableMods.filter { it.kind != ChangeKind.CONFLICT }.map { it.incoming.mod.id }.toSet())
     }
     RuleblendDialog(
         onDismiss = onDismiss,
@@ -477,7 +477,7 @@ private fun ImportDialog(model: LibraryModel, plan: ImportPlan, onDismiss: () ->
         dismissLabel = strings.actionCancel,
     ) {
         LazyColumn(Modifier.heightIn(max = 320.dp).testTag("library-archive-import-list"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (plan.actionableMods.isNotEmpty()) {
+            if (ModsFeature.enabled && plan.actionableMods.isNotEmpty()) {
                 item { SectionLabel(strings.libMods) }
                 items(plan.actionableMods, key = { "mod:${it.incoming.mod.id}" }) { change ->
                     ImportRow(change.incoming.mod.name, change.kind.label(strings), change.incoming.mod.id in modIds,

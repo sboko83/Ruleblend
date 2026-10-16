@@ -118,7 +118,8 @@ internal fun Toolbar(
             ) {
                 Text(strings.coverageRowsLabel, style = MaterialTheme.typography.labelMedium, color = faint)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LibraryObjectKind.entries.filter { it != LibraryObjectKind.GROUP && it != LibraryObjectKind.PROFILE }.forEach { kind ->
+                    LibraryObjectKind.entries.filter { it != LibraryObjectKind.GROUP && it != LibraryObjectKind.PROFILE &&
+                        (it != LibraryObjectKind.MOD || dev.ruleblend.app.library.ModsFeature.enabled) }.forEach { kind ->
                         CoverageChip(kind.label(strings), filters.kinds.isEmpty() || kind in filters.kinds,
                             { onFilters(filters.copy(kinds = filters.kinds.toggled(kind))) },
                             Modifier.testTag("coverage-filter-${kind.name.lowercase()}"))

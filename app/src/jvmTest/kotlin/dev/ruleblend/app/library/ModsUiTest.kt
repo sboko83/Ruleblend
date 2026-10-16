@@ -27,13 +27,14 @@ class ModsUiTest {
     private lateinit var runtime: MemoryRuntime
 
     @BeforeTest fun setup() {
+        ModsFeature.enabled = true
         root = Files.createTempDirectory("ruleblend-mod-ui-")
         repository = LibraryRepository(root.resolve("library")).also { it.init() }
         runtime = MemoryRuntime()
         library = LibraryModel(repository, LibraryArchive(root.resolve("library"), repository),
             ConfigStore(root.resolve("config.json")), modRuntime = runtime)
     }
-    @AfterTest fun teardown() { root.toFile().deleteRecursively() }
+    @AfterTest fun teardown() { ModsFeature.enabled = false; root.toFile().deleteRecursively() }
 
     private fun snapshot(body: String = "A", source: ModSource? = null): ModSnapshot = ModImport.validate(listOf(
         SkillFile(".claude-plugin/plugin.json", """{"name":"demo","version":"1.0","description":"Demo"}""".encodeToByteArray()),
@@ -48,6 +49,15 @@ class ModsUiTest {
     }
     private fun panel() = compose.setContent {
         RuleblendTheme(ThemeMode.LIGHT) { Column(Modifier.width(800.dp)) { ModPanel(library.modUi, "demo") } }
+    }
+
+    @Test fun `frozen mods stay in storage but leave the catalog and never reach the CLI`() {
+        ModsFeature.enabled = false
+        repository.writeMod(snapshot()); repository.syncAllGroup()
+        runBlocking { library.load(); library.refreshUsage() }
+        assertTrue(repository.listMods().any { it.id == "demo" })
+        assertTrue(library.catalog.objects.none { it.key.kind == LibraryObjectKind.MOD })
+        assertEquals(0, runtime.reads)
     }
 
     @Test fun `library revisions stay separate from installed runtime and lifecycle actions require clicks`() {
@@ -227,8 +237,10 @@ class ModsUiTest {
         val records = mutableMapOf<String, ModRuntimeStatus>()
         var foreign = emptyList<ModRuntimeEntry>()
         var writes = 0
+        var reads = 0
         var unavailable = false
         override fun inventory(target: ModTarget): List<ModRuntimeEntry> {
+            reads++
             check(!unavailable) { "CLI unavailable" }
             return records.filterValues { it.installed }.map { (id, status) -> ModRuntimeEntry(status.pluginId ?: id,
                 "user", status.enabled, id) } + foreign

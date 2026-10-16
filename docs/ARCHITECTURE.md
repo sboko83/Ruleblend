@@ -452,6 +452,9 @@ without the call would still need the two-rename fallback with its gap.
 
 ## Claude Code mods: implementation contract
 
+Frozen 2026-10-16 ([plan](plans/CLAUDE_CODE_MODS.md)): the app hides mods behind one flag and
+never calls the Claude CLI for them; core storage, sync and archives still carry them.
+
 Transport assumptions have an [isolated offline gate](../tools/claude_mod_transport_spike.py).
 
 ### Portable packages

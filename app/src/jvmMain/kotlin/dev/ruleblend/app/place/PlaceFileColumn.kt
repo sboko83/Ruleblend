@@ -137,7 +137,7 @@ fun PlaceFileColumn(
         skillDirectories = model.skillDirectories,
         subagentDirectories = model.subagentDirectories,
     )
-    val supportsMods = target is dev.ruleblend.core.integration.AgentGlobalTarget && target.agent.id == "claude-code" && modUi != null
+    val supportsMods = target is dev.ruleblend.core.integration.AgentGlobalTarget && target.agent.id == "claude-code" && modUi != null && dev.ruleblend.app.library.ModsFeature.enabled
     LaunchedEffect(target, modUi) { if (supportsMods) modUi.refresh() }
     val tabs = placeTabs(files) + if (supportsMods) listOf(PlaceTab(PlaceTabKind.MODS, emptyList())) else emptyList()
     var selectedKind by remember(target) {

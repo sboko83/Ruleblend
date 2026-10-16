@@ -40,7 +40,7 @@ internal fun Facets(
     val strings = LocalStrings.current
     LazyColumn(modifier.testTag("library-facets").padding(horizontal = 10.dp, vertical = 8.dp)) {
         item { FacetHeader(strings.libTypes) }
-        items(LibraryObjectKind.entries) { kind ->
+        items(LibraryObjectKind.entries.filter { it != LibraryObjectKind.MOD || ModsFeature.enabled }) { kind ->
             val label = when (kind) {
                 LibraryObjectKind.RULE -> strings.libTypeRule
                 LibraryObjectKind.SUBAGENT -> strings.libTypeSubagent

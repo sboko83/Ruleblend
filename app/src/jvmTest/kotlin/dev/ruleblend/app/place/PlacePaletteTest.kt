@@ -63,7 +63,8 @@ class PlacePaletteTest {
     fun `sections carry every type and report installed status of this place`() {
         val sections = paletteSections(catalog, status = status)
 
-        assertEquals(LibraryObjectKind.entries, sections.map { it.kind })
+        // Mods are frozen and get no palette section.
+        assertEquals(LibraryObjectKind.entries - LibraryObjectKind.MOD, sections.map { it.kind })
         assertEquals(listOf("Git flow", "Kotlin style"), rows(LibraryObjectKind.RULE).map { it.name })
         assertEquals(InstallStatus.SYNCED, rows(LibraryObjectKind.RULE).first { it.name == "Kotlin style" }.status)
         // Not installed here: the row offers the object rather than reporting it.

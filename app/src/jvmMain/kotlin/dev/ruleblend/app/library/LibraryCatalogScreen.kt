@@ -204,7 +204,7 @@ internal fun LibraryCatalogScreen(
                                     LibraryObjectKind.MCP to strings.libMcp,
                                     LibraryObjectKind.GROUP to strings.libGroups,
                                     LibraryObjectKind.PROFILE to strings.libProfiles,
-                                ).forEach { (kind, label) ->
+                                ).filter { (kind, _) -> kind != LibraryObjectKind.MOD || ModsFeature.enabled }.forEach { (kind, label) ->
                                     DropdownMenuItem(
                                         text = { Text(label) },
                                         onClick = { newMenu = false; onNew(kind) },

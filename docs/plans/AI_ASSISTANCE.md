@@ -132,8 +132,8 @@ Acceptance:
 - The live run uses a project clone and an isolated library, never the user's projects or
   library. Ruleblend takes every path from the JVM `user.home`, not `$HOME`: isolate with
   `-Duser.home` in `JAVA_TOOL_OPTIONS` plus `CODEX_HOME` and `CLAUDE_CONFIG_DIR`.
-  Library's Mods section runs `claude plugin`, which creates `CLAUDE_CONFIG_DIR` and makes
-  Claude Code look available (checked 2026-10-16). Open: how the terminal's Claude Code stays
+  With mods frozen nothing in the app runs `claude plugin` (it created `CLAUDE_CONFIG_DIR` and
+  made Claude Code look available, checked 2026-10-16). Open: how the terminal's Claude Code stays
   authenticated while the library is isolated — decide before the live run.
 
 ## Next step

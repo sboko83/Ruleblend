@@ -1,7 +1,12 @@
 # Claude Code Mods — integration plan
 
-Created: 2026-10-10. Status: `IN PROGRESS`, direction approved by the user.
-Next phase: **6**, transfer acceptance and platform gates.
+Created: 2026-10-10. Status: `FROZEN` since 2026-10-16 by the user's decision.
+Building mods into the app is premature at this stage of development. Phases 0–5 are done,
+the phase 6 gates were not run. The app hides every mod surface behind `ModsFeature.enabled`
+(`app/.../library/ModsFeature.kt`) and never runs `claude plugin`; core, storage, Git sync and
+archives keep mods intact, and their tests stay in the regular run.
+To unfreeze: switch the flag on, re-check the current CLI against the [traps](#traps-for-any-phase),
+restore the CHANGELOG entries, then pass phase 6.
 Goal: move whole mods between devices through the Ruleblend library,
 and conveniently add, enable, disable and remove them in Claude Code.
 
@@ -122,7 +127,7 @@ Adapter gate: `python3 tools/claude_mod_runtime_gate.py --dry-run`, then without
 | 3. Adding packages and source updates | DONE 2026-10-10 |
 | 4. Claude Code adapter and lifecycle | DONE 2026-10-10 |
 | 5. Library and Global UI | DONE 2026-10-11 |
-| 6. Cross-device transfer acceptance and platform gates | IN PROGRESS |
+| 6. Cross-device transfer acceptance and platform gates | FROZEN, gates not run |
 
 ### 6. Cross-device transfer acceptance and platform gates
 
@@ -189,7 +194,7 @@ Do not declare these commands run just because they are listed here.
 
 ## Handover to the next session
 
-- Next action: phase 6 only; [contract](#storage-and-installation-contract).
+- Next action: none while frozen; unfreeze steps are in the header.
 - macOS native packaged UI and running inert hooks in a session remain TODO.
 - Windows packaged UI/CLI — BLOCKED in the current macOS environment; next step is a Windows host.
 - Desktop Code tab not checked; do not treat support for this surface as accepted.

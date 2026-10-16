@@ -59,13 +59,13 @@ data class HomeSourceUpdates(
     val subagentNames: Map<String, String> = emptyMap(),
     val modNames: Map<String, String> = emptyMap(),
 ) {
-    val visible: Boolean get() = skillNames.isNotEmpty() || subagentNames.isNotEmpty() || modNames.isNotEmpty()
+    val visible: Boolean get() = skillNames.isNotEmpty() || subagentNames.isNotEmpty() || (modNames.isNotEmpty() && dev.ruleblend.app.library.ModsFeature.enabled)
     internal val rows: List<SourceUpdateRow>
         get() = report?.perSkill.orEmpty().map {
             SourceUpdateRow(LibraryObjectKey(LibraryObjectKind.SKILL, it.skillId), it.repository, it.status)
         } + report?.perSubagent.orEmpty().map {
             SourceUpdateRow(LibraryObjectKey(LibraryObjectKind.SUBAGENT, it.subagentId), it.repository, it.status)
-        } + report?.perMod.orEmpty().map {
+        } + report?.perMod.orEmpty().filter { dev.ruleblend.app.library.ModsFeature.enabled }.map {
             SourceUpdateRow(LibraryObjectKey(LibraryObjectKind.MOD, it.modId), it.repository, it.status)
         }
     val updateIds: Set<String>

@@ -26,7 +26,7 @@ internal data class GitImportSelection(
                 candidate.sourceAssistant?.let { candidate.path to it }
             }.toMap()
             return GitImportSelection(
-                mods = plan.mods.filter { it.snapshot != null }.filterNot { candidate ->
+                mods = if (!ModsFeature.enabled) emptySet() else plan.mods.filter { it.snapshot != null }.filterNot { candidate ->
                     mods.any { it.source?.let { source -> source.repository == plan.repository && source.path == candidate.path } == true }
                 }.map { it.path }.toSet(),
                 skills = plan.skills.mapNotNull { it.skill.source?.path }.filterNot { path ->

@@ -65,7 +65,7 @@ fun paletteSections(
     status: (LibraryObjectKey) -> InstallStatus? = { null },
 ): List<PaletteSection> {
     val visible = catalog.filtered(LibraryFilters(query = query))
-    return LibraryObjectKind.entries.map { kind ->
+    return LibraryObjectKind.entries.filter { it != LibraryObjectKind.MOD || dev.ruleblend.app.library.ModsFeature.enabled }.map { kind ->
         PaletteSection(
             kind = kind,
             rows = visible.filter { it.key.kind == kind }

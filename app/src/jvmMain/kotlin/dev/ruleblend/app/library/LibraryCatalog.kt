@@ -135,7 +135,7 @@ class LibraryCatalog private constructor(
             // The area a rule is pinned to is what tells two project rules apart; by type or by
             // group they all land in one heap named "RULE".
             LibraryGrouping.AREA -> scopeCategories(visible)
-            LibraryGrouping.TYPE -> LibraryObjectKind.entries.map { kind ->
+            LibraryGrouping.TYPE -> LibraryObjectKind.entries.filter { it != LibraryObjectKind.MOD || ModsFeature.enabled }.map { kind ->
                 LibraryCategory("type:${kind.name}", kind.name, visible.filter { it.key.kind == kind })
             }
             LibraryGrouping.GROUP -> buildList {
@@ -197,7 +197,7 @@ class LibraryCatalog private constructor(
                     val kind = blocks.find { it.id == id }?.type?.objectKind() ?: LibraryObjectKind.RULE
                     memberships.getOrPut(LibraryObjectKey(kind, id), ::mutableSetOf).add(group.id)
                 }
-                group.modIds.forEach { id ->
+                if (ModsFeature.enabled) group.modIds.forEach { id ->
                     memberships.getOrPut(LibraryObjectKey(LibraryObjectKind.MOD, id), ::mutableSetOf).add(group.id)
                 }
                 group.skillIds.forEach { id ->
@@ -241,7 +241,7 @@ class LibraryCatalog private constructor(
                         ),
                     )
                 }
-                mods.forEach { mod ->
+                if (ModsFeature.enabled) mods.forEach { mod ->
                     val key = LibraryObjectKey(LibraryObjectKind.MOD, mod.id)
                     add(LibraryObject(key, mod.name, mod.description, mod.version.orEmpty(), "",
                         gitSource = mod.source?.let { GitSkillSource(it.repository, it.revision, it.path) },
@@ -259,7 +259,7 @@ class LibraryCatalog private constructor(
                             )
                         }
                         group.skillIds.forEach { add(LibraryObjectKey(LibraryObjectKind.SKILL, it)) }
-                        group.modIds.forEach { add(LibraryObjectKey(LibraryObjectKind.MOD, it)) }
+                        if (ModsFeature.enabled) group.modIds.forEach { add(LibraryObjectKey(LibraryObjectKind.MOD, it)) }
                     }
                     add(
                         LibraryObject(

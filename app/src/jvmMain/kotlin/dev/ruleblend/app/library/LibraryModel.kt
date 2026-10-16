@@ -275,7 +275,7 @@ class LibraryModel(
         }
             ?: return
         scannedUsage = scanned
-        modUi.refresh()
+        if (ModsFeature.enabled) modUi.refresh()
         rebuildUsage()
     }
 
