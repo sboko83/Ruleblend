@@ -1324,12 +1324,18 @@ Save редактируемой стороны использует обычно
   Прямая запись надёжнее agent CLI при минимальном GUI PATH.
   Совпавшее имя writable лишь с Ruleblend version stamp или старым unversioned
   app-bundle/dev-wrapper path с `--mcp`; иное foreign, Connect/Disconnect его не меняют.
-- **`McpLauncher`:** установленный binary через `jpackage.app-path` либо dev-launcher
-  в `~/.ruleblend/bin/`, всегда с `--mcp`.
-  POSIX — `ruleblend-mcp`; Windows — `ruleblend-mcp.exe` из GUI jpackage launcher текущего JDK.
+- **`McpLauncher`:** всегда с `--mcp`. На macOS и Linux любая сборка регистрирует один общий
+  скрипт `~/.ruleblend/bin/ruleblend-mcp`, который `exec`-ает установленный binary
+  (`jpackage.app-path`) либо JVM и classpath dev-запуска; смена сборки переписывает скрипт, не конфиги
+  агентов. Marker-строки хранят владельца (`installed`/`dev`), источник и нужные пути. При старте
+  сборка переписывает скрипт, только если его нет, он без маркера, принадлежит сборке того же вида
+  или ссылается на исчезнувший путь: dev-владелец подхватывает каждый rebuild, старт установленной
+  сборки его не отбирает. Settings → Agents показывает владельца и переключает его явно; запущенные
+  сессии агентов сохраняют свой процесс. Windows: установленный binary регистрируется напрямую из
+  фиксированного пути установки, dev — `ruleblend-mcp.exe` из GUI jpackage launcher текущего JDK;
+  переход там требует reconnect.
   Windows dev требует полный JDK с `jdk.jpackage.jmod` и Windows PowerShell;
   preparation failure показывается в Settings.
-  Путь стабилен между rebuild; переход dev/installed требует reconnect.
   Content stamp не заменяет running Windows executable.
   Classpaths — URI-encoded content-addressed JAR manifests в `bin/app/`;
   atomic `.cfg` направляет новые процессы на текущий classpath, не заменяя открытые JAR старых сессий.

@@ -79,9 +79,11 @@ class SettingsModel(
     val connectors: List<McpConnector> = emptyList(),
     /** Bundled-skill installers for the supported assistants. */
     private val skillInstallers: List<SkillInstaller> = emptyList(),
-    /** What agents have to launch — the installed binary or the dev wrapper; `null` in tests. */
+    /** What agents have to launch — the shared launcher or the installed binary; `null` in tests. */
     val launch: McpLaunch? = null,
     val launchFailure: String? = null,
+    /** Points the shared launcher at this build; `null` where there is none to switch (Windows, tests). */
+    private val claimLaunch: (() -> McpLaunch)? = null,
     /** Applies appearance immediately at the app root after the setting is persisted. */
     private val onThemeModeChanged: (ThemeMode) -> Unit = {},
     /** Backend of the editor's translation panel; `null` where translation is unavailable (tests). */
@@ -496,6 +498,18 @@ class SettingsModel(
         }
     }
 
+    /** Which build the shared launcher re-launches; changes only through [serveAgentsFromThisBuild]. */
+    var mcpServing by mutableStateOf(launch?.serving)
+        private set
+
+    /** Makes agents' next MCP sessions launch this build; running sessions keep their process. */
+    suspend fun serveAgentsFromThisBuild() {
+        val claim = claimLaunch ?: return
+        withContext(Dispatchers.IO) { runCatching(claim) }
+            .onSuccess { mcpServing = it.serving }
+            .onFailure { connectFailure = it.message ?: it.toString() }
+    }
+
     /** Registers the MCP server and installs the skill; both are what "connected" means. */
     suspend fun connect(connector: McpConnector) {
         val binary = launch?.command ?: return
@@ -601,6 +615,7 @@ class SettingsModel(
         appendLine("Config: ${configPath ?: "-"}")
         appendLine("Library: $libraryPath")
         appendLine("Launch: ${launch?.shellCommand() ?: "-"}")
+        mcpServing?.let { appendLine("MCP serves: ${it.build.name.lowercase()} ${it.source}; this build=${it.thisBuild}") }
         launchFailure?.let { appendLine("MCP launch error: $it") }
         lastRemoteSync?.let { sync ->
             appendLine(

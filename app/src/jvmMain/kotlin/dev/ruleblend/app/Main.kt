@@ -155,7 +155,7 @@ private val DEFAULT_LIBRARY_PATH: Path = RULEBLEND_HOME.resolve("library")
 private val CONFIG_PATH: Path = RULEBLEND_HOME.resolve("config.json")
 private val BACKUPS_PATH: Path = RULEBLEND_HOME.resolve("backups")
 
-/** Wrapper the agents launch when the app runs unpackaged; see [McpLauncher]. */
+/** Launcher the agents run on macOS and Linux, shared by installed and dev builds; see [McpLauncher]. */
 private val MCP_LAUNCHER_PATH: Path = RULEBLEND_HOME.resolve("bin").resolve("ruleblend-mcp")
 
 /** Generated terminal launchers for agent CLIs; disposable, rewritten on every launch. */
@@ -396,9 +396,8 @@ internal fun App(
             PiSkillInstaller(),
         )
     }
-    val mcpLaunchResult = remember {
-        runCatching { McpLauncher(MCP_LAUNCHER_PATH, MAIN_CLASS).resolve() }
-    }
+    val mcpLauncher = remember { McpLauncher(MCP_LAUNCHER_PATH, MAIN_CLASS) }
+    val mcpLaunchResult = remember { runCatching { mcpLauncher.resolve() } }
     val mcpLaunch = mcpLaunchResult.getOrNull()
     // What every assistant holds of ours. Home reports it, Settings repairs it; one reader for both.
     val bundledIntegration = remember(mcpLaunch) {
@@ -534,6 +533,7 @@ internal fun App(
             // Installed binary or a generated dev launcher; preparation failures are shown in Settings.
             launch = mcpLaunch,
             launchFailure = mcpLaunchResult.exceptionOrNull()?.let { it.message ?: it.toString() },
+            claimLaunch = mcpLauncher::claim.takeIf { mcpLaunch?.serving != null },
             translator = translator,
             onThemeModeChanged = onThemeModeChanged,
         )

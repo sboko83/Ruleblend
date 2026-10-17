@@ -1422,12 +1422,18 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
   part. An existing same-name entry is writable only with Ruleblend's version stamp or the older
   unversioned app-bundle/dev-wrapper path with `--mcp`; any other entry is reported as foreign.
   Neither Connect nor Disconnect changes it.
-- **What gets registered (`McpLauncher`):** the installed binary via `jpackage.app-path`, or a dev
-  launcher under `~/.ruleblend/bin/`, always with `--mcp`. POSIX uses `ruleblend-mcp`; Windows uses
-  `ruleblend-mcp.exe`, generated from the running JDK's GUI jpackage launcher. Windows dev runs need
-  a full JDK with `jdk.jpackage.jmod` and Windows PowerShell. Preparation failures appear in Settings.
-  The launcher retains its path across rebuilds; switching between dev and installed builds requires
-  reconnecting. A content stamp avoids replacing a running Windows executable. Classpaths live in
+- **What gets registered (`McpLauncher`):** always with `--mcp`. On macOS and Linux every build
+  registers one shared script, `~/.ruleblend/bin/ruleblend-mcp`, that `exec`s either the installed
+  binary (`jpackage.app-path`) or a dev run's JVM and classpath; switching builds rewrites the
+  script, never an agent config. Marker lines record the owner (`installed`/`dev`), its source and the
+  paths it needs. On start a build rewrites the script only when it is missing, unmarked, owned by
+  the same kind of build or needs a path that is gone, so a dev run that owns it follows every
+  rebuild and an installed start does not take it back. Settings → Agents shows the owner and
+  switches it explicitly; running agent sessions keep their process. On Windows the installed binary
+  is registered directly from its fixed install path, and a dev run registers `ruleblend-mcp.exe`,
+  generated from the running JDK's GUI jpackage launcher; switching there requires reconnecting.
+  Windows dev runs need a full JDK with `jdk.jpackage.jmod` and Windows PowerShell. Preparation
+  failures appear in Settings. A content stamp avoids replacing a running Windows executable. Classpaths live in
   URI-encoded, content-addressed JAR manifests under `bin/app/`; the atomic `.cfg` update points new
   processes at the current classpath without replacing JARs held open by existing sessions.
   Both generated and packaged Windows launchers declare a

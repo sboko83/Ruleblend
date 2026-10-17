@@ -956,6 +956,9 @@ interface Strings {
     val libBuiltIn: String
     val libBuiltInManaged: String
     val connectManualHint: String
+    fun mcpServingInstalled(path: String): String
+    fun mcpServingDev(dir: String): String
+    val mcpServeFromThisBuild: String
     val setCopy: String
     val setCopied: String
     val setAgentsFoot: String
@@ -1898,6 +1901,9 @@ object EnStrings : Strings {
         "Ships with the app. Connect, update or remove it per assistant in Settings; it cannot be edited or deleted here."
     override val connectStatusSkillForeign = "A skill named \"ruleblend\" already exists — remove it first"
     override val connectStatusMcpForeign = "An MCP server named \"ruleblend\" already exists — remove it first"
+    override fun mcpServingInstalled(path: String) = "Agents launch the installed app: $path"
+    override fun mcpServingDev(dir: String) = "Agents launch the dev build from $dir"
+    override val mcpServeFromThisBuild = "Use this build"
     override val connectManualHint = "Other agents — add a stdio MCP server named \"ruleblend\" running:"
     override val setCopy = "Copy"
     override val setCopied = "Copied"
@@ -2884,6 +2890,9 @@ object RuStrings : Strings {
         "Поставляется с приложением. Подключение, обновление и удаление — в настройках, по каждому ассистенту; здесь его нельзя изменить или удалить."
     override val connectStatusSkillForeign = "Навык с именем «ruleblend» уже существует — удалите его"
     override val connectStatusMcpForeign = "MCP-сервер с именем «ruleblend» уже существует — удалите его"
+    override fun mcpServingInstalled(path: String) = "Агенты запускают установленное приложение: $path"
+    override fun mcpServingDev(dir: String) = "Агенты запускают dev-сборку из $dir"
+    override val mcpServeFromThisBuild = "Использовать эту сборку"
     override val connectManualHint = "Другие агенты — добавьте stdio MCP-сервер с именем «ruleblend», запускающий:"
     override val setCopy = "Копировать"
     override val setCopied = "Скопировано"

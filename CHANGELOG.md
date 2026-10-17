@@ -13,6 +13,11 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - app: AI help opens Claude Code in a resizable embedded terminal for saved Library objects,
   with an editable starting message, explicit assistant selection and confirmed process closure.
 
+### Changed
+- macOS, Linux: installed and development builds register the same MCP launcher, so switching
+  between them no longer requires reconnecting assistants; Settings → Agents shows which build
+  assistants launch and switches it. Assistants connected earlier ask for one reconnection.
+
 ### Fixed
 - Codex subagents can be installed into projects (`.codex/agents/`), including through profiles;
   they were previously skipped as unsupported.

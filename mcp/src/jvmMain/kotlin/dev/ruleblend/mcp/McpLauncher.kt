@@ -14,12 +14,26 @@ import java.util.jar.Manifest
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipFile
 
+/** Which kind of build the shared POSIX launcher re-launches. */
+enum class McpServingBuild { INSTALLED, DEV }
+
+/** What the shared launcher points at right now, as its last writer recorded it. */
+data class McpServing(
+    val build: McpServingBuild,
+    /** The app binary of an installed build, the working directory of a dev run. */
+    val source: String,
+    /** True when the launcher re-launches exactly the build this process runs. */
+    val thisBuild: Boolean,
+)
+
 /** What an agent has to launch to speak MCP with this build, and which kind of build it is. */
 data class McpLaunch(
     /** Executable and arguments are passed directly, without a command shell. */
     val command: Path,
-    /** True when [command] is the generated dev wrapper instead of an installed app binary. */
+    /** True when this process is an unpackaged dev run rather than an installed app. */
     val fromDevBuild: Boolean,
+    /** Who the shared launcher serves; `null` where agents get this build's binary directly (Windows). */
+    val serving: McpServing? = null,
 ) {
     val args: List<String> get() = listOf("--mcp")
 
@@ -32,16 +46,18 @@ data class McpLaunch(
 /**
  * Resolves the launch command for both ways Ruleblend runs.
  *
- * Installed app: jpackage sets `jpackage.app-path` to the launcher inside the bundle, and that path
- * goes to the agents unchanged.
+ * macOS and Linux: agents always get one script, [scriptPath], whatever build is running. The script
+ * re-launches either the installed app (jpackage sets `jpackage.app-path` to the launcher inside the
+ * bundle) or a dev run (IDE or `gradlew run`: this JVM plus a classpath of build outputs). Switching
+ * between them rewrites the script and never an agent config, so no agent entry goes stale.
  *
- * Dev run (IDE or `gradlew run`): there is no single binary — the app is this JVM plus a classpath
- * of build outputs. A POSIX script or a Windows GUI launcher re-launching this JVM and classpath is
- * written next to the library, and the agents get that path. Connecting therefore works long before
- * a packaged app exists, and points at the build the app was started from.
+ * The script records its owner. On start a build takes it over only when it is missing, unmarked,
+ * already owned by the same kind of build, or points at files that no longer exist — so a dev run
+ * that owns it picks up every rebuild, and an installed app started meanwhile does not take it back.
+ * [claim] switches the owner explicitly.
  *
- * Its configuration is rewritten on every app start, while its path stays the same: a rebuild is picked up
- * without touching any agent config, and no agent entry goes stale.
+ * Windows: the installed app's fixed install path goes to the agents unchanged; a dev run gets a
+ * GUI launcher re-launching this JVM and classpath, rewritten on every start at a stable path.
  */
 class McpLauncher(
     private val scriptPath: Path,
@@ -50,19 +66,48 @@ class McpLauncher(
     private val appPath: String? = System.getProperty("jpackage.app-path"),
     private val javaHome: String = System.getProperty("java.home"),
     private val classPath: String = System.getProperty("java.class.path"),
+    private val workingDir: String = System.getProperty("user.dir"),
     private val windows: Boolean = System.getProperty("os.name").startsWith("Windows"),
 ) {
+    private val build = if (appPath != null) McpServingBuild.INSTALLED else McpServingBuild.DEV
 
+    /** The start-time resolution: takes the shared launcher over only where that cannot surprise. */
     fun resolve(): McpLaunch {
-        appPath?.let { return McpLaunch(Path.of(it), fromDevBuild = false) }
-        if (windows) return windowsLaunch()
+        if (windows) return appPath?.let { McpLaunch(Path.of(it), fromDevBuild = false) } ?: windowsLaunch()
+        val current = readScript()
+        val claimable = current == null || current.owner == null || current.owner == build ||
+            current.requires.any { !Files.exists(Path.of(it)) }
+        return if (claimable) claim() else launch(current)
+    }
+
+    /** Points the shared launcher at this build, whoever owned it. */
+    fun claim(): McpLaunch {
+        if (windows) return resolve()
         AtomicWrite.write(scriptPath, script())
         Files.setPosixFilePermissions(
             scriptPath,
             setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE),
         )
-        return McpLaunch(scriptPath, fromDevBuild = true)
+        return launch(readScript())
     }
+
+    private fun launch(script: LauncherScript?): McpLaunch = McpLaunch(
+        scriptPath,
+        fromDevBuild = build == McpServingBuild.DEV,
+        serving = script?.owner?.let { McpServing(it, script.source, thisBuild = script.text == script()) },
+    )
+
+    /** Owner, source and required paths from the marker lines; `null` when there is no script yet. */
+    private fun readScript(): LauncherScript? {
+        if (!Files.exists(scriptPath)) return null
+        val text = Files.readString(scriptPath)
+        fun values(key: String) = text.lineSequence().filter { it.startsWith("$MARKER$key: ") }
+            .map { it.removePrefix("$MARKER$key: ") }.toList()
+        val owner = values("owner").singleOrNull()?.let { name -> McpServingBuild.entries.find { it.marker == name } }
+        return LauncherScript(text, owner, values("source").singleOrNull().orEmpty(), values("requires"))
+    }
+
+    private class LauncherScript(val text: String, val owner: McpServingBuild?, val source: String, val requires: List<String>)
 
     private fun windowsLaunch(): McpLaunch {
         val binary = scriptPath.resolveSibling("${scriptPath.fileName}.exe").toAbsolutePath()
@@ -146,16 +191,35 @@ class McpLauncher(
         .digest(bytes).joinToString("") { "%02x".format(it) }
 
     private fun script(): String {
-        val java = Path.of(javaHome).resolve("bin").resolve("java").toString()
+        val (source, requires, exec) = when (val app = appPath) {
+            null -> {
+                val java = Path.of(javaHome).resolve("bin").resolve("java").toString()
+                // Only entries present now: a classpath may name directories a module never fills,
+                // and those must not read as a vanished build later.
+                val entries = classPath.split(File.pathSeparator).filter { it.isNotEmpty() }
+                    .map { it.removeSuffix("*") }.filter { Files.exists(Path.of(it)) }
+                Triple(workingDir, listOf(java) + entries, "exec ${shellQuote(java)} -cp ${shellQuote(classPath)} $mainClass")
+            }
+            else -> Triple(app, listOf(app), "exec ${shellQuote(app)}")
+        }
+        require((requires + source + mainClass).none { '\n' in it || '\r' in it }) { "Invalid MCP launcher configuration" }
         val args = "\"${'$'}@\""
-        return """
-            #!/bin/sh
-            # Generated by Ruleblend on every app start — do not edit.
-            # Re-launches the dev build the app was started from; $args carries --mcp through.
-            exec ${shellQuote(java)} -cp ${shellQuote(classPath)} $mainClass $args
-        """.trimIndent() + "\n"
+        return buildString {
+            appendLine("#!/bin/sh")
+            appendLine("# Generated by Ruleblend — do not edit. Settings → Agents picks the build it launches;")
+            appendLine("# $args carries --mcp through.")
+            appendLine("${MARKER}owner: ${build.marker}")
+            appendLine("${MARKER}source: $source")
+            requires.forEach { appendLine("${MARKER}requires: $it") }
+            appendLine("$exec $args")
+        }
     }
 
     /** Single-quoted, so a path with spaces or `$` survives; an embedded quote is closed and re-opened. */
     private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
+
+    private companion object {
+        const val MARKER = "# ruleblend-mcp-"
+        val McpServingBuild.marker get() = name.lowercase()
+    }
 }

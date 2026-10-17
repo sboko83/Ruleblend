@@ -50,7 +50,9 @@ import dev.ruleblend.core.integration.CapabilityState
 import dev.ruleblend.core.integration.capabilities
 import dev.ruleblend.mcp.McpConnector
 import dev.ruleblend.mcp.McpRegistration
+import dev.ruleblend.mcp.McpServingBuild
 import kotlinx.coroutines.launch
+import java.nio.file.Path
 
 /**
  * One table instead of the two sections the old screen had: an agent, what Ruleblend can manage for
@@ -91,6 +93,23 @@ internal fun AgentsSection(model: SettingsModel) {
                 Note(strings.connectManualHint)
                 PathChip(command)
                 FlashButton(strings.setCopy, strings.setCopied, onClick = { copyToClipboard(command) })
+            }
+        }
+        model.mcpServing?.let { serving ->
+            ControlRow(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                val source = Path.of(serving.source).abbreviateHome()
+                Note(
+                    if (serving.build == McpServingBuild.INSTALLED) strings.mcpServingInstalled(source)
+                    else strings.mcpServingDev(source),
+                    if (serving.thisBuild) RuleblendTheme.extraColors.faint else RuleblendTheme.extraColors.warning,
+                    Modifier.weight(1f).testTag("settings-mcp-serving"),
+                )
+                if (!serving.thisBuild) CompactOutlinedButton(
+                    onClick = { scope.launch { model.serveAgentsFromThisBuild() } },
+                    modifier = Modifier.testTag("settings-mcp-serve-here"),
+                ) {
+                    ButtonLabel(strings.mcpServeFromThisBuild)
+                }
             }
         }
         model.launchFailure?.let {

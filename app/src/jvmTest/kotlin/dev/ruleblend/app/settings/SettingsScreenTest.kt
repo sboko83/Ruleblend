@@ -7,9 +7,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
@@ -55,6 +58,8 @@ import dev.ruleblend.core.usecase.SourceCheckSubagent
 import dev.ruleblend.core.usecase.SourceCheckSkillStatus
 import dev.ruleblend.core.usecase.SourcesStateStore
 import dev.ruleblend.mcp.MCP_ENTRY_VERSION
+import dev.ruleblend.mcp.McpServing
+import dev.ruleblend.mcp.McpServingBuild
 import dev.ruleblend.mcp.skill.BundledSkill
 import dev.ruleblend.mcp.skill.ClaudeCodeSkillInstaller
 import dev.ruleblend.mcp.McpConnector
@@ -496,6 +501,24 @@ class SettingsScreenTest {
         compose.onNodeWithTag("settings-panel-general").assertIsDisplayed()
     }
 
+    @Test fun `settings shows which build agents launch and switches it to this one`() {
+        val shared = root.resolve("bin/ruleblend-mcp")
+        val dev = McpLaunch(shared, fromDevBuild = false,
+            serving = McpServing(McpServingBuild.DEV, root.resolve("work").toString(), thisBuild = false))
+        val claimed = McpLaunch(shared, fromDevBuild = false,
+            serving = McpServing(McpServingBuild.INSTALLED, "/Applications/Ruleblend.app/Contents/MacOS/Ruleblend", thisBuild = true))
+        var claims = 0
+        val model = show(launch = dev, claimLaunch = { claims++; claimed }, initialSection = SettingsSection.AGENTS)
+
+        compose.onNodeWithTag("settings-mcp-serving").assertTextContains("dev build", substring = true)
+        compose.onNodeWithTag("settings-mcp-serve-here").performClick()
+        compose.waitUntil(5_000) { model.mcpServing == claimed.serving }
+
+        assertEquals(1, claims)
+        compose.onNodeWithTag("settings-mcp-serving").assertTextContains("installed app", substring = true)
+        compose.onAllNodesWithTag("settings-mcp-serve-here").assertCountEquals(0)
+    }
+
     // ---- harness ----
 
     @Test fun `launcher preparation failure is visible in settings`() {
@@ -520,6 +543,7 @@ class SettingsScreenTest {
         initialSection: SettingsSection = SettingsSection.GENERAL,
         launch: McpLaunch? = McpLaunch(root.resolve("ruleblend"), fromDevBuild = true),
         launchFailure: String? = null,
+        claimLaunch: (() -> McpLaunch)? = null,
         libraryGit: LibraryGit = LibraryGit(root.resolve("library")),
     ): SettingsModel {
         val model = SettingsModel(
@@ -533,6 +557,7 @@ class SettingsScreenTest {
             skillInstallers = skillInstallers,
             launch = launch,
             launchFailure = launchFailure,
+            claimLaunch = claimLaunch,
         ).also { m -> runBlocking { m.load() } }
         var theme by mutableStateOf(ThemeMode.LIGHT)
         compose.setContent {
