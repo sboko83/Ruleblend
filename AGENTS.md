@@ -1,4 +1,4 @@
-<!-- rb1 owned e7a8ef84 ruleblend@1:376 version@1:212 commit@2:104 docs@2:566 rules@2:722 — managed by Ruleblend; edits are overwritten -->
+<!-- rb1 owned ba66aa15 ruleblend@1:376 version@1:212 commit@2:104 docs@3:632 rules@2:722 — managed by Ruleblend; edits are overwritten -->
 # Ruleblend
 
 Desktop app (KMP + Compose Desktop) managing AI-agent instruction blocks and MCP server configs.
@@ -22,6 +22,8 @@ Commit messages in this project are in English.
 Code, comments and CHANGELOG stay in English.
 
 ## Docs
+
+Plans: docflow (run docflow status), not the bsv-docs PLAN genre
 
 - All project docs are in English, unless the user asks for another language for a specific
   document. Exception: dedicated translations (README.ru.md, docs/ru/) — keep them in their language.
