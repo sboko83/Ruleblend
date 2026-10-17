@@ -39,12 +39,12 @@ ITEMS = [
      'A Gradle build is the only build system.'),
     ('mcp', 'github', 'GitHub MCP', 'include',
      'CI and the remote live on GitHub.'),
-    # Stack-agnostic generic items
-    ('rule', 'conventional-commits', 'Conventional commits', 'include',
-     'Generic and cheap; the project history needs one commit style.'),
-    ('rule', 'secure-coding-basics', 'Secure coding basics', 'include',
-     'Generic; the project is a network service.'),
-    ('subagent', 'code-reviewer', 'Code reviewer', 'include',
+    # Stack-agnostic generic items: the skill leaves them out
+    ('rule', 'conventional-commits', 'Conventional commits', 'unneeded',
+     'Generic; no project fact asks for a commit style.'),
+    ('rule', 'secure-coding-basics', 'Secure coding basics', 'unneeded',
+     'Generic; not tied to the Kotlin/Ktor stack.'),
+    ('subagent', 'code-reviewer', 'Code reviewer', 'unneeded',
      'Generic reviewer that works for any stack.'),
     # Overlapping pairs: the first of each pair is in the profile
     ('rule', 'kotlin-style-strict', 'Kotlin code style (strict)', 'overlap',
@@ -147,6 +147,8 @@ def check_catalog():
     assert set(MCP_BODIES) == {item[1] for item in ITEMS if item[0] == 'mcp'}, 'MCP bodies out of sync'
     verdicts = {item[3] for item in ITEMS}
     assert verdicts <= {'include', 'overlap', 'foreign', 'unneeded'}, verdicts
+    # The skill picks at most 10 items.
+    assert sum(1 for item in ITEMS if item[3] == 'include') <= 10, 'expected profile over the skill limit'
 
 
 def expected():
@@ -179,6 +181,9 @@ def build(root):
         env = {**os.environ, 'HOME': str(root / 'home'), 'GIT_CONFIG_GLOBAL': os.devnull}
         for step in (['init', '-q'], ['add', '-A'], ['commit', '-q', '-m', 'Fixture']):
             subprocess.run([*git, '-C', str(directory), *step], check=True, env=env)
+    # The GitHub MCP is expected because the project is hosted on GitHub; the remote is that fact.
+    subprocess.run([*git, '-C', str(project), 'remote', 'add', 'origin',
+                    f'https://github.com/example/{PROJECT_NAME}.git'], check=True, env=env)
     print(f'library: {library}')
     print(f'project: {project}')
     print(f'home:    {root / "home"}')

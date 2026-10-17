@@ -65,6 +65,7 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Fixture verdicts are include/overlap/foreign/unneeded, with an expected profile of 12 of 30 — gives P003.1.4 a measurable limit and overlap traps — rejected: a flat include/exclude list
 - Live run driven through a Python PTY with the Place button's exact argv instead of clicking the button — this session has no Accessibility or Screen Recording permission and the mobile MCP desktop and repl tools fail — rejected: blocking the unit until UI automation is available
 - Only the real ~/.claude/skills/ruleblend was swapped temporarily; the real launcher and MCP entry were left untouched because the launcher already runs this branch's packaged build (its embedded SKILL.md matches the source byte for byte) and JAVA_TOOL_OPTIONS selects the fixture library — rejected: reconnecting Claude from a real-home Ruleblend run, which would rewrite the MCP entry, launcher owner and skill state
+- Fixture expected profile cut from 12 to 9 after the live run: the three generic items become `unneeded` and the project gets a GitHub remote — the old oracle broke the skill's own rules (at most 10, generic agents out) and cited a remote that did not exist; the live 8 of 8 matches the new oracle except the GitHub MCP, which is not re-run live — rejected: loosening the skill to fit the fixture
 
 ## Phase 1: Profile selection
 
