@@ -183,6 +183,8 @@ Ruleblend ranks nothing. Discuss first: do not write before the user confirms.
    and report it.
 6. **A repeat** brings the profile to the agreed composition. Afterwards `target_status` must show
    every member `synced`.
+7. **Leave the installed files uncommitted.** Report the changed paths; committing them is the
+   user's call, whatever other instructions say about committing finished work.
 
 The profile targets the project's enabled assistants (`set_project_agents`), not only the one
 running in this terminal.
@@ -307,4 +309,4 @@ actual installation rechecks the state rather than relying on this advisory resu
 
 Do not work around GUI-only actions by modifying managed files.
 
-<!-- ruleblend-managed skill v12 -->
+<!-- ruleblend-managed skill v13 -->
