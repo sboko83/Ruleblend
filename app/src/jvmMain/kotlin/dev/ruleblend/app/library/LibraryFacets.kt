@@ -1,6 +1,7 @@
 package dev.ruleblend.app.library
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
@@ -23,8 +25,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.ruleblend.app.i18n.LocalStrings
+import dev.ruleblend.app.i18n.Strings
 import dev.ruleblend.app.theme.RuleblendTheme
 import dev.ruleblend.core.model.ALL_GROUP_ID
+
+internal fun LibraryObjectKind.label(strings: Strings): String = when (this) {
+    LibraryObjectKind.RULE -> strings.libTypeRule
+    LibraryObjectKind.SUBAGENT -> strings.libTypeSubagent
+    LibraryObjectKind.MOD -> strings.libMods
+    LibraryObjectKind.SKILL -> strings.libSkills
+    LibraryObjectKind.MCP -> strings.libMcp
+    LibraryObjectKind.GROUP -> strings.libGroups
+    LibraryObjectKind.PROFILE -> strings.libProfiles
+}
 
 @Composable
 internal fun Facets(
@@ -35,97 +48,113 @@ internal fun Facets(
     filters: LibraryFilters,
     onFiltersChange: (LibraryFilters) -> Unit,
     onTypeFiltersChange: (LibraryFilters) -> Unit = onFiltersChange,
+    /** The opening "rules" preset is not a choice: the source facet stays visible while it holds. */
+    typesAreDefault: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalStrings.current
+    // The number beside a facet is the listing its own value produces with the other filters kept —
+    // not the library total — so a combination that yields nothing says so before the click.
+    fun listed(next: LibraryFilters): Int = catalog.listedCount(next, usage, sourceUpdateIds)
+    val userGroups = catalog.groups.filter { it.id != ALL_GROUP_ID }
     LazyColumn(modifier.testTag("library-facets").padding(horizontal = 10.dp, vertical = 8.dp)) {
         item { FacetHeader(strings.libTypes) }
         items(LibraryObjectKind.entries.filter { it != LibraryObjectKind.MOD || ModsFeature.enabled }) { kind ->
-            val label = when (kind) {
-                LibraryObjectKind.RULE -> strings.libTypeRule
-                LibraryObjectKind.SUBAGENT -> strings.libTypeSubagent
-                LibraryObjectKind.MOD -> strings.libMods
-                LibraryObjectKind.SKILL -> strings.libSkills
-                LibraryObjectKind.MCP -> strings.libMcp
-                LibraryObjectKind.GROUP -> strings.libGroups
-                LibraryObjectKind.PROFILE -> strings.libProfiles
-            }
             FacetRow(
-                label,
-                catalog.count(kind),
+                kind.label(strings),
+                listed(filters.copy(kinds = setOf(kind))),
                 kind in filters.kinds,
                 "type:${kind.name}",
                 onClick = { onTypeFiltersChange(filters.copy(kinds = setOf(kind))) },
                 onSecondaryClick = { onTypeFiltersChange(filters.copy(kinds = filters.kinds.toggle(kind))) },
             )
         }
-        item { FacetHeader(strings.libGroups) }
-        item {
-            FacetRow(strings.libAllGroup, catalog.objects.size, filters.groupId == null, "group:all") {
-                onFiltersChange(filters.copy(groupId = null))
-            }
-        }
-        items(catalog.groups.filter { it.id != ALL_GROUP_ID }, key = { it.id }) { group ->
-            FacetRow(group.name, catalog.groupCount(group.id), filters.groupId == group.id, "group:${group.id}") {
-                onFiltersChange(filters.copy(groupId = group.id.toggle(filters.groupId)))
+        // No groups of the user's own, no section: the reserved one is not listed here either.
+        if (userGroups.isNotEmpty()) {
+            item { FacetHeader(strings.libGroups) }
+            items(userGroups, key = { it.id }) { group ->
+                FacetRow(
+                    group.name,
+                    listed(filters.copy(groupId = group.id)),
+                    filters.groupId == group.id,
+                    "group:${group.id}",
+                ) { onFiltersChange(filters.copy(groupId = group.id.toggle(filters.groupId))) }
             }
         }
         item { FacetHeader(strings.fieldScope) }
         item {
-            FacetRow(strings.libGlobalScope, catalog.objects.count { it.scope == null }, filters.scope == LibraryScopeFilter.GLOBAL, "scope:global") {
-                onFiltersChange(filters.copy(scope = LibraryScopeFilter.GLOBAL.toggle(filters.scope)))
-            }
-        }
-        item {
-            FacetRow(strings.libProjectScoped, catalog.objects.count { it.scope != null }, filters.scope == LibraryScopeFilter.PROJECT, "scope:project") {
-                onFiltersChange(filters.copy(scope = LibraryScopeFilter.PROJECT.toggle(filters.scope)))
-            }
+            FacetSegments(
+                listOf(
+                    FacetSegment(strings.libFacetAll, listed(filters.copy(scope = null)), filters.scope == null, "scope:all") {
+                        onFiltersChange(filters.copy(scope = null))
+                    },
+                    FacetSegment(
+                        strings.libGlobalScope,
+                        listed(filters.copy(scope = LibraryScopeFilter.GLOBAL)),
+                        filters.scope == LibraryScopeFilter.GLOBAL,
+                        "scope:global",
+                    ) { onFiltersChange(filters.copy(scope = LibraryScopeFilter.GLOBAL.toggle(filters.scope))) },
+                    FacetSegment(
+                        strings.libProjectScoped,
+                        listed(filters.copy(scope = LibraryScopeFilter.PROJECT)),
+                        filters.scope == LibraryScopeFilter.PROJECT,
+                        "scope:project",
+                    ) { onFiltersChange(filters.copy(scope = LibraryScopeFilter.PROJECT.toggle(filters.scope))) },
+                ),
+            )
         }
         // Hidden until a scan answered it: "unused · 304" would be a lie about an unscanned library.
         if (!usage.isEmpty) {
             item { FacetHeader(strings.libUsage) }
             item {
+                FacetSegments(
+                    listOf(
+                        FacetSegment(strings.libFacetAll, listed(filters.copy(usage = null)), filters.usage == null, "usage:all") {
+                            onFiltersChange(filters.copy(usage = null))
+                        },
+                        FacetSegment(
+                            strings.libUsageInstalled,
+                            listed(filters.copy(usage = LibraryUsageFilter.INSTALLED)),
+                            filters.usage == LibraryUsageFilter.INSTALLED,
+                            "usage:installed",
+                        ) { onFiltersChange(filters.copy(usage = LibraryUsageFilter.INSTALLED.toggle(filters.usage))) },
+                        FacetSegment(
+                            strings.libUsageUnused,
+                            listed(filters.copy(usage = LibraryUsageFilter.UNUSED)),
+                            filters.usage == LibraryUsageFilter.UNUSED,
+                            "usage:unused",
+                        ) { onFiltersChange(filters.copy(usage = LibraryUsageFilter.UNUSED.toggle(filters.usage))) },
+                    ),
+                )
+            }
+        }
+        if (sourceFacetApplies(filters.kinds, typesAreDefault)) {
+            item { FacetHeader(strings.libSource) }
+            item {
                 FacetRow(
-                    strings.libUsageInstalled,
-                    catalog.objects.count { usage.isInstalled(it.key) },
-                    filters.usage == LibraryUsageFilter.INSTALLED,
-                    "usage:installed",
-                ) { onFiltersChange(filters.copy(usage = LibraryUsageFilter.INSTALLED.toggle(filters.usage))) }
+                    strings.libLocalSkills,
+                    listed(filters.copy(source = LibrarySourceFilter.LOCAL)),
+                    filters.source == LibrarySourceFilter.LOCAL,
+                    "source:local",
+                ) { onFiltersChange(filters.copy(source = LibrarySourceFilter.LOCAL.toggle(filters.source))) }
             }
             item {
                 FacetRow(
-                    strings.libUsageUnused,
-                    catalog.objects.count { !usage.isInstalled(it.key) },
-                    filters.usage == LibraryUsageFilter.UNUSED,
-                    "usage:unused",
-                ) { onFiltersChange(filters.copy(usage = LibraryUsageFilter.UNUSED.toggle(filters.usage))) }
+                    strings.libImportedSkills,
+                    listed(filters.copy(source = LibrarySourceFilter.GIT)),
+                    filters.source == LibrarySourceFilter.GIT,
+                    "source:git",
+                ) { onFiltersChange(filters.copy(source = LibrarySourceFilter.GIT.toggle(filters.source))) }
             }
-        }
-        item { FacetHeader(strings.libSource) }
-        item {
-            FacetRow(
-                strings.libLocalSkills,
-                catalog.objects.count { it.key.kind in setOf(LibraryObjectKind.SKILL, LibraryObjectKind.SUBAGENT) && !it.importedFromGit && !it.builtIn },
-                filters.source == LibrarySourceFilter.LOCAL,
-                "source:local",
-            ) { onFiltersChange(filters.copy(source = LibrarySourceFilter.LOCAL.toggle(filters.source))) }
-        }
-        item {
-            FacetRow(
-                strings.libImportedSkills,
-                catalog.objects.count { it.importedFromGit },
-                filters.source == LibrarySourceFilter.GIT,
-                "source:git",
-            ) { onFiltersChange(filters.copy(source = LibrarySourceFilter.GIT.toggle(filters.source))) }
-        }
-        if (sourceUpdatesChecked) {
-            item {
-                FacetRow(
-                    strings.libUpdateAvailable,
-                    sourceUpdateIds.size,
-                    filters.updatesAvailable,
-                    "source:update",
-                ) { onFiltersChange(filters.copy(updatesAvailable = !filters.updatesAvailable)) }
+            if (sourceUpdatesChecked) {
+                item {
+                    FacetRow(
+                        strings.libUpdateAvailable,
+                        listed(filters.copy(updatesAvailable = true)),
+                        filters.updatesAvailable,
+                        "source:update",
+                    ) { onFiltersChange(filters.copy(updatesAvailable = !filters.updatesAvailable)) }
+                }
             }
         }
     }
@@ -176,39 +205,70 @@ private fun FacetRow(
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // A row that would leave nothing stays put and goes quiet: hiding it would reshape the
+        // column at every click, and the zero itself is the warning.
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (!selected && count == 0) RuleblendTheme.extraColors.faint else Color.Unspecified,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Text(count.toString(), style = MaterialTheme.typography.labelMedium, color = RuleblendTheme.extraColors.faint)
     }
 }
 
+/** One button of a segmented facet: its label, the listing its value produces, and its tag. */
+private data class FacetSegment(val label: String, val count: Int, val selected: Boolean, val id: String, val onClick: () -> Unit)
+
+/** Values of one facet as mutually exclusive segments; pressing the selected one returns to "All". */
 @Composable
-internal fun ActiveFilters(
+private fun FacetSegments(segments: List<FacetSegment>) {
+    // Wraps rather than squeezes when the column runs narrow; one line wherever the labels fit.
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        segments.forEach { segment ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.small)
+                    .testTag("library-facet:${segment.id}")
+                    .background(
+                        if (segment.selected) RuleblendTheme.extraColors.accentBackground else MaterialTheme.colorScheme.surface,
+                    )
+                    .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
+                    .clickable(onClick = segment.onClick)
+                    .padding(horizontal = 7.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    segment.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = when {
+                        segment.selected -> MaterialTheme.colorScheme.primary
+                        segment.count == 0 -> RuleblendTheme.extraColors.faint
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+                Text(segment.count.toString(), style = MaterialTheme.typography.labelMedium, color = RuleblendTheme.extraColors.faint)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun FilterChips(
     catalog: LibraryCatalog,
     filters: LibraryFilters,
     onChange: (LibraryFilters) -> Unit,
 ) {
     val strings = LocalStrings.current
-    if (filters == LibraryFilters(query = filters.query)) return
-    // Bottom padding, not a trailing spacer: a spacer is one more item in the flow, which leaves the
-    // chips resting on the divider below them.
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier
-            .testTag(LibraryActiveFiltersTag)
-            .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 8.dp),
-    ) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         filters.kinds.forEach { kind ->
-            val label = when (kind) {
-                LibraryObjectKind.RULE -> strings.libTypeRule
-                LibraryObjectKind.SUBAGENT -> strings.libTypeSubagent
-                LibraryObjectKind.MOD -> strings.libMods
-                LibraryObjectKind.SKILL -> strings.libSkills
-                LibraryObjectKind.MCP -> strings.libMcp
-                LibraryObjectKind.GROUP -> strings.libGroups
-                LibraryObjectKind.PROFILE -> strings.libProfiles
-            }
-            FilterChip(label) { onChange(filters.copy(kinds = filters.kinds - kind)) }
+            FilterChip(kind.label(strings)) { onChange(filters.copy(kinds = filters.kinds - kind)) }
         }
         filters.groupId?.let { groupId ->
             val label = catalog.groups.find { it.id == groupId }?.name ?: groupId
@@ -249,5 +309,5 @@ private fun FilterChip(label: String, onClick: () -> Unit) {
     )
 }
 
-/** The strip of active filter chips; tagged so the room under it can be measured. */
+/** The strip under the search: the counter, the chips and the grouping picker; tagged so the room under it can be measured. */
 internal const val LibraryActiveFiltersTag = "library-active-filters"

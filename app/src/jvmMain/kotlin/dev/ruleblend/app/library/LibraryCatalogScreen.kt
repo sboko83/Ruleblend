@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.ruleblend.app.i18n.LocalStrings
+import dev.ruleblend.app.i18n.Strings
 import dev.ruleblend.app.navigation.PaneMinWidth
 import dev.ruleblend.app.navigation.fitPanes
 import dev.ruleblend.app.navigation.paneMaxWidth
@@ -129,6 +131,7 @@ internal fun LibraryCatalogScreen(
                         sourceUpdateIds = sourceUpdateIds,
                         sourceUpdatesChecked = sourceUpdatesChecked,
                         filters = filters,
+                        typesAreDefault = usesDefaultTypeFilter,
                         onFiltersChange = { picked ->
                             val normalized = if (usesDefaultTypeFilter && picked.kinds == filters.kinds) {
                                 picked.copy(kinds = emptySet())
@@ -154,8 +157,16 @@ internal fun LibraryCatalogScreen(
                             model.clearCatalogSelection()
                         },
                         onTypeFiltersChange = { picked ->
-                            if (picked == filters) return@Facets
-                            filters = picked
+                            // The source facet answers only for skills, subagents and mods: a type it
+                            // cannot speak about takes that filter with it rather than leaving a
+                            // hidden zero in play.
+                            val normalized = if (sourceFacetApplies(picked.kinds, typesAreDefault = false)) {
+                                picked
+                            } else {
+                                picked.copy(source = null)
+                            }
+                            if (normalized == filters) return@Facets
+                            filters = normalized
                             usesDefaultTypeFilter = false
                             // A type facet changes the list question, so the answer beside it starts
                             // empty rather than describing an object hidden by the new type.
@@ -220,16 +231,20 @@ internal fun LibraryCatalogScreen(
                             }
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Segment(strings.libByGroup, grouping == LibraryGrouping.GROUP, "group") { grouping = LibraryGrouping.GROUP }
-                        Segment(strings.libByType, grouping == LibraryGrouping.TYPE, "type") { grouping = LibraryGrouping.TYPE }
-                        Segment(strings.libByArea, grouping == LibraryGrouping.AREA, "area") { grouping = LibraryGrouping.AREA }
-                    }
                 }
-                ActiveFilters(catalog, filters) {
-                    filters = it
-                    usesDefaultTypeFilter = false
-                }
+                CatalogStatusBar(
+                    catalog = catalog,
+                    filters = filters,
+                    shown = catalog.listedCount(filters, usage, sourceUpdateIds),
+                    grouping = grouping,
+                    onGroupingChange = { grouping = it },
+                    onFiltersChange = { picked ->
+                        // A chip can take the last skill or subagent out of the types, where the
+                        // source facet would have nothing left to speak about.
+                        filters = if (sourceFacetApplies(picked.kinds, typesAreDefault = false)) picked else picked.copy(source = null)
+                        usesDefaultTypeFilter = false
+                    },
+                )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                 val listState = rememberLazyListState()
                 Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -268,11 +283,48 @@ internal fun LibraryCatalogScreen(
                         }
                         if (categories.all { it.items.isEmpty() }) {
                             item {
-                                Text(
-                                    strings.libNoMatches,
-                                    color = RuleblendTheme.extraColors.faint,
-                                    modifier = Modifier.padding(30.dp),
-                                )
+                                // An empty listing names the filter that emptied it and lifts it in
+                                // one click; only when no single lift helps does it state the plain fact.
+                                val release = catalog.widestRelease(filters, usage, sourceUpdateIds)
+                                if (release == null) {
+                                    Text(
+                                        strings.libNoMatches,
+                                        color = RuleblendTheme.extraColors.faint,
+                                        modifier = Modifier.padding(30.dp),
+                                    )
+                                } else {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.padding(horizontal = 30.dp, vertical = 22.dp),
+                                    ) {
+                                        Text(
+                                            releaseHint(strings, catalog, filters, release),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = RuleblendTheme.extraColors.faint,
+                                            // The lift action keeps its width whatever the filter
+                                            // names and the query make the sentence long.
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text(
+                                            strings.libRemoveFilter,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .testTag("library-empty-release")
+                                                .clickable {
+                                                    val next = release.filters
+                                                    filters = if (sourceFacetApplies(next.kinds, typesAreDefault = false)) {
+                                                        next
+                                                    } else {
+                                                        next.copy(source = null)
+                                                    }
+                                                    usesDefaultTypeFilter = false
+                                                }
+                                                .padding(horizontal = 6.dp, vertical = 3.dp),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -319,23 +371,111 @@ internal fun LibraryCatalogScreen(
     }
 }
 
+/**
+ * The single strip under the search: how much of the library is listed, the filters in play as
+ * chips with a way to drop them all at once, and how the list is cut.
+ */
 @Composable
-private fun Segment(label: String, selected: Boolean, id: String, onClick: () -> Unit) {
-    Text(
-        label,
-        style = MaterialTheme.typography.labelLarge,
-        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+private fun CatalogStatusBar(
+    catalog: LibraryCatalog,
+    filters: LibraryFilters,
+    shown: Int,
+    grouping: LibraryGrouping,
+    onGroupingChange: (LibraryGrouping) -> Unit,
+    onFiltersChange: (LibraryFilters) -> Unit,
+) {
+    val strings = LocalStrings.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
-            // Clipped first, so the hover fill keeps the tab's corners instead of squaring them off.
-            .clip(MaterialTheme.shapes.small)
-            .testTag("library-grouping:$id")
-            .background(
-                if (selected) RuleblendTheme.extraColors.accentBackground else MaterialTheme.colorScheme.surface,
-            )
-            .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-    )
+            .fillMaxWidth()
+            .testTag(LibraryActiveFiltersTag)
+            .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 8.dp),
+    ) {
+        Text(
+            strings.libListedCount(shown, catalog.objects.size),
+            style = MaterialTheme.typography.labelMedium,
+            color = RuleblendTheme.extraColors.faint,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            FilterChips(catalog, filters, onFiltersChange)
+            if (filters != LibraryFilters(query = filters.query)) {
+                Text(
+                    strings.libResetFilters,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable { onFiltersChange(LibraryFilters()) }
+                        .padding(horizontal = 2.dp, vertical = 3.dp),
+                )
+            }
+        }
+        GroupingPicker(grouping, onGroupingChange)
+    }
+}
+
+@Composable
+private fun GroupingPicker(grouping: LibraryGrouping, onChange: (LibraryGrouping) -> Unit) {
+    val strings = LocalStrings.current
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Text(
+            "${strings.libGrouping}: ${grouping.label(strings)} ▾",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.small)
+                .testTag("library-grouping")
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
+                .clickable { open = true }
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            listOf(
+                Triple(LibraryGrouping.GROUP, strings.libByGroup, "group"),
+                Triple(LibraryGrouping.TYPE, strings.libByType, "type"),
+                Triple(LibraryGrouping.AREA, strings.libByArea, "area"),
+            ).forEach { (option, label, id) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { open = false; onChange(option) },
+                    modifier = Modifier.testTag("library-grouping:$id"),
+                )
+            }
+        }
+    }
+}
+
+private fun LibraryGrouping.label(strings: Strings): String = when (this) {
+    LibraryGrouping.GROUP -> strings.libByGroup
+    LibraryGrouping.TYPE -> strings.libByType
+    LibraryGrouping.AREA -> strings.libByArea
+}
+
+/** The sentence the empty state shows: which filter it names, and what lifting it lists again. */
+private fun releaseHint(
+    strings: Strings,
+    catalog: LibraryCatalog,
+    filters: LibraryFilters,
+    release: LibraryFilterRelease,
+): String {
+    val label = when (release.facet) {
+        LibraryFilterFacet.QUERY -> return strings.libWithoutQuery(filters.query.trim(), release.restored)
+        LibraryFilterFacet.KIND -> release.kind?.label(strings).orEmpty()
+        LibraryFilterFacet.GROUP -> catalog.groups.find { it.id == release.groupId }?.name ?: release.groupId.orEmpty()
+        LibraryFilterFacet.SCOPE -> if (filters.scope == LibraryScopeFilter.GLOBAL) strings.libGlobalScope else strings.libProjectScoped
+        LibraryFilterFacet.SOURCE -> if (filters.source == LibrarySourceFilter.LOCAL) strings.libLocalSkills else strings.libImportedSkills
+        LibraryFilterFacet.USAGE -> if (filters.usage == LibraryUsageFilter.INSTALLED) strings.libUsageInstalled else strings.libUsageUnused
+        LibraryFilterFacet.UPDATES -> strings.libUpdateAvailable
+    }
+    return strings.libWithoutFacet(label, release.restored)
 }
 
 @Composable

@@ -293,7 +293,6 @@ interface Strings {
     val libRulesLabel: String
     val libGroups: String
     val libProfiles: String
-    val libAllGroup: String
     val libMods: String
     val modAdd: String
     val modLocal: String
@@ -443,6 +442,13 @@ interface Strings {
     val libByGroup: String
     val libByType: String
     val libByArea: String
+    val libListedCount: (Int, Int) -> String
+    val libGrouping: String
+    val libResetFilters: String
+    val libFacetAll: String
+    val libWithoutFacet: (String, Int) -> String
+    val libWithoutQuery: (String, Int) -> String
+    val libRemoveFilter: String
     val libProjectScoped: String
     val libSource: String
     val libLocalSkills: String
@@ -1278,7 +1284,6 @@ object EnStrings : Strings {
     override val libRulesLabel = "Rules"
     override val libGroups = "Groups"
     override val libProfiles = "Profiles"
-    override val libAllGroup = "All"
     override val libMods = "Mods"
     override val modAdd = "Add mod"
     override val modLocal = "Local folder"
@@ -1423,8 +1428,19 @@ object EnStrings : Strings {
     override val libByGroup = "By group"
     override val libByType = "By type"
     override val libByArea = "By area"
-    override val libProjectScoped = "Project-scoped"
-    override val libSource = "Source · skills / subagents"
+    override val libListedCount = { shown: Int, total: Int -> "$shown of $total" }
+    override val libGrouping = "Grouping"
+    override val libResetFilters = "Reset all"
+    override val libFacetAll = "All"
+    override val libWithoutFacet = { label: String, count: Int ->
+        "Without the “$label” filter — $count ${if (count == 1) "object" else "objects"}"
+    }
+    override val libWithoutQuery = { query: String, count: Int ->
+        "Without the “$query” search — $count ${if (count == 1) "object" else "objects"}"
+    }
+    override val libRemoveFilter = "Remove"
+    override val libProjectScoped = "Project"
+    override val libSource = "Source"
     override val libLocalSkills = "Local"
     override val libImportedSkills = "Imported from Git"
     override val libUpdateAvailable = "Update available"
@@ -1451,7 +1467,7 @@ object EnStrings : Strings {
     override val libCompareUpstream = "Compare with upstream"
     override val libMoreCount = { count: Int -> "+ $count more" }
     override val libUsage = "Usage"
-    override val libUsageInstalled = "Installed somewhere"
+    override val libUsageInstalled = "Installed"
     override val libUsageUnused = "Unused"
     override val libInPlaces = { count: Int -> "in $count ${if (count == 1) "target" else "targets"}" }
     override val libUnusedMark = "unused"
@@ -2257,7 +2273,6 @@ object RuStrings : Strings {
     override val libRulesLabel = "Правила"
     override val libGroups = "Группы"
     override val libProfiles = "Профили"
-    override val libAllGroup = "Все"
     override val libMods = "Моды"
     override val modAdd = "Добавить мод"
     override val modLocal = "Локальная папка"
@@ -2404,8 +2419,19 @@ object RuStrings : Strings {
     override val libByGroup = "По группам"
     override val libByType = "По типам"
     override val libByArea = "По областям"
+    override val libListedCount = { shown: Int, total: Int -> "$shown из $total" }
+    override val libGrouping = "Группировка"
+    override val libResetFilters = "Сбросить всё"
+    override val libFacetAll = "Все"
+    override val libWithoutFacet = { label: String, count: Int ->
+        "Без фильтра „$label“ — $count ${plural(count, "объект", "объекта", "объектов")}"
+    }
+    override val libWithoutQuery = { query: String, count: Int ->
+        "Без запроса „$query“ — $count ${plural(count, "объект", "объекта", "объектов")}"
+    }
+    override val libRemoveFilter = "Убрать"
     override val libProjectScoped = "Проектные"
-    override val libSource = "Источник · skills / субагенты"
+    override val libSource = "Источник"
     override val libLocalSkills = "Локальные"
     override val libImportedSkills = "Импортированы из Git"
     override val libUpdateAvailable = "Есть обновление"

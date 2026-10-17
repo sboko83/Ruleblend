@@ -9,6 +9,8 @@ import dev.ruleblend.core.model.Profile
 import dev.ruleblend.core.model.Skill
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LibraryCatalogTest {
@@ -198,6 +200,115 @@ class LibraryCatalogTest {
         )
         assertEquals(listOf(profile.key), catalog.filtered(LibraryFilters(kinds = setOf(LibraryObjectKind.PROFILE))).map { it.key })
         assertTrue(catalog.categories(LibraryGrouping.GROUP, LibraryFilters()).any { it.key == "profiles" && profile in it.items })
+    }
+
+    @Test
+    fun `facet counts answer for the facet's own value, not for the whole library`() {
+        val catalog = LibraryCatalog.build(
+            blocks = listOf(
+                Block("swift-style", "Swift style", description = "iOS conventions"),
+                Block("kotlin-style", "Kotlin style", description = "KMP conventions"),
+            ),
+            groups = emptyList(),
+            skills = listOf(
+                Skill("review", "Review", source = gitSource),
+                Skill("local-check", "Local check"),
+            ),
+            scopes = mapOf("swift-style" to "/work/atlas"),
+        )
+
+        // The combination that reported zero only after the click: rules plus local skills.
+        assertEquals(0, catalog.listedCount(LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), source = LibrarySourceFilter.LOCAL)))
+        assertEquals(1, catalog.listedCount(LibraryFilters(kinds = setOf(LibraryObjectKind.SKILL), source = LibrarySourceFilter.LOCAL)))
+        assertEquals(1, catalog.listedCount(LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), scope = LibraryScopeFilter.PROJECT)))
+        // Every other filter stays in play, the query included.
+        assertEquals(
+            1,
+            catalog.listedCount(LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), query = "kotlin")),
+        )
+        assertEquals(
+            0,
+            catalog.listedCount(LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), query = "kotlin", scope = LibraryScopeFilter.PROJECT)),
+        )
+    }
+
+    @Test
+    fun `the source facet shows itself only for types it can speak about`() {
+        assertTrue(sourceFacetApplies(emptySet(), typesAreDefault = false))
+        assertTrue(sourceFacetApplies(setOf(LibraryObjectKind.RULE, LibraryObjectKind.SKILL), typesAreDefault = false))
+        assertTrue(sourceFacetApplies(setOf(LibraryObjectKind.SUBAGENT), typesAreDefault = false))
+        // The opening "rules" preset is not a choice, so the facet waits visible until one is made.
+        assertTrue(sourceFacetApplies(setOf(LibraryObjectKind.RULE), typesAreDefault = true))
+        assertFalse(sourceFacetApplies(setOf(LibraryObjectKind.RULE), typesAreDefault = false))
+        assertFalse(sourceFacetApplies(setOf(LibraryObjectKind.MCP), typesAreDefault = false))
+        assertFalse(sourceFacetApplies(setOf(LibraryObjectKind.GROUP), typesAreDefault = false))
+    }
+
+    @Test
+    fun `an empty listing names the filter to lift and what lifting it restores`() {
+        val catalog = LibraryCatalog.build(
+            blocks = listOf(
+                Block("swift-style", "Swift style"),
+                Block("kotlin-style", "Kotlin style"),
+            ),
+            groups = emptyList(),
+            skills = listOf(
+                Skill("review", "Review", source = gitSource),
+                Skill("local-check", "Local check"),
+            ),
+            scopes = emptyMap(),
+        )
+
+        val filters = LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), source = LibrarySourceFilter.LOCAL)
+        assertTrue(catalog.filtered(filters).isEmpty())
+
+        val release = catalog.widestRelease(filters)
+        requireNotNull(release)
+        assertEquals(LibraryFilterFacet.SOURCE, release.facet)
+        assertEquals(2, release.restored)
+        assertEquals(filters.copy(source = null), release.filters)
+    }
+
+    @Test
+    fun `the release restores the most and prefers a facet to the query on a tie`() {
+        val catalog = LibraryCatalog.build(
+            blocks = listOf(Block("swift-style", "Swift style"), Block("kotlin-style", "Kotlin style")),
+            groups = emptyList(),
+            skills = listOf(Skill("review", "Review", source = gitSource)),
+            scopes = emptyMap(),
+        )
+
+        // Only the query mentions the skill, so lifting kinds restores less than lifting the query.
+        val queryWins = catalog.widestRelease(LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), query = "review"))
+        requireNotNull(queryWins)
+        assertEquals(LibraryFilterFacet.QUERY, queryWins.facet)
+        assertEquals(2, queryWins.restored)
+
+        // A tie between the rule facet and the query: dropping the facet keeps what was typed.
+        val tie = catalog.widestRelease(LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), query = "style"))
+        requireNotNull(tie)
+        assertEquals(LibraryFilterFacet.KIND, tie.facet)
+        assertEquals(LibraryObjectKind.RULE, tie.kind)
+        assertEquals(2, tie.restored)
+    }
+
+    @Test
+    fun `no release when no single filter lift restores anything`() {
+        val empty = LibraryCatalog.build(blocks = emptyList(), groups = emptyList(), skills = emptyList(), scopes = emptyMap())
+        assertNull(empty.widestRelease(LibraryFilters(kinds = setOf(LibraryObjectKind.RULE))))
+
+        // Two filters that only clear together: lifting either one alone still leaves nothing.
+        val catalog = LibraryCatalog.build(
+            blocks = listOf(Block("rule", "Rule")),
+            groups = emptyList(),
+            skills = emptyList(),
+            scopes = emptyMap(),
+        )
+        assertNull(
+            catalog.widestRelease(
+                LibraryFilters(kinds = setOf(LibraryObjectKind.RULE), scope = LibraryScopeFilter.PROJECT, source = LibrarySourceFilter.LOCAL),
+            ),
+        )
     }
 
     private val gitSource = dev.ruleblend.core.model.GitSkillSource("https://example.com/skills", "abc", "skills/example")

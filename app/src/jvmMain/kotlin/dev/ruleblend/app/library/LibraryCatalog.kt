@@ -87,6 +87,30 @@ data class LibraryFilters(
 
 data class LibraryCategory(val key: String, val name: String, val items: List<LibraryObject>)
 
+/** A facet the empty-state hint can name; the UI maps each to its localized label. */
+enum class LibraryFilterFacet { KIND, GROUP, SCOPE, SOURCE, USAGE, UPDATES, QUERY }
+
+/** One way out of an empty listing: which facet to lift, and the listing lifting it restores. */
+data class LibraryFilterRelease(
+    val facet: LibraryFilterFacet,
+    val kind: LibraryObjectKind? = null,
+    val groupId: String? = null,
+    val filters: LibraryFilters,
+    val restored: Int,
+)
+
+/**
+ * Whether the Source facet can answer anything about the selected types: it speaks about skills,
+ * subagents and mods only. The opening "rules" preset is not a user's choice, so the facet stays
+ * visible while it holds; a type picked explicitly takes the filter with it when it cannot speak.
+ */
+internal fun sourceFacetApplies(kinds: Set<LibraryObjectKind>, typesAreDefault: Boolean): Boolean =
+    typesAreDefault || kinds.isEmpty() ||
+        kinds.any {
+            it == LibraryObjectKind.SKILL || it == LibraryObjectKind.SUBAGENT ||
+                it == LibraryObjectKind.MOD && ModsFeature.enabled
+        }
+
 /** The one area category that is not a project: everything the library holds for every project. */
 const val GLOBAL_SCOPE_CATEGORY: String = "scope:"
 
@@ -134,6 +158,45 @@ class LibraryCatalog private constructor(
 
     /** A star outranks the listing order, and nothing else about the order changes. */
     private fun List<LibraryObject>.favoritesFirst(): List<LibraryObject> = sortedByDescending { it.favorite }
+
+    /**
+     * The count a facet row shows: the listing that facet's own value produces, every other
+     * selected filter kept. A zero seen here is the contradiction that an empty result used to
+     * reveal only after the click.
+     */
+    fun listedCount(
+        filters: LibraryFilters,
+        usage: LibraryUsageIndex = LibraryUsageIndex.EMPTY,
+        updateSkillIds: Set<String> = emptySet(),
+    ): Int = filtered(filters, usage, updateSkillIds).size
+
+    /**
+     * The one filter whose lifting restores the most objects to an empty listing, or null when no
+     * single lift helps — a library with nothing in it, or filters that only clear together. At
+     * equal counts a facet wins over the query: dropping it keeps more of what the user typed.
+     */
+    fun widestRelease(
+        filters: LibraryFilters,
+        usage: LibraryUsageIndex = LibraryUsageIndex.EMPTY,
+        updateSkillIds: Set<String> = emptySet(),
+    ): LibraryFilterRelease? {
+        data class Lift(val facet: LibraryFilterFacet, val kind: LibraryObjectKind?, val groupId: String?, val next: LibraryFilters)
+
+        val lifts = buildList {
+            filters.kinds.forEach { kind -> add(Lift(LibraryFilterFacet.KIND, kind, null, filters.copy(kinds = filters.kinds - kind))) }
+            filters.groupId?.let { add(Lift(LibraryFilterFacet.GROUP, null, it, filters.copy(groupId = null))) }
+            filters.scope?.let { add(Lift(LibraryFilterFacet.SCOPE, null, null, filters.copy(scope = null))) }
+            filters.source?.let { add(Lift(LibraryFilterFacet.SOURCE, null, null, filters.copy(source = null))) }
+            filters.usage?.let { add(Lift(LibraryFilterFacet.USAGE, null, null, filters.copy(usage = null))) }
+            if (filters.updatesAvailable) add(Lift(LibraryFilterFacet.UPDATES, null, null, filters.copy(updatesAvailable = false)))
+            if (filters.query.isNotBlank()) add(Lift(LibraryFilterFacet.QUERY, null, null, filters.copy(query = "")))
+        }
+        return lifts
+            .map { it to filtered(it.next, usage, updateSkillIds).size }
+            .filter { (_, restored) -> restored > 0 }
+            .maxByOrNull { (_, restored) -> restored }
+            ?.let { (lift, restored) -> LibraryFilterRelease(lift.facet, lift.kind, lift.groupId, lift.next, restored) }
+    }
 
     fun categories(
         grouping: LibraryGrouping,

@@ -20,8 +20,17 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - skill: the bundled ruleblend skill can pick a profile for a project: it analyses the project, shows
   the composition with reasons and installs it after confirmation, leaving the files uncommitted.
   Connected assistants ask for a skill update.
+- app: The Library list header shows how many objects are listed ("5 of 41") beside the search, and
+  switching the grouping moved into one picker next to it.
+- app: An empty Library list names the filter that emptied it and offers to lift it in one click
+  ("Without the “Local” filter — 7 objects", Remove).
 
 ### Changed
+- app: Library facet counts answer for the filters and search already in play, and a combination
+  that would list nothing shows a dimmed zero before it is clicked.
+- app: The Library Source facet is shown only where it can answer (skills and subagents; the
+  opening rules preset keeps it visible), Scope and Usage read as one-line segmented switches, and
+  the Groups facet lost its "All" row — no group selected already means all.
 - macOS, Linux: installed and development builds register the same MCP launcher, so switching
   between them no longer requires reconnecting assistants; Settings → Agents shows which build
   assistants launch and switches it. Assistants connected earlier ask for one reconnection.

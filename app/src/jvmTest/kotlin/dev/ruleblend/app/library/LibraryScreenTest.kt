@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -159,6 +160,26 @@ class LibraryScreenTest {
     }
 
     @Test
+    fun `facet counts preview their own value and a zero combination lifts itself from the empty state`() {
+        compose.setContent {
+            RuleblendTheme(ThemeMode.LIGHT) {
+                LibraryScreen(model)
+            }
+        }
+
+        // The count answers for the pressing of the row: with Skills chosen, Local answers zero,
+        // because the only skill came from Git.
+        compose.onNodeWithTag("library-facet:type:SKILL").performClick()
+        compose.onNodeWithTag("library-facet:source:local").assertTextContains("0")
+        compose.onNodeWithTag("library-facet:source:local").performClick()
+
+        // The empty listing names the filter that emptied it and lifts it in one click.
+        compose.onNodeWithText(EnStrings.libWithoutFacet(EnStrings.libLocalSkills, 2)).assertExists()
+        compose.onNodeWithTag("library-empty-release").performClick()
+        compose.onAllNodesWithText("code-review").onFirst().assertExists()
+    }
+
+    @Test
     fun `the built-in skill and MCP entry are readable but not the user's to change`() {
         compose.setContent {
             RuleblendTheme(ThemeMode.LIGHT) {
@@ -241,7 +262,7 @@ class LibraryScreenTest {
             compose.runOnIdle { width = 560.dp }
             compose.onNodeWithText("TYPES").assertDoesNotExist()
             compose.onNodeWithText("INSTALLED IN \u00b7 2").assertExists()
-            compose.onNodeWithText("By group").assertExists()
+            compose.onNodeWithTag("library-grouping").assertExists()
         }
     }
 
@@ -256,9 +277,14 @@ class LibraryScreenTest {
 
         listOf(ThemeMode.LIGHT, ThemeMode.DARK).forEach { mode ->
             compose.runOnIdle { theme = mode }
-            compose.onNodeWithText("By group").assertExists()
-            compose.onNodeWithText("By type").assertExists()
+            compose.onNodeWithTag("library-grouping").assertTextContains(EnStrings.libByType, substring = true)
         }
+        // The grouping reads as one picker now: it opens the three cuts the buttons used to show.
+        compose.onNodeWithTag("library-grouping").performClick()
+        compose.onNodeWithTag("library-grouping:group").assertExists()
+        compose.onNodeWithTag("library-grouping:type").assertExists()
+        compose.onNodeWithTag("library-grouping:area").performClick()
+        compose.onNodeWithTag("library-grouping").assertTextContains(EnStrings.libByArea, substring = true)
     }
 
     @Test
