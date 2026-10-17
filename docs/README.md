@@ -16,5 +16,6 @@ Update both versions together when the documented behavior or decisions change.
 | [ROADMAP](ROADMAP.md) | Open work after the alpha |
 | [ARCHITECTURE](ARCHITECTURE.md) | Application design and current invariants |
 | [ARCHITECTURE_AUDIT](ARCHITECTURE_AUDIT.md) | Architecture risks and prioritized recommendations |
+| [ARCHITECTURE_REVIEW](ARCHITECTURE_REVIEW.md) | Independent 2026-10-17 code review: strengths, weaknesses, priorities |
 | [UI_E2E](UI_E2E.md) | Running and maintaining end-to-end UI checks |
 | [CHANGELOG](../CHANGELOG.md) | User-facing changes |
