@@ -59,7 +59,8 @@ class InstallPolicy(
         if (mode == WriteMode.INSTALL && outOfScope(item, target)) return SkipReason.OUT_OF_SCOPE
         if (force) return null
         val status = runCatching { rules.status(target, item.block) }.getOrNull()
-        return if (status == InstallStatus.MODIFIED) SkipReason.MODIFIED else null
+        val edited = status == InstallStatus.MODIFIED || runCatching { rules.holdsUnresolvedEdit(target) }.getOrDefault(false)
+        return if (edited) SkipReason.MODIFIED else null
     }
 
     private fun mcpRefusal(item: InstallItem.Mcp, target: Target, force: Boolean): SkipReason? {

@@ -1,6 +1,7 @@
 package dev.ruleblend.core.integration
 
 import dev.ruleblend.core.integration.ManagedDocument.AdoptStep
+import dev.ruleblend.core.model.Block
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -398,5 +399,63 @@ class WrappedRunTest {
         assertEquals(listOf(0), AdoptPlacement.blockers(listOf("# A\na\nafter", "# B\nb"), listOf(false, true), 2))
         assertEquals(emptyList(), AdoptPlacement.blockers(listOf("# A\na", "  ", "# B\nb"), listOf(true, false, true), null))
         assertEquals(emptyList(), AdoptPlacement.blockers(listOf("# A\na", "# B\nb"), listOf(false, false), 0))
+    }
+
+    private val alpha = Block(id = "alpha", name = "Alpha", version = 1, content = "alpha body")
+    private val beta = Block(id = "beta", name = "Beta", version = 2, content = "beta body")
+    private val gamma = Block(id = "gamma", name = "Gamma", version = 1, content = "gamma body")
+
+    private fun ownedRun(vararg blocks: Block): String {
+        val owned = WrappedRun(TargetOwnershipMode.OWNED)
+        return blocks.fold("") { text, block -> owned.upsert(text, regionFor(block)) }
+    }
+
+    private fun statuses(text: String, library: Map<String, Block>): Map<String, InstallStatus> =
+        WrappedRun(TargetOwnershipMode.OWNED).statusRegions(text, library::get)
+            .associate { it.id to statusOf(it, library.getValue(it.id)) }
+
+    @Test
+    fun lengthChangingEditMarksOnlyTheEditedBlock() {
+        val library = listOf(alpha, beta, gamma).associateBy { it.id }
+        val text = ownedRun(alpha, beta, gamma).replace("beta body", "beta body, edited at length")
+
+        assertEquals(
+            mapOf("alpha" to InstallStatus.SYNCED, "beta" to InstallStatus.MODIFIED, "gamma" to InstallStatus.SYNCED),
+            statuses(text, library),
+        )
+        assertFalse(WrappedRun(TargetOwnershipMode.OWNED).onlyManifestDrifted(text, library::get))
+    }
+
+    @Test
+    fun staleManifestReadsAsAnUpdateNotAnEdit() {
+        // The body already holds beta v3 while the manifest still lists v2 at its old length.
+        val newer = beta.copy(version = 3, content = "beta body, now longer")
+        val library = listOf(alpha, newer, gamma).associateBy { it.id }
+        val text = ownedRun(alpha, beta, gamma).replace("beta body", newer.content)
+        val run = WrappedRun(TargetOwnershipMode.OWNED)
+
+        assertTrue(run.hasDrift(text))
+        assertTrue(run.onlyManifestDrifted(text, library::get))
+        assertEquals(
+            mapOf("alpha" to InstallStatus.SYNCED, "beta" to InstallStatus.UPDATE_AVAILABLE, "gamma" to InstallStatus.SYNCED),
+            statuses(text, library),
+        )
+    }
+
+    @Test
+    fun unattributableDriftKeepsEveryBlockModified() {
+        val library = listOf(alpha, beta, gamma).associateBy { it.id }
+        val text = ownedRun(alpha, beta, gamma)
+            .replace("alpha body", "alpha body, edited")
+            .replace("gamma body", "gamma body, edited")
+
+        assertEquals(setOf(InstallStatus.MODIFIED), statuses(text, library).values.toSet())
+        assertFalse(WrappedRun(TargetOwnershipMode.OWNED).onlyManifestDrifted(text, library::get))
+    }
+
+    @Test
+    fun intactRunIsNotOnlyManifestDrifted() {
+        val library = listOf(alpha, beta).associateBy { it.id }
+        assertFalse(WrappedRun(TargetOwnershipMode.OWNED).onlyManifestDrifted(ownedRun(alpha, beta), library::get))
     }
 }

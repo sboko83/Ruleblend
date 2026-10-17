@@ -70,27 +70,61 @@ class WrappedRun(private val mode: TargetOwnershipMode, private val notice: Bool
     }
 
     /**
-     * A drifted run's blocks with whatever text can be attributed to them. Bodies stay empty when the
-     * run holds several blocks and the anchors do not hold — a missing library body, two blocks edited
-     * at once, or a split that more than one block could explain. Guessing there would show one rule's
-     * text under another rule's name, which is worse than showing none.
+     * A drifted run's blocks with whatever text [attribute] can give them. Bodies stay empty when it
+     * cannot: guessing would show one rule's text under another rule's name, worse than showing none.
      */
     private fun recoveredRegions(text: String, library: (String) -> dev.ruleblend.core.model.Block?): List<ManagedRegion> {
         val regions = driftedRegions(text)
-        val header = headerOf(text) ?: return regions
-        val body = runCatching { rawBody(text, header) }.getOrNull() ?: return regions
-        if (regions.size == 1) return listOf(regions.single().copy(content = body))
-        val anchors = regions.map { region -> library(region.id)?.let(::regionFor)?.content ?: return regions }
-        val edited = regions.indices.mapNotNull { index ->
-            val prefix = anchors.take(index).joinToString("\n\n").let { if (it.isEmpty()) "" else it + "\n\n" }
-            val suffix = anchors.drop(index + 1).joinToString("\n\n").let { if (it.isEmpty()) "" else "\n\n" + it }
+        val attribution = attribute(text, library) ?: return regions
+        return regions.mapIndexed { index, region -> region.copy(content = attribution.bodies[index]) }
+    }
+
+    /**
+     * [installed] for status. A drifted run credits every block whose library body still sits in it
+     * untouched, so one rule edited by hand reports only itself as modified instead of painting the
+     * whole run. Writes do not read this: the run as a whole is still drifted for them.
+     */
+    override fun statusRegions(text: String, library: (String) -> dev.ruleblend.core.model.Block?): List<ManagedRegion> = try {
+        parsed(text)?.regions ?: emptyList()
+    } catch (_: WrappedRunDriftException) {
+        val regions = driftedRegions(text)
+        val attribution = attribute(text, library)
+        if (attribution == null) regions else regions.mapIndexed { index, region ->
+            val content = attribution.bodies[index]
+            region.copy(content = content, hash = if (index == attribution.edited) "" else hashContent(content))
+        }
+    }
+
+    /**
+     * True when the run is drifted but its body is still the library text of every block it lists:
+     * only the manifest is stale. Rebuilding such a run from the library loses nothing.
+     */
+    fun onlyManifestDrifted(text: String, library: (String) -> dev.ruleblend.core.model.Block?): Boolean =
+        hasDrift(text) && attribute(text, library)?.let { it.edited == null } == true
+
+    /** A drifted run's body split per block; [edited] is the one block that differs from the library. */
+    private class Attribution(val bodies: List<String>, val edited: Int?)
+
+    /**
+     * Splits a drifted run with the library bodies as anchors — the attribution [localChange] already
+     * trusts. Null when the anchors do not hold: a missing library body, two blocks edited at once,
+     * or a split that more than one block could explain. A run with one block is that block's text.
+     */
+    private fun attribute(text: String, library: (String) -> dev.ruleblend.core.model.Block?): Attribution? {
+        val header = headerOf(text) ?: return null
+        val body = runCatching { rawBody(text, header) }.getOrNull() ?: return null
+        val anchors = header.blocks.map { block -> library(block.id)?.let(::regionFor)?.content }
+        if (anchors.size == 1) return Attribution(listOf(body), edited = if (anchors.single() == body) null else 0)
+        val known = anchors.map { it ?: return null }
+        if (body == known.joinToString("\n\n")) return Attribution(known, edited = null)
+        val edited = known.indices.mapNotNull { index ->
+            val prefix = known.take(index).joinToString("\n\n").let { if (it.isEmpty()) "" else it + "\n\n" }
+            val suffix = known.drop(index + 1).joinToString("\n\n").let { if (it.isEmpty()) "" else "\n\n" + it }
             if (prefix.length + suffix.length > body.length) return@mapNotNull null
             if (!body.startsWith(prefix) || !body.endsWith(suffix)) return@mapNotNull null
             index to body.substring(prefix.length, body.length - suffix.length)
-        }.singleOrNull() ?: return regions
-        return regions.mapIndexed { index, region ->
-            region.copy(content = if (index == edited.first) edited.second else anchors[index])
-        }
+        }.singleOrNull() ?: return null
+        return Attribution(known.mapIndexed { index, anchor -> if (index == edited.first) edited.second else anchor }, edited.first)
     }
 
     private fun unmanagedOutside(text: String, start: Int, end: Int?): UnmanagedContent {

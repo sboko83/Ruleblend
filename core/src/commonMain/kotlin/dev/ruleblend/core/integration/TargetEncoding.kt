@@ -8,6 +8,13 @@ interface TargetEncoding {
     fun unmanaged(text: String): UnmanagedContent
 
     /**
+     * [installed] as status reads it: a run edited outside Ruleblend credits the blocks the edit did
+     * not touch, with [library] bodies as anchors. Only status may rely on it — writes still see the
+     * run as drifted.
+     */
+    fun statusRegions(text: String, library: (String) -> Block?): List<ManagedRegion> = installed(text)
+
+    /**
      * The document split into hand-written text and managed runs, in file order. Read-only: it is
      * what [installed] and [unmanaged] already read, kept in the order the file has them, so a
      * preview can show where the managed region actually sits instead of assuming it comes last.

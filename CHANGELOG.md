@@ -23,6 +23,9 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   they were previously skipped as unsupported.
 - Installing MCP servers and subagents no longer fails with "Is a directory" or risks
   touching unrelated files when Ruleblend runs from a folder such as the home directory.
+- A rule edited by hand in a project file no longer marks every other rule in that file as
+  modified; a file whose rules already match the library but whose Ruleblend header is out of date
+  shows an update and is repaired by it.
 - Tooltips appear above and to the right of the pointer, keeping controls clickable.
 - The Library label in Settings → About stays on one line.
 - Home reports missing assistant components and moved MCP paths; updating an existing connection

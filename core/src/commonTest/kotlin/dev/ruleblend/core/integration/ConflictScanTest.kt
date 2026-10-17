@@ -100,4 +100,12 @@ class ConflictScanTest {
     @Test fun identicalBodiesDiffAsContextOnly() {
         assertTrue(diffLines("a\nb", "a\nb").all { it.kind == ConflictLineKind.CONTEXT })
     }
+
+    @Test fun staleManifestIsNotAConflict() {
+        // The run's body is already the library text; only the manifest still lists alpha v1.
+        val newer = alpha.copy(version = 2, content = "alpha body, now longer")
+        val text = file(alpha, beta).replace("alpha body", newer.content)
+
+        assertEquals(emptyList(), classifyConflicts(text, listOf(newer, beta).associateBy { it.id }::get))
+    }
 }

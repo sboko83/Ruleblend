@@ -920,6 +920,45 @@ class IntegrationServiceTest {
     }
 
     @Test
+    fun updateRebuildsARunWhoseOnlyDriftIsTheManifest() {
+        // The body already holds the newer library text; only the manifest still lists v1.
+        val other = block.copy(id = "swift-style", content = "Use SwiftFormat.")
+        val newer = block.copy(version = 2, content = "Never commit without review.")
+        val library = mutableMapOf(block.id to block, other.id to other)
+        val resolver = IntegrationService(blockResolver = { library[it] })
+        resolver.install(file, block)
+        resolver.install(file, other)
+        file.writeText(file.readText().replace("Never commit.", newer.content))
+        library[newer.id] = newer
+
+        assertEquals(InstallStatus.UPDATE_AVAILABLE, resolver.status(target(), newer))
+        assertEquals(InstallStatus.SYNCED, resolver.status(target(), other))
+        assertFalse(resolver.holdsUnresolvedEdit(target()))
+
+        resolver.install(file, newer)
+
+        assertFalse(resolver.ownershipDrift(file))
+        assertEquals(InstallStatus.SYNCED, resolver.status(target(), newer))
+        assertEquals(InstallStatus.SYNCED, resolver.status(target(), other))
+    }
+
+    @Test
+    fun handEditHoldsTheWholeRunButMarksOnlyItsOwnRule() {
+        val other = block.copy(id = "swift-style", content = "Use SwiftFormat.")
+        val library = mutableMapOf(block.id to block, other.id to other)
+        val resolver = IntegrationService(blockResolver = { library[it] })
+        resolver.install(file, block)
+        resolver.install(file, other)
+        file.writeText(file.readText().replace("Never commit.", "Never commit without review."))
+
+        assertEquals(InstallStatus.MODIFIED, resolver.status(target(), block))
+        assertEquals(InstallStatus.SYNCED, resolver.status(target(), other))
+        assertTrue(resolver.holdsUnresolvedEdit(target()))
+        assertFailsWith<WrappedRunDriftException> { resolver.install(file, other.copy(version = 2, content = "Use swiftformat.")) }
+        assertTrue(file.readText().contains("Never commit without review."))
+    }
+
+    @Test
     fun localChangeOfAHeadedRuleKeepsTheHeadingOutOfTheBody() {
         val headed = block.copy(heading = "Git", headingLevel = 3)
         val library = mutableMapOf(headed.id to headed)

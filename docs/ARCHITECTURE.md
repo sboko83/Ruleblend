@@ -611,6 +611,13 @@ while parsing and replaced with the Ruleblend notice during that write.
   is newer), `modified` (the target differs at the same version, or its hash mismatches). A target
   with several agent files reports the worst status of its files, so a hand edit is never hidden by
   the others.
+- **A drifted run is attributed per block.** An edit that changes a block's length breaks the
+  manifest offsets for the whole run, so status reads it against the library bodies as anchors —
+  the attribution `localChange` already trusts — and only the block that differs is `modified`.
+  When nothing differs (the body is the library text and only the manifest is stale), blocks read
+  as `synced` or `update available` and an ordinary write rebuilds the run, since nothing can be
+  lost. While a real edit stays unresolved, every write into that run is refused as `modified`,
+  the neighbours' too: one run has one hash, and rewriting it would erase the record of the edit.
 - **Never overwrite silently.** A `modified` rule can be restored from the library or saved back as
   the library's next version, and so can a `modified` MCP entry: its config file holds a whole server
   object, which is exactly what a library block of that type is, so the library can adopt it as its

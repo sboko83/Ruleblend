@@ -44,7 +44,7 @@ data class BlockConflict(
  */
 fun classifyConflicts(text: String, library: (String) -> Block?): List<BlockConflict> {
     val encoding = targetEncoding(text)
-    val candidates = encoding.installed(text).mapNotNull { region ->
+    val candidates = encoding.statusRegions(text, library).mapNotNull { region ->
         val block = library(region.id) ?: return@mapNotNull null
         if (statusOf(region, block) != InstallStatus.MODIFIED) null else region to block
     }

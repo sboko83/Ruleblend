@@ -42,7 +42,10 @@ enum class SkipReason {
     /** No agent of that target installs this kind of object. */
     UNSUPPORTED,
 
-    /** Installed and edited by hand there: overwriting needs an explicit decision on that copy. */
+    /**
+     * Installed and edited by hand there, or written into a managed run that holds such an edit:
+     * overwriting needs an explicit decision on that copy.
+     */
     MODIFIED,
 }
 

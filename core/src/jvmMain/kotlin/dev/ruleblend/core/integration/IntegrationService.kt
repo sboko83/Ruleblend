@@ -84,12 +84,15 @@ class IntegrationService(
      * The wrapped run to rebuild wholesale, with its manifest, when [force] asks for "take library".
      * A forced write always rewrites the whole run rather than editing it in place, so the result
      * does not depend on whether the hand edit happened to preserve the manifest's byte lengths.
+     * A run whose drift is only a stale manifest is rebuilt the same way without [force]: its body
+     * already is the library text, so there is no edit to lose or to ask about.
      * Null when the ordinary path applies instead: no [force], no wrapped run yet (a first install into
      * an empty or hand-written file), or no [blockResolver] to read the other bodies from.
      */
     private fun forcedRun(force: Boolean, encoding: TargetEncoding, source: String): Pair<WrappedRun, WrappedRunHeader>? {
-        if (!force || blockResolver == null) return null
+        val resolver = blockResolver ?: return null
         val wrapped = encoding as? WrappedRun ?: return null
+        if (!force && !wrapped.onlyManifestDrifted(source, resolver)) return null
         return wrapped.headerOf(source)?.let { wrapped to it }
     }
 
@@ -119,6 +122,26 @@ class IntegrationService(
     /** Regions currently installed in [file]; empty when the file does not exist. */
     fun regions(file: Path): List<ManagedRegion> =
         FileReadScope.textOrNull(file)?.let { text -> encodingFor(text).installed(text) } ?: emptyList()
+
+    /** [regions] as status reads them: see [TargetEncoding.statusRegions]. */
+    private fun statusRegions(file: Path): List<ManagedRegion> =
+        FileReadScope.textOrNull(file)?.let { text -> statusRegionsOf(text, blockResolver) } ?: emptyList()
+
+    private fun statusRegionsOf(text: String, library: ((String) -> Block?)?): List<ManagedRegion> {
+        val encoding = encodingFor(text)
+        return library?.let { encoding.statusRegions(text, it) } ?: encoding.installed(text)
+    }
+
+    /**
+     * True when a file of [target] holds a run edited by hand that no write can rebuild without
+     * losing the edit. Every write into such a run is refused until the edit is resolved — including
+     * one for a neighbour whose own status reads clean.
+     */
+    fun holdsUnresolvedEdit(target: Target): Boolean = target.files().any { file ->
+        val text = FileReadScope.textOrNull(file) ?: return@any false
+        val encoding = encodingFor(text) as? WrappedRun ?: return@any false
+        encoding.hasDrift(text) && blockResolver?.let { encoding.onlyManifestDrifted(text, it) } != true
+    }
 
     /** Origins of every managed rule in [target], including base (`null`) and group-owned entries. */
     fun installedOrigins(target: Target): Map<String, String?> = target.files()
@@ -226,7 +249,7 @@ class IntegrationService(
             file = file,
             exists = true,
             mode = ownershipModeOf(text),
-            regions = encoding.installed(text),
+            regions = statusRegionsOf(text, library),
             unmanaged = encoding.unmanaged(text),
             drift = driftOf(text),
             conflicts = library?.let { classifyConflicts(text, it) }.orEmpty(),
@@ -443,7 +466,7 @@ class IntegrationService(
      */
     fun status(target: Target, block: Block): InstallStatus? {
         val statuses = target.files().mapNotNull { file ->
-            regions(file).find { it.id == block.id }?.let { statusOf(it, block) }
+            statusRegions(file).find { it.id == block.id }?.let { statusOf(it, block) }
         }
         return when {
             statuses.isEmpty() -> null

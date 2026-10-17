@@ -43,7 +43,8 @@ class InstallObjectTest {
     private val server = Block(id = "server", name = "Server", type = BlockType.MCP, version = 1, content = "{}")
 
     /** A forced write rebuilds the whole managed run from the library, so it needs the library. */
-    private val library = listOf(shared, pinned).associateBy { it.id }
+    private val neighbour = Block(id = "neighbour", name = "Neighbour", version = 1, content = "Neighbour body.")
+    private val library = listOf(shared, pinned, neighbour).associateBy { it.id }
     private val service = IntegrationService(blockResolver = library::get)
 
     private val agent = object : AgentAdapter {
@@ -157,6 +158,19 @@ class InstallObjectTest {
         editByHand(atlas.resolve("AGENTS.md"))
 
         val report = install()(InstallCommand(listOf(target), listOf(InstallItem.Rule(shared))))
+
+        assertEquals(0, report.written)
+        assertEquals(mapOf(SkipReason.MODIFIED to 1), report.skipped)
+        assertTrue(atlas.resolve("AGENTS.md").readText().contains("Edited by hand."))
+    }
+
+    @Test
+    fun neighbourOfAHandEditIsReportedInsteadOfFailing() {
+        val target = project(atlas)
+        install()(InstallCommand(listOf(target), listOf(InstallItem.Rule(shared), InstallItem.Rule(neighbour))))
+        editByHand(atlas.resolve("AGENTS.md"))
+
+        val report = install()(InstallCommand(listOf(target), listOf(InstallItem.Rule(neighbour.copy(version = 2)))))
 
         assertEquals(0, report.written)
         assertEquals(mapOf(SkipReason.MODIFIED to 1), report.skipped)
