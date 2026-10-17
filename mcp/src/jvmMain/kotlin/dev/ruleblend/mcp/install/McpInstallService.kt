@@ -183,6 +183,7 @@ class McpInstallService(
                         config,
                         origin ?: state.find(key, installer.agentId, block.id)?.origin,
                         entryName.takeIf { it != block.id },
+                        configPath = installer.configFile(target)?.toString(),
                     ),
                 )
             }
@@ -213,6 +214,7 @@ class McpInstallService(
                     version = block.version,
                     config = config,
                     entryName = entry.name.takeIf { it != block.id },
+                    configPath = installer.configFile(target)?.toString(),
                 ),
             )
         }

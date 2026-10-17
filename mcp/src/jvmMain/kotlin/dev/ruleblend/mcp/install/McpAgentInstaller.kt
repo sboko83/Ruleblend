@@ -168,11 +168,37 @@ class KimiCodeMcpInstaller(
         KimiMcpJson.read(FileReadScope.text(configFile(target)), name)
 }
 
-/** ZCode reads the Claude-compatible shared MCP table at global and project scope. */
+/** ZCode reads `mcp.servers` in its own user and workspace config files. */
 class ZCodeMcpInstaller(
-    home: Path = Path.of(System.getProperty("user.home")),
-    coordinator: TargetMutationCoordinator = TargetMutationCoordinator(),
-) : McpServersJsonInstaller("zcode", home.resolve(".agents").resolve("mcp.json"), coordinator)
+    private val home: Path = Path.of(System.getProperty("user.home")),
+    private val coordinator: TargetMutationCoordinator = TargetMutationCoordinator(),
+) : McpAgentInstaller {
+    override val agentId: String = "zcode"
+
+    override fun supports(config: McpServerConfig): Boolean = true
+
+    override fun configFile(target: Target): Path = when (target) {
+        is AgentGlobalTarget -> home.resolve(".zcode/cli/config.json")
+        is ProjectTarget -> target.dir.resolve(".zcode/config.json")
+    }
+
+    override fun names(text: String): List<String> = ZCodeMcpJson.names(text)
+
+    override fun entryText(text: String, name: String): String? = ZCodeMcpJson.entryText(text, name)
+
+    override fun install(target: Target, name: String, config: McpServerConfig) {
+        coordinator.rewrite(configFile(target), missing = "") { text ->
+            ZCodeMcpJson.upsert(text, name, McpServersJson.renderEntry(config))
+        }
+    }
+
+    override fun remove(target: Target, name: String) {
+        coordinator.rewrite(configFile(target)) { text -> ZCodeMcpJson.remove(text, name).takeIf { it != text } }
+    }
+
+    override fun installed(target: Target, name: String): McpServerConfig? =
+        ZCodeMcpJson.read(FileReadScope.text(configFile(target)), name)?.let(McpServersJson::parseEntry)
+}
 
 /** Pi 1.0+ reads native MCP files; project servers require project trust. */
 class PiMcpInstaller(

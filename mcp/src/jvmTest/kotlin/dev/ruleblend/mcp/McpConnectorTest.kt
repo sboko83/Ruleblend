@@ -4,6 +4,7 @@ import java.nio.file.Files
 import dev.ruleblend.core.model.McpServerConfig
 import dev.ruleblend.mcp.install.CodexMcpTable
 import dev.ruleblend.mcp.install.KimiMcpJson
+import dev.ruleblend.mcp.install.ZCodeMcpJson
 import dev.ruleblend.mcp.install.McpServersJson
 import kotlinx.serialization.json.JsonPrimitive
 import java.nio.file.Path
@@ -293,25 +294,29 @@ class McpConnectorTest {
     // --- ZCode ---
 
     @Test
-    fun `zcode registers in its compatible MCP config and preserves other servers`() {
+    fun `zcode registers in its native MCP config and preserves other servers`() {
         home.resolve(".zcode").createDirectories()
-        home.resolve(".agents").createDirectories()
-        home.resolve(".agents/mcp.json").writeText(
-            """{"mcpServers":{"other":{"type":"stdio","command":"/bin/other"}},"theme":"dark"}""",
+        home.resolve(".zcode/cli").createDirectories()
+        home.resolve(".zcode/cli/config.json").writeText(
+            """{"mcp":{"servers":{"other":{"type":"stdio","command":"/bin/other"}},"timeout":30},"theme":"dark"}""",
         )
         val connector = ZCodeConnector(home)
 
         connector.register(binary)
 
-        val servers = Json.parseToJsonElement(home.resolve(".agents/mcp.json").readText())
-            .jsonObject["mcpServers"]!!.jsonObject
+        val servers = Json.parseToJsonElement(home.resolve(".zcode/cli/config.json").readText())
+            .jsonObject["mcp"]!!.jsonObject["servers"]!!.jsonObject
         assertEquals("/bin/other", servers["other"]!!.jsonObject["command"]!!.jsonPrimitive.content)
         assertEquals(binary.toString(), servers["ruleblend"]!!.jsonObject["command"]!!.jsonPrimitive.content)
         assertEquals(McpRegistration.REGISTERED, connector.status(binary))
+        assertFalse(Files.exists(home.resolve(".agents")))
+        val root = Json.parseToJsonElement(home.resolve(".zcode/cli/config.json").readText()).jsonObject
+        assertEquals("dark", root["theme"]!!.jsonPrimitive.content)
+        assertEquals("30", root["mcp"]!!.jsonObject["timeout"]!!.jsonPrimitive.content)
 
         connector.unregister()
-        assertFalse("ruleblend" in Json.parseToJsonElement(home.resolve(".agents/mcp.json").readText())
-            .jsonObject["mcpServers"]!!.jsonObject)
+        assertFalse("ruleblend" in Json.parseToJsonElement(home.resolve(".zcode/cli/config.json").readText())
+            .jsonObject["mcp"]!!.jsonObject["servers"]!!.jsonObject)
         assertEquals(McpRegistration.NOT_REGISTERED, connector.status(binary))
     }
 
@@ -334,16 +339,16 @@ class McpConnectorTest {
     @Test
     fun `zcode preserves an unrelated old Kitbash server`() {
         home.resolve(".zcode").createDirectories()
-        home.resolve(".agents").createDirectories()
-        home.resolve(".agents/mcp.json").writeText(
-            """{"mcpServers":{"kitbash":{"type":"stdio","command":"npx","args":["kitbash"]}}}""",
+        home.resolve(".zcode/cli").createDirectories()
+        home.resolve(".zcode/cli/config.json").writeText(
+            """{"mcp":{"servers":{"kitbash":{"type":"stdio","command":"npx","args":["kitbash"]}}}}""",
         )
         val connector = ZCodeConnector(home)
 
         connector.register(binary)
 
-        val servers = Json.parseToJsonElement(home.resolve(".agents/mcp.json").readText())
-            .jsonObject["mcpServers"]!!.jsonObject
+        val servers = Json.parseToJsonElement(home.resolve(".zcode/cli/config.json").readText())
+            .jsonObject["mcp"]!!.jsonObject["servers"]!!.jsonObject
         assertTrue("kitbash" in servers)
         assertTrue("ruleblend" in servers)
     }
@@ -360,17 +365,19 @@ class McpConnectorTest {
             home.resolve(".claude.json") to ClaudeCodeConnector(home),
             home.resolve(".codex/config.toml") to CodexConnector(home),
             home.resolve(".kimi-code/mcp.json") to KimiCodeConnector(home),
-            home.resolve(".agents/mcp.json") to ZCodeConnector(home),
+            home.resolve(".zcode/cli/config.json") to ZCodeConnector(home),
             home.resolve(".pi/agent/mcp.json") to PiConnector(home),
         )
         for ((file, connector) in entries) {
             fun upsert(text: String, name: String, config: McpServerConfig): String = when (connector) {
                 is CodexConnector -> CodexMcpTable.upsert(text, name, config)
                 is KimiCodeConnector -> KimiMcpJson.upsert(text, name, config)
+                is ZCodeConnector -> ZCodeMcpJson.upsert(text, name, McpServersJson.renderEntry(config))
                 else -> McpServersJson.upsert(text, name, McpServersJson.renderEntry(config))
             }
             fun read(name: String): McpServerConfig? = when (connector) {
                 is CodexConnector -> CodexMcpTable.read(file.readText(), name)
+                is ZCodeConnector -> ZCodeMcpJson.read(file.readText(), name)?.let(McpServersJson::parseEntry)
                 else -> McpServersJson.read(file.readText(), name)?.let(McpServersJson::parseEntry)
             }
             file.parent.createDirectories()
@@ -452,8 +459,8 @@ class McpConnectorTest {
                 "[mcp_servers.ruleblend]\ncommand = \"/bin/foreign\"\nargs = [\"--serve\"]\n"),
             Triple(home.resolve(".kimi-code/mcp.json"), KimiCodeConnector(home),
                 """{"mcpServers":{"ruleblend":{"type":"stdio","command":"/bin/foreign","args":["--serve"]}}}"""),
-            Triple(home.resolve(".agents/mcp.json"), ZCodeConnector(home),
-                """{"mcpServers":{"ruleblend":{"type":"stdio","command":"/bin/foreign","args":["--serve"]}}}"""),
+            Triple(home.resolve(".zcode/cli/config.json"), ZCodeConnector(home),
+                """{"mcp":{"servers":{"ruleblend":{"type":"stdio","command":"/bin/foreign","args":["--serve"]}}}}"""),
             Triple(home.resolve(".pi/agent/mcp.json"), PiConnector(home),
                 """{"mcpServers":{"ruleblend":{"type":"stdio","command":"/bin/foreign","args":["--serve"]}}}"""),
         )

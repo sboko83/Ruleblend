@@ -33,6 +33,8 @@ data class McpInstallRecord(
      * the usual [blockId] key, keeping records written before foreign-entry adoption readable.
      */
     val entryName: String? = null,
+    /** Physical address last written; absent in records predating native ZCode MCP configs. */
+    val configPath: String? = null,
 )
 
 /** Sidecar store at `~/.ruleblend/mcp-state.json`. Losing it degrades statuses, never correctness. */

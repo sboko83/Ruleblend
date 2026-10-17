@@ -118,7 +118,7 @@ class AssistantEnvironmentTest {
         }
     }
 
-    @Test fun kimiPiAndZcodeKeepSharedHomesAndProjectConfigsNative() {
+    @Test fun kimiPiAndZcodeKeepHomesAndProjectConfigsNative() {
         val kimi = KimiCodeHome.current(paths)
         val project = ProjectTarget(home.resolve("project"), emptyList())
         val kimiInstaller = KimiCodeMcpInstaller(kimi)
@@ -126,10 +126,9 @@ class AssistantEnvironmentTest {
         val zcodeInstaller = ZCodeMcpInstaller(home)
         assertEquals(paths.kimi.resolve("mcp.json"), kimiInstaller.configFile(AgentGlobalTarget(KimiCodeAdapter(kimi))))
         assertEquals(paths.pi.resolve("mcp.json"), piInstaller.configFile(AgentGlobalTarget(PiAdapter(paths = paths))))
-        assertEquals(home.resolve(".agents/mcp.json"), zcodeInstaller.configFile(AgentGlobalTarget(ZCodeAdapter(home))))
-        for (installer in listOf(ClaudeCodeMcpInstaller(paths = paths), zcodeInstaller)) {
-            assertEquals(project.dir.resolve(".mcp.json"), installer.configFile(project))
-        }
+        assertEquals(home.resolve(".zcode/cli/config.json"), zcodeInstaller.configFile(AgentGlobalTarget(ZCodeAdapter(home))))
+        assertEquals(project.dir.resolve(".mcp.json"), ClaudeCodeMcpInstaller(paths = paths).configFile(project))
+        assertEquals(project.dir.resolve(".zcode/config.json"), zcodeInstaller.configFile(project))
         assertEquals(project.dir.resolve(".kimi-code/mcp.json"), kimiInstaller.configFile(project))
         assertEquals(project.dir.resolve(".codex/config.toml"), CodexMcpInstaller(paths = paths).configFile(project))
         assertEquals(project.dir.resolve(".pi/mcp.json"), piInstaller.configFile(project))

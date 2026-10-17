@@ -26,6 +26,7 @@ import dev.ruleblend.mcp.install.KimiCodeMcpInstaller
 import dev.ruleblend.mcp.install.McpInstallService
 import dev.ruleblend.mcp.install.McpStateStore
 import dev.ruleblend.mcp.install.PiMcpInstaller
+import dev.ruleblend.mcp.install.ZCodeMcpMigration
 import dev.ruleblend.mcp.install.ZCodeMcpInstaller
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
@@ -87,6 +88,7 @@ fun runRuleblendServer(version: String, libraryOverride: Path? = null) {
     val lock = InterProcessLock(home.resolve("ruleblend.lock"))
     // The same lock the GUI app holds for target files and their sidecar state.
     val targetCoordinator = TargetMutationCoordinator(lock)
+    ZCodeMcpMigration(coordinator = targetCoordinator).migrate()
     val configStore = ConfigStore(home.resolve("config.json"), lock)
     val libraryPath = libraryOverride ?: System.getenv("RULEBLEND_LIBRARY")?.takeIf { it.isNotBlank() }?.let(Path::of)
         ?: configStore.load().libraryPath?.let(Path::of) ?: home.resolve("library")

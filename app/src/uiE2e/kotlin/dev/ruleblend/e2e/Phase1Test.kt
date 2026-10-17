@@ -482,7 +482,7 @@ class Phase1Test {
             project.resolve(".claude/skills/e2e-skill/SKILL.md"), project.resolve(".claude/agents/e2e-agent.md"),
             library.resolve("blocks/e2e-rule.md"), library.resolve("blocks/e2e-agent.md"), library.resolve("blocks/e2e-server.md"),
             home.resolve(".ruleblend/mcp-state.json"), home.resolve(".ruleblend/skill-state.json"), home.resolve(".ruleblend/subagent-state.json"),
-            project.resolve(".codex/config.toml"), project.resolve(".kimi-code/mcp.json"), project.resolve(".pi/mcp.json"),
+            project.resolve(".codex/config.toml"), project.resolve(".kimi-code/mcp.json"), project.resolve(".zcode/config.json"), project.resolve(".pi/mcp.json"),
             project.resolve(".codex/agents/e2e-agent.toml"), project.resolve(".kimi-code/agents/e2e-agent.md"),
             project.resolve(".codex/skills/e2e-skill/SKILL.md"), project.resolve(".kimi-code/skills/e2e-skill/SKILL.md"),
             project.resolve(".zcode/skills/e2e-skill/SKILL.md"), project.resolve(".pi/skills/e2e-skill/SKILL.md"),
@@ -527,7 +527,7 @@ class Phase1Test {
                     ".codex/agents/e2e-agent.toml", ".kimi-code/agents/e2e-agent.md")) {
                 assertFalse(Files.exists(project.resolve(copy)), copy)
             }
-            for (file in listOf(".mcp.json", ".codex/config.toml", ".kimi-code/mcp.json", ".pi/mcp.json")) {
+            for (file in listOf(".mcp.json", ".codex/config.toml", ".kimi-code/mcp.json", ".zcode/config.json", ".pi/mcp.json")) {
                 assertFalse(Files.exists(project.resolve(file)) && project.resolve(file).readText().contains("e2e-server"), file)
             }
             compose.onNodeWithTag(uiTarget("place", "project:${project.projectKey()}", "ungrouped", "select")).performMouseInput { rightClick() }
@@ -596,7 +596,7 @@ class Phase1Test {
         assertTrue(home.resolve(".pi/agent/AGENTS.md").readText().contains("E2E rule v1"))
         assertTrue(Files.exists(home.resolve(".pi/agent/skills/e2e-skill/SKILL.md")))
         assertFalse(Files.exists(home.resolve(".agents/skills")))
-        for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".agents/mcp.json", ".pi/agent/mcp.json")) {
+        for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".zcode/cli/config.json", ".pi/agent/mcp.json")) {
             assertTrue(home.resolve(file).readText().contains("e2e-server"), file)
         }
         assertFalse(Files.exists(project.resolve("AGENTS.md")))
@@ -636,7 +636,7 @@ class Phase1Test {
                 ".codex/agents/e2e-agent.toml", ".kimi/agents/e2e-agent.md")) {
             assertFalse(Files.exists(home.resolve(copy)), copy)
         }
-        for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".agents/mcp.json", ".pi/agent/mcp.json")) {
+        for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".zcode/cli/config.json", ".pi/agent/mcp.json")) {
             assertFalse(Files.exists(home.resolve(file)) && home.resolve(file).readText().contains("e2e-server"), file)
         }
         assertFalse(Files.exists(project.resolve("AGENTS.md")))

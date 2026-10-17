@@ -64,7 +64,7 @@ const val MCP_SERVER_DESCRIPTION: String =
  * Raised by hand whenever an entry a previous build wrote would no longer be what this build
  * writes — not per app release, or every update would report four agents as stale for nothing.
  */
-const val MCP_ENTRY_VERSION: Int = 4
+const val MCP_ENTRY_VERSION: Int = 5
 
 /**
  * Where the version is stamped. It rides in the entry's own `env`, which every config format

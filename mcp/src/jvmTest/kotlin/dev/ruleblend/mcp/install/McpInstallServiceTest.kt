@@ -212,12 +212,14 @@ class McpInstallServiceTest {
     }
 
     @Test
-    fun `ZCode installs global shared and project compatibility MCP`() {
+    fun `ZCode installs global and project native MCP`() {
         service.install(globalZCode, stdioBlock)
         service.install(zCodeProjectTarget, httpBlock)
 
-        val global = home.resolve(".agents/mcp.json").readText()
-        val projectConfig = project.resolve(".mcp.json").readText()
+        val global = home.resolve(".zcode/cli/config.json").readText()
+        val projectConfig = project.resolve(".zcode/config.json").readText()
+        assertFalse(home.resolve(".agents").exists())
+        assertFalse(project.resolve(".mcp.json").exists())
         assertTrue("context7" in global)
         assertTrue("remote" in projectConfig)
         assertTrue("\"type\": \"stdio\"" in global)
@@ -400,7 +402,7 @@ class McpInstallServiceTest {
     }
 
     @Test
-    fun `a renamed entry adopted from a shared config is owned by every agent reading it`() {
+    fun `adopting a Claude entry does not grant ownership in ZCode native config`() {
         val shared = ProjectTarget(project, listOf(ClaudeCodeAdapter(home), ZCodeAdapter(home)))
         val file = project.resolve(".mcp.json")
         val text = """{"mcpServers":{"context7":{"type":"stdio","command":"npx","args":["-y","ctx7"]}}}"""
@@ -411,9 +413,11 @@ class McpInstallServiceTest {
         service.takeOwnership(shared, entry, renamed)
 
         assertEquals(text, file.readText())
-        // Both agents read this one file; an entry kept under its own name must not read as missing
-        // from the second of them just because the first is the one discovery listed it under.
-        assertEquals(McpStatus(InstallStatus.SYNCED, conflict = false), service.status(shared, renamed))
+        val claudeOnly = ProjectTarget(project, listOf(ClaudeCodeAdapter(home)))
+        assertEquals(McpStatus(InstallStatus.SYNCED, conflict = false), service.status(claudeOnly, renamed))
+        assertNull(service.status(zCodeProjectTarget, renamed))
+        assertEquals(McpStatus(InstallStatus.UPDATE_AVAILABLE, conflict = false), service.status(shared, renamed))
+        assertFalse(project.resolve(".zcode/config.json").exists())
     }
 
     // --- safe writes protect a hand-edited or foreign entry ---

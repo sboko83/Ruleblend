@@ -729,7 +729,7 @@ bundled skill share the same resolution. Overrides must be absolute native paths
 WSL homes are a separate environment and are rejected instead of being mapped onto a Windows drive.
 A rejected override is ignored for its assistant only, logged to stderr and shown in Settings
 diagnostics: one stray variable must not stop the app or the MCP server from starting.
-`HOME`, `APPDATA` and `XDG_CONFIG_HOME` do not relocate ZCode's compatibility `~/.agents/mcp.json`.
+`HOME`, `APPDATA` and `XDG_CONFIG_HOME` do not relocate ZCode's native `~/.zcode` root.
 
 | Override | Global root | MCP configuration |
 |---|---|---|
@@ -1441,7 +1441,8 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
 - **Connect to MCP (Settings):** one action per MCP-capable agent, writing both halves of the
   connection. `McpConnector` writes the `ruleblend` entry into each agent's own config — structural
   JSON edit of `~/.claude.json`, line-based section edit of `~/.codex/config.toml`, native JSON edit
-  of `$KIMI_CODE_HOME/mcp.json`, compatible JSON edit of `~/.agents/mcp.json` for ZCode and of
+  of `$KIMI_CODE_HOME/mcp.json`, `mcp.servers` edit of `~/.zcode/cli/config.json` for ZCode and
+  compatible JSON edit of
   `$PI_CODING_AGENT_DIR/mcp.json` for Pi (defaults to `~/.pi/agent/mcp.json`). Direct
   file edit rather than the agent CLI: a GUI app's minimal `PATH` makes CLI discovery the fragile
   part. An existing same-name entry is writable only with Ruleblend's version stamp or the older
@@ -1467,7 +1468,7 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
   Windows. A GUI-subsystem executable preserves inherited stdio without opening a console.
 - **Bundled skill:** `FileSkillInstaller` writes the `SKILL.md` shipped as an app resource to each
   native user-skill location: `~/.claude/skills/ruleblend/SKILL.md` (Claude Code),
-  `~/.codex/skills/ruleblend/SKILL.md` (Codex), `~/.agents/skills/ruleblend/SKILL.md` (Pi),
+  `~/.codex/skills/ruleblend/SKILL.md` (Codex), `~/.pi/agent/skills/ruleblend/SKILL.md` (Pi),
   `$KIMI_CODE_HOME/skills/ruleblend/SKILL.md` (Kimi Code), and
   `~/.zcode/skills/ruleblend/SKILL.md` (ZCode). All copies use the same text and
   marker-based ownership; each installer owns availability detection and its path. The skill is not
@@ -1516,19 +1517,25 @@ Blocks of `type: mcp` describe third-party MCP servers installable into agent MC
   | Claude Code | `~/.claude.json` `mcpServers` | `<dir>/.mcp.json` `mcpServers` |
   | Codex | `~/.codex/config.toml` `[mcp_servers.<id>]` | `<dir>/.codex/config.toml` (trusted projects only) |
   | Kimi Code | `<KIMI_CODE_HOME>/mcp.json` `mcpServers` | `<dir>/.kimi-code/mcp.json` `mcpServers` |
-  | ZCode | `~/.agents/mcp.json` `mcpServers` | `<dir>/.mcp.json` `mcpServers` |
+  | ZCode | `~/.zcode/cli/config.json` `mcp.servers` | `<dir>/.zcode/config.json` `mcp.servers` |
   | Pi 1.0+ | `~/.pi/agent/mcp.json` `mcpServers` | `<dir>/.pi/mcp.json` `mcpServers` (project trust required) |
 
   Claude JSON entries carry an explicit `"type"`. Kimi infers its transport from `command` or
   `url`, so `KimiMcpJson` writes neither `type` nor a second discriminator; its project address is
   the native `<cwd>/.kimi-code/mcp.json` layer represented by Ruleblend's project target. The
-  separate `<project>/.mcp.json` is the shared Claude-compatible layer, which ZCode reads as its
-  project compatibility config; ZCode's global shared config uses the same JSON and explicit
-  transport field. Codex writes stdio as `command`, `args`, and `env`, and streamable HTTP as `url`
+  separate `<project>/.mcp.json` remains Claude Code's layer. ZCode uses its
+  [native config](https://zcode.z.ai/en/docs/mcp-services), preserving settings outside `mcp.servers`.
+  Codex writes stdio as `command`, `args`, and `env`, and streamable HTTP as `url`
   and static `http_headers`, in the same named table. Pi's adapter tells transports apart by
   `command` / `url` and ignores the Claude `"type"` field, so Pi shares the Claude JSON writer.
   Edits go through the pure helpers
-  `McpServersJson` / `KimiMcpJson` / `CodexMcpTable`, preserving foreign content.
+  `McpServersJson` / `KimiMcpJson` / `ZCodeMcpJson` / `CodexMcpTable`, preserving foreign content.
+- **ZCode migration:** startup moves unchanged sidecar-owned entries and owned self-registrations
+  from the former global `~/.agents/mcp.json` and project `.mcp.json` destinations into native
+  configs. A record stores its new `configPath`, preventing a removed native copy from being
+  resurrected. Different destination entries and modified or foreign source entries stay untouched;
+  project `.mcp.json` stays available to Claude Code. Native servers suppress ZCode’s `.agents`
+  fallback for that scope, so foreign fallback entries require an explicit import in ZCode.
 - **State:** these configs admit no portable comments, so nothing can be marked in place. The sidecar
   `~/.ruleblend/mcp-state.json` records version + config per `(targetKey, agentId, blockId)`. With a
   record: matches the library render → `synced`; matches the recorded render while the library moved

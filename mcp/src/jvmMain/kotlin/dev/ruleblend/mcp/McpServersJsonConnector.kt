@@ -8,17 +8,6 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 
-/** Registers Ruleblend in ZCode's Claude-compatible `~/.agents/mcp.json` table. */
-class ZCodeConnector(
-    home: Path = Path.of(System.getProperty("user.home")),
-    coordinator: TargetMutationCoordinator = TargetMutationCoordinator(),
-) : McpServersJsonConnector(
-    agentId = "zcode",
-    configFile = home.resolve(".agents").resolve("mcp.json"),
-    agentHome = home.resolve(".zcode"),
-    coordinator = coordinator,
-)
-
 /** Registers Ruleblend in Pi's native user-level `mcp.json`, honoring `PI_CODING_AGENT_DIR`. */
 class PiConnector(
     home: Path? = null,

@@ -26,6 +26,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   ("Without the “Local” filter — 7 objects", Remove).
 
 ### Changed
+- ZCode MCP servers use native user and workspace configs in `.zcode`; existing unchanged
+  Ruleblend-managed entries move there on launch without overwriting other settings.
 - app: Library facet counts answer for the filters and search already in play, and a combination
   that would list nothing shows a dimmed zero before it is clicked.
 - app: The Library Source facet is shown only where it can answer (skills and subagents; the

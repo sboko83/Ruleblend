@@ -125,6 +125,7 @@ import dev.ruleblend.mcp.ZCodeConnector
 import dev.ruleblend.mcp.install.ClaudeCodeMcpInstaller
 import dev.ruleblend.mcp.install.CodexMcpInstaller
 import dev.ruleblend.mcp.install.KimiCodeMcpInstaller
+import dev.ruleblend.mcp.install.ZCodeMcpMigration
 import dev.ruleblend.mcp.install.McpInstallService
 import dev.ruleblend.mcp.install.PiMcpInstaller
 import dev.ruleblend.mcp.install.ZCodeMcpInstaller
@@ -177,7 +178,10 @@ private val interProcessLock = InterProcessLock(RULEBLEND_HOME.resolve("ruleblen
 private val targetCoordinator = TargetMutationCoordinator(interProcessLock)
 
 /** Startup steps shared by the window and the opt-in root UI suite, so both use one service graph. */
-internal fun migrateLegacyHome() = LegacyHomeMigration.migrate(LEGACY_KITBASH_HOME, RULEBLEND_HOME)
+internal fun migrateLegacyHome() {
+    LegacyHomeMigration.migrate(LEGACY_KITBASH_HOME, RULEBLEND_HOME)
+    ZCodeMcpMigration(USER_HOME, targetCoordinator).migrate()
+}
 
 internal fun openConfigStore(): ConfigStore = ConfigStore(CONFIG_PATH, interProcessLock)
 
