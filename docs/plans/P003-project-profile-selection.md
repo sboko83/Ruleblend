@@ -67,6 +67,9 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Only the real ~/.claude/skills/ruleblend was swapped temporarily; the real launcher and MCP entry were left untouched because the launcher already runs this branch's packaged build (its embedded SKILL.md matches the source byte for byte) and JAVA_TOOL_OPTIONS selects the fixture library — rejected: reconnecting Claude from a real-home Ruleblend run, which would rewrite the MCP entry, launcher owner and skill state
 - Fixture expected profile cut from 12 to 9 after the live run: the three generic items become `unneeded` and the project gets a GitHub remote — the old oracle broke the skill's own rules (at most 10, generic agents out) and cited a remote that did not exist; the live 8 of 8 matches the new oracle except the GitHub MCP, which is not re-run live — rejected: loosening the skill to fit the fixture
 - The skill leaves installed files uncommitted (marker v13) — in the live run the assistant committed them in the project, following the user's global commit rule (user, 2026-10-17) — rejected: leaving commits to whatever instructions the assistant has
+- Place AI help is a menu with two items, "Ask a question" / «Задать вопрос» and "Pick a profile" / «Подобрать профиль» — the user found a profile request behind a generic AI help label wrong (user, 2026-10-17) — supersedes the single Place button with the profile text; rejected: a second header button, a button in the palette's Profiles section
+- Project starting texts follow the UI language — the user runs the RU interface and got English (user, 2026-10-17) — supersedes "Starting text stays English"; texts: RU help «Проект <name> (<path>). Нужна помощь с », EN help "Project <name> (<path>). I need help with ", RU profile «Подберём профиль для проекта <name> (<path>). Используй Ruleblend MCP и skill ruleblend. Сначала обсудим.», EN profile = the approved English text
+- Project help and profile picking are separate target kinds — the one-session rule keys on (kind, id), so the second item for the same project must ask to replace, not refocus the first — rejected: one kind with a purpose flag outside the identity
 
 ## Phase 1: Profile selection
 
@@ -209,3 +212,81 @@ Handoff:
 - Unverified: The fixture app's own readiness for the Place button (Claude MCP registered and skill installed in the fixture home via Settings) was not set up or checked
 - Unverified: Packaged build identity is checked only via the embedded SKILL.md digest, not by comparing class jars with the branch sources
 - Unverified: docs/UI_E2E.md paragraph (left from the earlier attempt) not re-reviewed against the button path, only against the PTY path used here
+
+## Phase 2: Assistance polish
+
+### [ ] P003.2.1 Split Place AI help into a menu
+Read:
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceStartup.kt
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceButton.kt
+- app/src/jvmMain/kotlin/dev/ruleblend/app/Main.kt:L826-860
+- app/src/jvmMain/kotlin/dev/ruleblend/app/i18n/Strings.kt:L245-260
+- app/src/jvmTest/kotlin/dev/ruleblend/app/assistance/AssistanceStartupTest.kt
+- app/src/uiE2e/kotlin/dev/ruleblend/e2e/AssistanceUiTest.kt:L190-240
+- docs/ARCHITECTURE.md:L912-940
+Do:
+- Turn the Place project header button "AI help" / «AI-помощь» into a dropdown with two items: "Ask a question" / «Задать вопрос» and "Pick a profile" / «Подобрать профиль». The Library button stays a single click.
+- Add a target kind for profile picking next to `AssistanceObject.Kind.PROJECT`; `PROJECT` becomes plain project help. Both use the absolute project path as id and the project folder as the launch directory.
+- Build both project starting texts in the UI language, verbatim from the Decisions line "Project starting texts follow the UI language"; the help texts end with a space so the cursor stays after "с"/"with".
+- Remove the English-only branch and its comment from `draft`.
+- Unit tests: each kind and language gives its exact text; help and profile for the same project are different sessions (the second asks to replace a live first one).
+- Update the Place scenario in `AssistanceUiTest`: open the menu, pick each item, the fake terminal gets the matching unsubmitted text. Give the menu items test tags.
+- Update the Place paragraph in docs/ARCHITECTURE.md#ui and docs/ru/ARCHITECTURE.md; update the CHANGELOG bullet about the Place AI help button in place (it is unreleased); raise `appBuild` by one.
+Verify: `./gradlew :app:jvmTest && python3 -B tools/ui_e2e.py ui --tests '*AssistanceUiTest*'`
+Traps: The texts are approved by the user; do not reword them. `AssistanceSessions.open` compares kind and id; a new kind must not be mapped back to `PROJECT` anywhere on the way to the launch.
+Depends: -
+Commit: P003.2.1: split Place AI help menu
+
+### [ ] P003.2.2 Match the terminal to the app theme
+Read:
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/PtyAssistanceTerminal.kt
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceLaunch.kt
+- app/src/jvmMain/kotlin/dev/ruleblend/app/theme/Theme.kt:L395-420
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceUi.kt
+Do:
+- Give the embedded terminal the app's resolved theme (light or dark after `ThemeMode.SYSTEM`): default background and foreground from the app color scheme's surface and on-surface, a matching selection color, and a 16-color palette readable on that background. Today `DefaultSettingsProvider` paints it white whatever the app theme is.
+- Carry the colors into `startAssistanceTerminal` as plain data captured from the composition at launch; the PTY start stays off EDT.
+- Check whether Claude Code can be told light or dark per launch through a documented option (`claude --help`, Claude Code settings docs). If it can, pass the app's light/dark through it; if not, leave Claude Code's own theme alone and record that in the Handoff. Never write `~/.claude.json` or the user's Claude settings.
+- A theme change during a running session applies from the next session; say so in the code comment.
+- Unit-test the color mapping for light and dark.
+- Add a CHANGELOG bullet; raise `appBuild` by one.
+Verify: `./gradlew :app:jvmTest`
+Traps: JediTerm's settings provider is read when the widget is created; overriding colors after `start()` does not repaint the buffer.
+Depends: -
+Commit: P003.2.2: theme the assistance terminal
+
+### [ ] P003.2.3 Show the terminal panel at once
+Read:
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceSessions.kt
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceButton.kt
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceUi.kt
+- app/src/jvmMain/kotlin/dev/ruleblend/app/Main.kt:L215-300
+- app/src/jvmTest/kotlin/dev/ruleblend/app/assistance/AssistanceSessionsTest.kt
+Do:
+- Measure first: log to stderr how long a click spends in `settings.refreshAssistanceAssistants()`, in `startAssistanceTerminal` and until the PTY's first output. Record the numbers in the Handoff.
+- When no live session exists, show the bottom panel on the click itself, before the refresh, in a starting state: the target's title, an indeterminate progress indicator and "Starting Claude Code…" / «Запускаем Claude Code…», test tag `assistance-starting`. The terminal replaces it when the session starts.
+- The starting state ends without a session on Configure (settings open, as now), on an assistant choice menu and on failure (the existing failure message).
+- With a live session the click keeps today's path: the running terminal stays visible and the replace confirmation appears; no starting state.
+- Unit-test the state transitions: starting → session, starting → cleared on configure and failure, live session → confirmation without starting.
+- Add a CHANGELOG bullet; raise `appBuild` by one.
+Verify: `./gradlew :app:jvmTest`
+Traps: `AssistanceSessions` serialises operations with a mutex; the starting state must be visible before the refresh coroutine takes it, or the panel still waits for the slow part. A second click during the starting state must not launch a second process.
+Depends: P003.2.1
+Model: strong
+Commit: P003.2.3: show terminal panel at once
+
+## Phase 3: Acceptance
+
+### [ ] P003.3.1 Accept assistance polish
+Read:
+- app/src/uiE2e/kotlin/dev/ruleblend/e2e/AssistanceUiTest.kt
+- docs/UI_E2E.md:L100-172
+Do:
+- In `AssistanceUiTest` cover the Goal of phase 2: the Place menu's two items in RU and EN give the approved texts unsubmitted; the panel shows `assistance-starting` before the terminal when the fake terminal start is delayed; the terminal's background follows a light and a dark app theme.
+- Close each `Unverified:` from the Handoffs of P003.2.1–P003.2.3 with a test, or carry it into this unit's Handoff.
+- Update docs/UI_E2E.md for the changed Place scenario.
+Verify: `./gradlew :core:jvmTest :mcp:jvmTest :app:jvmTest && python3 -B tools/ui_e2e.py ui --tests '*AssistanceUiTest*'`
+Traps: A failing scenario is fixed in this unit if the fix is small; otherwise block with the reason. No live model requests in this unit.
+Depends: P003.2.1, P003.2.2, P003.2.3
+Model: strong
+Commit: P003.3.1: accept assistance polish
