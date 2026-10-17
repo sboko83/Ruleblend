@@ -1,4 +1,4 @@
-<!-- rb1 owned 94e0578d ruleblend@1:376 version@1:212 commit@2:104 docs@2:566 rules@2:722 ui-verification@2:382:g=ui-projects — managed by Ruleblend; edits are overwritten -->
+<!-- rb1 owned e7a8ef84 ruleblend@1:376 version@1:212 commit@2:104 docs@2:566 rules@2:722 — managed by Ruleblend; edits are overwritten -->
 # Ruleblend
 
 Desktop app (KMP + Compose Desktop) managing AI-agent instruction blocks and MCP server configs.
@@ -42,10 +42,3 @@ Code, comments and CHANGELOG stay in English.
 - Raise the version in the bundled `SKILL.md` marker line whenever that file changes, and
   `MCP_ENTRY_VERSION` whenever the registration a connector writes changes. Neither follows
   `appBuild`: a bump reports every connected assistant as out of date.
-
-## UI verification
-A single-screen check runs in the main session when the project has a verify
-tool (`tools/verify_*.sh`): one Bash call with a numeric criterion, one
-verdict, no subagent. Delegate to the `bsv-verify-ui` subagent multi-step
-scenarios (navigation chains, several screens) and projects without a verify
-tool. Do not start UI-test runs just to see the current screen.
