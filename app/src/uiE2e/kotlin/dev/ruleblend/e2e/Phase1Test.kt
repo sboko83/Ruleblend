@@ -313,7 +313,7 @@ class Phase1Test {
         assertTrue(Files.exists(project.resolve(".zcode/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".pi/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".kimi-code/agents/e2e-agent.md")))
-        assertFalse(Files.exists(project.resolve(".codex/agents/e2e-agent.toml")))
+        assertTrue(Files.exists(project.resolve(".codex/agents/e2e-agent.toml")))
         assertTrue(project.resolve(".codex/config.toml").readText().contains("e2e-server"))
         assertTrue(project.resolve(".kimi-code/mcp.json").readText().contains("e2e-server"))
         assertTrue(project.resolve(".pi/mcp.json").readText().contains("e2e-server"))
@@ -439,7 +439,7 @@ class Phase1Test {
         start()
         if (stage == "first") fourIntoProject() else select(project)
         assertProjectFiles()
-        for ((tab, count) in listOf("rules" to "1", "skills" to "5/0", "subagents" to "2/0", "mcp" to "4/0")) {
+        for ((tab, count) in listOf("rules" to "1", "skills" to "5/0", "subagents" to "3/0", "mcp" to "4/0")) {
             compose.onNodeWithTag("place-tab-$tab").assertIsDisplayed().performClick()
             compose.onNodeWithTag("place-tab-$tab").assertTextContains(count, substring = true)
         }
@@ -482,7 +482,8 @@ class Phase1Test {
             project.resolve(".claude/skills/e2e-skill/SKILL.md"), project.resolve(".claude/agents/e2e-agent.md"),
             library.resolve("blocks/e2e-rule.md"), library.resolve("blocks/e2e-agent.md"), library.resolve("blocks/e2e-server.md"),
             home.resolve(".ruleblend/mcp-state.json"), home.resolve(".ruleblend/skill-state.json"), home.resolve(".ruleblend/subagent-state.json"),
-            project.resolve(".codex/config.toml"), project.resolve(".kimi-code/mcp.json"), project.resolve(".kimi-code/agents/e2e-agent.md"),
+            project.resolve(".codex/config.toml"), project.resolve(".kimi-code/mcp.json"), project.resolve(".pi/mcp.json"),
+            project.resolve(".codex/agents/e2e-agent.toml"), project.resolve(".kimi-code/agents/e2e-agent.md"),
             project.resolve(".codex/skills/e2e-skill/SKILL.md"), project.resolve(".kimi-code/skills/e2e-skill/SKILL.md"),
             project.resolve(".zcode/skills/e2e-skill/SKILL.md"), project.resolve(".pi/skills/e2e-skill/SKILL.md"),
             library.resolve("skills/e2e-skill/files/SKILL.md"), library.resolve("skills/e2e-skill/meta.yaml"))
@@ -522,10 +523,11 @@ class Phase1Test {
             assertEquals("# Foreign instructions\nKeep this line.\n\n", project.resolve("AGENTS.md").readText())
             assertEquals("untouched project note\n", project.resolve("notes.txt").readText())
             for (copy in listOf(".claude/skills/e2e-skill", ".codex/skills/e2e-skill", ".kimi-code/skills/e2e-skill",
-                    ".zcode/skills/e2e-skill", ".pi/skills/e2e-skill", ".claude/agents/e2e-agent.md", ".kimi-code/agents/e2e-agent.md")) {
+                    ".zcode/skills/e2e-skill", ".pi/skills/e2e-skill", ".claude/agents/e2e-agent.md",
+                    ".codex/agents/e2e-agent.toml", ".kimi-code/agents/e2e-agent.md")) {
                 assertFalse(Files.exists(project.resolve(copy)), copy)
             }
-            for (file in listOf(".mcp.json", ".codex/config.toml", ".kimi-code/mcp.json")) {
+            for (file in listOf(".mcp.json", ".codex/config.toml", ".kimi-code/mcp.json", ".pi/mcp.json")) {
                 assertFalse(Files.exists(project.resolve(file)) && project.resolve(file).readText().contains("e2e-server"), file)
             }
             compose.onNodeWithTag(uiTarget("place", "project:${project.projectKey()}", "ungrouped", "select")).performMouseInput { rightClick() }

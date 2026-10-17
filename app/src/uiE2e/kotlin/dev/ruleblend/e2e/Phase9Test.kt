@@ -27,6 +27,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -398,34 +399,49 @@ class Phase9Test {
         section("agents")
         val codexConfig = home.resolve(".codex/config.toml")
         val codexSkill = home.resolve(".codex/skills/ruleblend/SKILL.md")
+        val piConfig = home.resolve(".pi/agent/mcp.json")
         val piSkill = home.resolve(".pi/agent/skills/ruleblend/SKILL.md")
         if (stage == "first") {
             compose.onNodeWithText(EnStrings.connectStatusSkillForeign).assertIsDisplayed()
-            compose.onNodeWithTag("settings-connect-codex").performClick()
+            compose.onNodeWithTag("settings-connect-codex").performScrollTo().assertIsDisplayed().performClick()
             compose.waitUntil(15_000) {
                 Files.exists(codexConfig) && codexConfig.readText().contains("RULEBLEND_ENTRY") &&
                     Files.exists(codexSkill)
             }
-            compose.onNodeWithTag("settings-connect-pi").performClick()
-            compose.waitUntil(15_000) { Files.exists(piSkill) }
+            // Files precede the state refresh; wait for the row layout before the next click.
+            present("settings-disconnect-codex")
+            compose.onNodeWithTag("settings-connect-pi").performScrollTo().assertIsDisplayed().performClick()
+            compose.waitUntil(15_000) {
+                Files.exists(piConfig) && piConfig.readText().contains("RULEBLEND_ENTRY") &&
+                    Files.exists(piSkill)
+            }
+            present("settings-disconnect-pi")
             assertTrue(foreign.readText().contains("Foreign body"))
             // An external app update leaves both owned copies old while the GUI process exits.
             codexSkill.writeText(codexSkill.readText() + "\nold local footer\n")
             piSkill.writeText(piSkill.readText() + "\nold local footer\n")
         } else {
             present("settings-update-all")
-            compose.onNodeWithTag("settings-update-all").performClick()
+            compose.onNodeWithTag("settings-update-all").performScrollTo().assertIsDisplayed().performClick()
             compose.waitUntil(15_000) {
                 !codexSkill.readText().contains("old local footer") && !piSkill.readText().contains("old local footer")
             }
+            compose.waitUntil(15_000) {
+                compose.onAllNodesWithTag("settings-update-all").fetchSemanticsNodes().isEmpty()
+            }
             assertTrue(codexConfig.readText().contains("RULEBLEND_ENTRY"))
+            assertTrue(piConfig.readText().contains("RULEBLEND_ENTRY"))
             assertTrue(foreign.readText().contains("Foreign body"))
-            compose.onNodeWithTag("settings-disconnect-codex").performClick()
+            compose.onNodeWithTag("settings-disconnect-codex").performScrollTo().assertIsDisplayed().performClick()
             compose.waitUntil(15_000) {
                 !codexConfig.readText().contains("[mcp_servers.ruleblend]") && !Files.exists(codexSkill)
             }
-            compose.onNodeWithTag("settings-disconnect-pi").performClick()
-            compose.waitUntil(15_000) { !Files.exists(piSkill) }
+            present("settings-connect-codex")
+            compose.onNodeWithTag("settings-disconnect-pi").performScrollTo().assertIsDisplayed().performClick()
+            compose.waitUntil(15_000) {
+                !piConfig.readText().contains("RULEBLEND_ENTRY") && !Files.exists(piSkill)
+            }
+            present("settings-connect-pi")
             assertTrue(Files.exists(foreign))
         }
     }
