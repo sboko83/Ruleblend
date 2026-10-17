@@ -42,6 +42,7 @@ import dev.ruleblend.app.assistance.AssistanceSessions
 import dev.ruleblend.app.assistance.AssistanceAction
 import dev.ruleblend.app.assistance.AssistanceState
 import dev.ruleblend.app.assistance.AssistanceButton
+import dev.ruleblend.app.assistance.AssistanceMenuItem
 import dev.ruleblend.app.assistance.AssistanceObject
 import dev.ruleblend.app.assistance.assistanceObject
 import dev.ruleblend.app.assistance.assistanceDraftDirty
@@ -834,6 +835,12 @@ internal fun App(
                         projectAssistance = if (assistance == null) null else { project ->
                             AssistanceButton(
                                 target = AssistanceObject.fromProject(project.dir.toAbsolutePath()),
+                                menu = listOf(
+                                    AssistanceMenuItem(strings.assistanceAskQuestion, "assistance-ask",
+                                        AssistanceObject.fromProject(project.dir.toAbsolutePath())),
+                                    AssistanceMenuItem(strings.assistancePickProfile, "assistance-profile",
+                                        AssistanceObject.fromProject(project.dir.toAbsolutePath(), AssistanceObject.Kind.PROFILE)),
+                                ),
                                 dirty = false,
                                 settings = settings,
                                 onConfigure = { settingsSection = SettingsSection.AGENTS; route = AppRoute.SETTINGS },

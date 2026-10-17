@@ -194,7 +194,7 @@ class AssistanceUiTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
         assertTrue(children.none { it.isAlive })
 
-        // Place entry point: the project header button starts one session with the approved starting text.
+        // Place entry point: the project header menu starts one session per item with its starting text.
         val project = Files.createDirectories(root.resolve("work/orbit-api")).toRealPath()
         compose.onNodeWithTag("nav-place").performClick()
         nextDirectory = project
@@ -211,19 +211,24 @@ class AssistanceUiTest {
         compose.onNodeWithTag("place-list").performScrollToNode(hasTestTag(row))
         compose.onNodeWithTag(row).performClick()
         present("assistance-open")
-        compose.onNodeWithTag("assistance-open").performClick()
-        compose.waitUntil(5_000) { launches.size == 3 }
-        present("assistance-panel")
-        val launch = launches.last()
-        val draft = "Let's pick a profile for the project orbit-api ($project). " +
-            "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
-        assertEquals(listOf(launch.assistant.cli.path, "--prefill", draft), launch.command)
-        assertEquals(project, launch.directory.toRealPath())
-        assertEquals(AssistanceObject.Kind.PROJECT, launch.target.kind)
-        assertTrue(children.last().isAlive)
-        children.last().finish()
-        compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
-        compose.onNodeWithTag("assistance-close").performClick()
-        compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
+        for ((index, item) in listOf("assistance-ask", "assistance-profile").withIndex()) {
+            compose.onNodeWithTag("assistance-open").performClick()
+            present(item)
+            compose.onNodeWithTag(item).performClick()
+            compose.waitUntil(5_000) { launches.size == 3 + index }
+            present("assistance-panel")
+            val launch = launches.last()
+            val draft = if (index == 0) "Project orbit-api ($project). I need help with "
+            else "Let's pick a profile for the project orbit-api ($project). " +
+                "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
+            assertEquals(listOf(launch.assistant.cli.path, "--prefill", draft), launch.command)
+            assertEquals(project, launch.directory.toRealPath())
+            assertEquals(if (index == 0) AssistanceObject.Kind.PROJECT else AssistanceObject.Kind.PROFILE, launch.target.kind)
+            assertTrue(children.last().isAlive)
+            children.last().finish()
+            compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
+            compose.onNodeWithTag("assistance-close").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
+        }
     }
 }

@@ -16,7 +16,8 @@ import java.nio.file.Path
 
 /**
  * Metadata of a saved Library object; its body remains available through the existing MCP.
- * A [Kind.PROJECT] target is a Place project: its ID is the absolute folder path.
+ * [Kind.PROJECT] and [Kind.PROFILE] are Place projects: the ID is the absolute folder path, and the
+ * kind tells project help from profile picking, so each is its own session.
  */
 data class AssistanceObject(val kind: Kind, val id: String, val name: String) {
     enum class Kind(val english: String, val russian: String) {
@@ -25,6 +26,7 @@ data class AssistanceObject(val kind: Kind, val id: String, val name: String) {
         SUBAGENT("subagent", "субагент"),
         SKILL("skill", "скилл"),
         PROJECT("project", "проект"),
+        PROFILE("project profile", "профиль проекта"),
     }
 
     init {
@@ -32,15 +34,23 @@ data class AssistanceObject(val kind: Kind, val id: String, val name: String) {
         require(name.isNotBlank() && name.none(Char::isISOControl)) { "A single-line object name is required" }
     }
 
-    fun draft(language: Language): String = if (kind == Kind.PROJECT) {
-        // The approved wording is English-only; the assistant answers in the user's language anyway.
-        "Let's pick a profile for the project $name ($id). " +
-            "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
-    } else when (language) {
-        Language.EN -> "Let's discuss the ${kind.english} $name (ID: $id). " +
-            "Use Ruleblend MCP and the ruleblend skill. Let's discuss the task first."
-        Language.RU -> "Обсудим ${kind.russian} $name (ID: $id). " +
-            "Используй Ruleblend MCP и skill ruleblend. Сначала обсудим задачу."
+    fun draft(language: Language): String = when (kind) {
+        Kind.PROJECT -> when (language) {
+            Language.EN -> "Project $name ($id). I need help with "
+            Language.RU -> "Проект $name ($id). Нужна помощь с "
+        }
+        Kind.PROFILE -> when (language) {
+            Language.EN -> "Let's pick a profile for the project $name ($id). " +
+                "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
+            Language.RU -> "Подберём профиль для проекта $name ($id). " +
+                "Используй Ruleblend MCP и skill ruleblend. Сначала обсудим."
+        }
+        else -> when (language) {
+            Language.EN -> "Let's discuss the ${kind.english} $name (ID: $id). " +
+                "Use Ruleblend MCP and the ruleblend skill. Let's discuss the task first."
+            Language.RU -> "Обсудим ${kind.russian} $name (ID: $id). " +
+                "Используй Ruleblend MCP и skill ruleblend. Сначала обсудим задачу."
+        }
     }
 
     companion object {
@@ -53,10 +63,11 @@ data class AssistanceObject(val kind: Kind, val id: String, val name: String) {
             block.id, block.name,
         )
 
-        fun fromProject(directory: Path): AssistanceObject {
+        fun fromProject(directory: Path, kind: Kind = Kind.PROJECT): AssistanceObject {
             require(directory.isAbsolute) { "An absolute project path is required" }
+            require(kind == Kind.PROJECT || kind == Kind.PROFILE) { "Not a project target kind" }
             val name = directory.fileName?.toString() ?: directory.toString()
-            return AssistanceObject(Kind.PROJECT, directory.toString(), name)
+            return AssistanceObject(kind, directory.toString(), name)
         }
 
         fun fromSaved(skill: Skill): AssistanceObject = AssistanceObject(Kind.SKILL, skill.id, skill.name)

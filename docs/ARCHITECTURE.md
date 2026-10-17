@@ -927,11 +927,12 @@ saved user-owned rules, MCP entries, subagents and skills; a dirty editor must b
 While its embedded CLI runs, Library reuses its normal disk loader without waiting for window focus:
 clean editors follow external writes and dirty drafts remain in memory.
 
-Place offers the same launch for a project: the AI help button in the project header, next to its
-assistants. The target is the project name and absolute folder path; the CLI starts in that folder
-and the starting text asks to pick a profile. It reuses the Library launch path, so prefill, the
-single session and the replacement prompt are shared; a different project replaces the session
-after confirmation. The profile procedure lives in the bundled skill, not in `app`.
+Place offers the same launch for a project: the AI help menu in the project header, next to its
+assistants, with "Ask a question" and "Pick a profile". The target is the project name and absolute
+folder path; the CLI starts in that folder and the starting text follows the UI language. Help and
+profile picking are separate target kinds, so the one-session rule treats them as different
+sessions. It reuses the Library launch path, so prefill, the single session and the replacement
+prompt are shared; a different project or item replaces the session after confirmation. The profile procedure lives in the bundled skill, not in `app`.
 
 One application-owned controller serializes terminal launches and binds close/replacement approvals
 to the current process. Navigation only changes focus; natural exit retains the terminal screen.

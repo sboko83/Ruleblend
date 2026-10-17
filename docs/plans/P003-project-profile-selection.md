@@ -70,6 +70,8 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Place AI help is a menu with two items, "Ask a question" / «Задать вопрос» and "Pick a profile" / «Подобрать профиль» — the user found a profile request behind a generic AI help label wrong (user, 2026-10-17) — supersedes the single Place button with the profile text; rejected: a second header button, a button in the palette's Profiles section
 - Project starting texts follow the UI language — the user runs the RU interface and got English (user, 2026-10-17) — supersedes "Starting text stays English"; texts: RU help «Проект <name> (<path>). Нужна помощь с », EN help "Project <name> (<path>). I need help with ", RU profile «Подберём профиль для проекта <name> (<path>). Используй Ruleblend MCP и skill ruleblend. Сначала обсудим.», EN profile = the approved English text
 - Project help and profile picking are separate target kinds — the one-session rule keys on (kind, id), so the second item for the same project must ask to replace, not refocus the first — rejected: one kind with a purpose flag outside the identity
+- Menu support added to AssistanceButton via an optional `menu` parameter — keeps one launch path (settings refresh, assistant choice, configure fallback) shared with Library — rejected: a separate Place-only button composable duplicating the launch logic
+- fromProject takes a kind parameter restricted to PROJECT/PROFILE — keeps one factory and rejects non-project kinds — rejected: a second factory fromProjectProfile
 
 ## Phase 1: Profile selection
 
@@ -215,7 +217,7 @@ Handoff:
 
 ## Phase 2: Assistance polish
 
-### [ ] P003.2.1 Split Place AI help into a menu
+### [x] P003.2.1 Split Place AI help into a menu
 Read:
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceStartup.kt
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceButton.kt
@@ -236,6 +238,12 @@ Verify: `./gradlew :app:jvmTest && python3 -B tools/ui_e2e.py ui --tests '*Assis
 Traps: The texts are approved by the user; do not reword them. `AssistanceSessions.open` compares kind and id; a new kind must not be mapped back to `PROJECT` anywhere on the way to the launch.
 Depends: -
 Commit: P003.2.1: split Place AI help menu
+Handoff:
+- AssistanceButton has an optional `menu: List<AssistanceMenuItem>`; with items the click opens the menu, without it behaviour is the Library single click. Place passes two items (tags assistance-ask, assistance-profile).
+- AssistanceObject.Kind.PROFILE = profile picking, PROJECT = project help; fromProject(directory, kind) accepts only these two. Texts live in AssistanceObject.draft.
+- appBuild is 278; CHANGELOG Place bullet and both ARCHITECTURE.md UI paragraphs updated.
+- Unverified: Visual layout of the dropdown in the Place header was not inspected by eye; only the UI e2e semantics test ran
+- Unverified: RU interface texts in the real UI are covered by the unit test of draft(Language.RU), not by the e2e test (it runs in EN)
 
 ### [ ] P003.2.2 Match the terminal to the app theme
 Read:

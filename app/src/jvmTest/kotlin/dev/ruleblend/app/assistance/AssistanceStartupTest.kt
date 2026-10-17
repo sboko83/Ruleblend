@@ -111,20 +111,28 @@ class AssistanceStartupTest {
         }
     }
 
-    @Test fun `project target carries the approved starting text and its folder`() {
+    @Test fun `project targets carry their exact starting text and folder`() {
         val directory = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("space Юникод")
-        val target = AssistanceObject.fromProject(directory)
-        assertEquals(AssistanceObject.Kind.PROJECT, target.kind)
-        assertEquals("space Юникод", target.name)
-        val expected = "Let's pick a profile for the project space Юникод ($directory). " +
-            "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
-        assertEquals(expected, target.draft(Language.EN))
-        assertEquals(expected, target.draft(Language.RU))
+        val help = AssistanceObject.fromProject(directory)
+        val profile = AssistanceObject.fromProject(directory, AssistanceObject.Kind.PROFILE)
+        assertEquals(AssistanceObject.Kind.PROJECT, help.kind)
+        assertEquals(AssistanceObject.Kind.PROFILE, profile.kind)
+        assertEquals("space Юникод", help.name)
+        assertEquals("Project space Юникод ($directory). I need help with ", help.draft(Language.EN))
+        assertEquals("Проект space Юникод ($directory). Нужна помощь с ", help.draft(Language.RU))
+        assertEquals("Let's pick a profile for the project space Юникод ($directory). " +
+            "Use Ruleblend MCP and the ruleblend skill. Let's discuss first.", profile.draft(Language.EN))
+        assertEquals("Подберём профиль для проекта space Юникод ($directory). " +
+            "Используй Ruleblend MCP и skill ruleblend. Сначала обсудим.", profile.draft(Language.RU))
         val assistant = ReadyAssistanceAssistant(claude.id, claude.name, probe)
-        val launch = prepareClaudeAssistanceLaunch(assistant, target, Language.EN, directory)
-        assertEquals(listOf(probe.path, "--prefill", expected), launch.command)
-        assertEquals(directory, launch.directory)
+        for (target in listOf(help, profile)) {
+            val launch = prepareClaudeAssistanceLaunch(assistant, target, Language.EN, directory)
+            assertEquals(listOf(probe.path, "--prefill", target.draft(Language.EN)), launch.command)
+            assertEquals(directory, launch.directory)
+            assertEquals(target.kind, launch.target.kind)
+        }
         assertFailsWith<IllegalArgumentException> { AssistanceObject.fromProject(Path.of("relative")) }
+        assertFailsWith<IllegalArgumentException> { AssistanceObject.fromProject(directory, AssistanceObject.Kind.RULE) }
     }
 
     private fun state(id: String, mcp: McpRegistration = McpRegistration.REGISTERED,

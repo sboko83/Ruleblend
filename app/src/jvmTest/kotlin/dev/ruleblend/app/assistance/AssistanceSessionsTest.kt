@@ -116,6 +116,30 @@ class AssistanceSessionsTest {
         } finally { sessions.shutdown() }
     }
 
+    @Test fun `project help and profile picking are separate sessions`() = runBlocking {
+        val terminals = mutableListOf<FakeTerminal>()
+        val sessions = AssistanceSessions { FakeTerminal().also(terminals::add) }
+        val root = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("alpha")
+        fun launch(kind: AssistanceObject.Kind) = prepareClaudeAssistanceLaunch(
+            ReadyAssistanceAssistant("claude-code", "Claude Code", CliProbe("/fake/claude", true, null)),
+            AssistanceObject.fromProject(root, kind), Language.EN, root,
+        )
+        try {
+            sessions.open(launch(AssistanceObject.Kind.PROJECT))
+            sessions.open(launch(AssistanceObject.Kind.PROJECT))
+            assertEquals(1, terminals.size)
+            assertEquals(null, sessions.state.value.confirmation)
+            sessions.open(launch(AssistanceObject.Kind.PROFILE))
+            val pending = assertNotNull(sessions.state.value.confirmation)
+            assertEquals(1, terminals.size)
+            assertTrue(terminals.single().isAlive)
+            assertFalse(sessions.confirm(pending))
+            assertEquals(2, terminals.size)
+            assertFalse(terminals.first().isAlive)
+            assertEquals(AssistanceObject.Kind.PROFILE, sessions.state.value.session?.launch?.target?.kind)
+        } finally { sessions.shutdown() }
+    }
+
     @Test fun `application exit uses the same live confirmation and reaps the owned process`() = runBlocking {
         val terminal = FakeTerminal()
         val sessions = AssistanceSessions { terminal }

@@ -249,6 +249,8 @@ interface Strings {
     val assistanceCloseConfirm: (String) -> String
     val assistanceCloseFailed: String
     val assistanceOpen: String
+    val assistanceAskQuestion: String
+    val assistancePickProfile: String
     val assistanceSettingsTitle: String
     val assistanceSettingsHint: String
     val assistanceUnavailable: String
@@ -1240,6 +1242,8 @@ object EnStrings : Strings {
     override val assistanceCloseConfirm = { assistant: String -> "Stop $assistant and close the terminal?" }
     override val assistanceCloseFailed = "Could not stop the assistant"
     override val assistanceOpen = "AI help"
+    override val assistanceAskQuestion = "Ask a question"
+    override val assistancePickProfile = "Pick a profile"
     override val assistanceSettingsTitle = "Embedded assistant terminal"
     override val assistanceSettingsHint = "Select assistants for AI help. Requires the CLI, current Ruleblend MCP and skill. Connect or update above."
     override val assistanceUnavailable = "CLI, MCP and skill required"
@@ -2216,6 +2220,8 @@ object RuStrings : Strings {
     override val assistanceCloseConfirm = { assistant: String -> "Завершить $assistant и закрыть терминал?" }
     override val assistanceCloseFailed = "Не удалось завершить ассистента"
     override val assistanceOpen = "AI-помощь"
+    override val assistanceAskQuestion = "Задать вопрос"
+    override val assistancePickProfile = "Подобрать профиль"
     override val assistanceSettingsTitle = "Встроенный терминал ассистента"
     override val assistanceSettingsHint = "Выберите ассистентов для AI-помощи. Нужны CLI, актуальные Ruleblend MCP и skill. Подключение и обновление — выше."
     override val assistanceUnavailable = "Нужны CLI, MCP и skill"
