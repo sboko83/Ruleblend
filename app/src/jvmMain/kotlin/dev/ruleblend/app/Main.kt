@@ -45,6 +45,7 @@ import dev.ruleblend.app.assistance.AssistanceButton
 import dev.ruleblend.app.assistance.AssistanceMenuItem
 import dev.ruleblend.app.assistance.AssistanceObject
 import dev.ruleblend.app.assistance.assistanceObject
+import dev.ruleblend.app.assistance.assistanceTerminalColors
 import dev.ruleblend.app.assistance.assistanceDraftDirty
 import dev.ruleblend.app.assistance.prepareClaudeAssistanceLaunch
 import dev.ruleblend.app.assistance.LocalAssistanceSessions
@@ -746,6 +747,7 @@ internal fun App(
                 },
                 topBarAction = if (route == AppRoute.LIBRARY && assistance != null) {
                     {
+                        val terminalColors = assistanceTerminalColors(MaterialTheme.colorScheme)
                         AssistanceButton(
                             target = library.assistanceObject(),
                             dirty = library.assistanceDraftDirty(),
@@ -755,7 +757,7 @@ internal fun App(
                                 appScope.launch {
                                     runCatching {
                                         assistance.open(prepareClaudeAssistanceLaunch(
-                                            assistant, target, settings.language, libraryPath.toAbsolutePath(),
+                                            assistant, target, settings.language, libraryPath.toAbsolutePath(), terminalColors,
                                         ))
                                     }.onFailure { assistanceFailure = it.message ?: it.toString() }
                                 }
@@ -833,6 +835,7 @@ internal fun App(
                         placeMcpExpandedByDefault = settings.placeMcpExpandedByDefault,
                         translation = translation,
                         projectAssistance = if (assistance == null) null else { project ->
+                            val terminalColors = assistanceTerminalColors(MaterialTheme.colorScheme)
                             AssistanceButton(
                                 target = AssistanceObject.fromProject(project.dir.toAbsolutePath()),
                                 menu = listOf(
@@ -848,7 +851,7 @@ internal fun App(
                                     appScope.launch {
                                         runCatching {
                                             assistance.open(prepareClaudeAssistanceLaunch(
-                                                assistant, target, settings.language, project.dir.toAbsolutePath(),
+                                                assistant, target, settings.language, project.dir.toAbsolutePath(), terminalColors,
                                             ))
                                         }.onFailure { assistanceFailure = it.message ?: it.toString() }
                                     }

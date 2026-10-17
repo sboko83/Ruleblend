@@ -72,6 +72,9 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Project help and profile picking are separate target kinds — the one-session rule keys on (kind, id), so the second item for the same project must ask to replace, not refocus the first — rejected: one kind with a purpose flag outside the identity
 - Menu support added to AssistanceButton via an optional `menu` parameter — keeps one launch path (settings refresh, assistant choice, configure fallback) shared with Library — rejected: a separate Place-only button composable duplicating the launch logic
 - fromProject takes a kind parameter restricted to PROJECT/PROFILE — keeps one factory and rejects non-project kinds — rejected: a second factory fromProjectProfile
+- Terminal colors travel inside AssistanceLaunch as plain RGB ints — the PTY start needs nothing from the composition — rejected: reading MaterialTheme inside startAssistanceTerminal
+- Light or dark is derived from the luminance of the resolved surface color — it covers ThemeMode.SYSTEM without exposing the theme token — rejected: passing a dark flag from RuleblendTheme
+- Dark ANSI black (index 0) stays low-contrast (2.2:1 on the dark background) — it is conventional and the contrast test excludes it — rejected: lightening it
 
 ## Phase 1: Profile selection
 
@@ -245,7 +248,7 @@ Handoff:
 - Unverified: Visual layout of the dropdown in the Place header was not inspected by eye; only the UI e2e semantics test ran
 - Unverified: RU interface texts in the real UI are covered by the unit test of draft(Language.RU), not by the e2e test (it runs in EN)
 
-### [ ] P003.2.2 Match the terminal to the app theme
+### [x] P003.2.2 Match the terminal to the app theme
 Read:
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/PtyAssistanceTerminal.kt
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceLaunch.kt
@@ -262,6 +265,12 @@ Verify: `./gradlew :app:jvmTest`
 Traps: JediTerm's settings provider is read when the widget is created; overriding colors after `start()` does not repaint the buffer.
 Depends: -
 Commit: P003.2.2: theme the assistance terminal
+Handoff:
+- Claude Code's own theme is left alone: `claude --help` has no theme flag, and the settings docs list theme only as a /config option stored in ~/.claude/settings.json and ~/.claude.json, not as a per-launch option. Nothing was written to the user's Claude config, so a dark app can show Claude Code's own theme on top of the themed terminal background.
+- prepareClaudeAssistanceLaunch and AssistanceLaunch now require an AssistanceTerminalColors argument; callers build it with assistanceTerminalColors(MaterialTheme.colorScheme). The shared test fixture is `testColors` in AssistanceTerminalColorsTest.kt.
+- The ColorPalette covers only ANSI 0..15; JediTerm resolves the 256-color cube and grays itself (it throws on indexes above 15).
+- Unverified: Appearance in a real window: no Compose Desktop run or screenshot, so the colors on actual light and dark themes are not visually checked.
+- Unverified: Behavior with a real claude session on top of the themed terminal: not run.
 
 ### [ ] P003.2.3 Show the terminal panel at once
 Read:

@@ -97,17 +97,17 @@ class AssistanceStartupTest {
         val assistant = ReadyAssistanceAssistant(claude.id, claude.name, probe)
         val target = AssistanceObject.fromSaved(Block("commit", "Commit 'quotes' $(literal)"))
         val directory = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("space Юникод")
-        val launch = prepareClaudeAssistanceLaunch(assistant, target, Language.RU, directory)
+        val launch = prepareClaudeAssistanceLaunch(assistant, target, Language.RU, directory, testColors)
         assertEquals(listOf(probe.path, "--prefill", target.draft(Language.RU)), launch.command)
         assertEquals(directory, launch.directory)
         assertEquals(mapOf("PATH" to probe.searchPath), launch.environmentOverrides)
         assertTrue(prepareClaudeAssistanceLaunch(assistant.copy(cli = probe.copy(searchPath = null)),
-            target, Language.EN, directory).environmentOverrides.isEmpty())
+            target, Language.EN, directory, testColors).environmentOverrides.isEmpty())
         assertFailsWith<IllegalArgumentException> {
-            prepareClaudeAssistanceLaunch(assistant.copy(id = "codex"), target, Language.EN, directory)
+            prepareClaudeAssistanceLaunch(assistant.copy(id = "codex"), target, Language.EN, directory, testColors)
         }
         assertFailsWith<IllegalArgumentException> {
-            prepareClaudeAssistanceLaunch(assistant, target, Language.EN, Path.of("relative"))
+            prepareClaudeAssistanceLaunch(assistant, target, Language.EN, Path.of("relative"), testColors)
         }
     }
 
@@ -126,7 +126,7 @@ class AssistanceStartupTest {
             "Используй Ruleblend MCP и skill ruleblend. Сначала обсудим.", profile.draft(Language.RU))
         val assistant = ReadyAssistanceAssistant(claude.id, claude.name, probe)
         for (target in listOf(help, profile)) {
-            val launch = prepareClaudeAssistanceLaunch(assistant, target, Language.EN, directory)
+            val launch = prepareClaudeAssistanceLaunch(assistant, target, Language.EN, directory, testColors)
             assertEquals(listOf(probe.path, "--prefill", target.draft(Language.EN)), launch.command)
             assertEquals(directory, launch.directory)
             assertEquals(target.kind, launch.target.kind)

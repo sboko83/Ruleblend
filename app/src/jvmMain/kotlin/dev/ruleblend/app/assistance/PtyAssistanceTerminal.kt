@@ -47,7 +47,13 @@ fun startAssistanceTerminal(launch: AssistanceLaunch): PtyAssistanceTerminal {
     try {
         SwingUtilities.invokeAndWait {
             widget = JediTermWidget(90, 24, object : DefaultSettingsProvider() {
+                // JediTerm reads these when the widget is created; a later change does not repaint it.
                 override fun getBufferMaxLinesCount(): Int = 2_000
+                override fun getDefaultForeground() = requireNotNull(launch.colors.defaultStyle().foreground)
+                override fun getDefaultBackground() = requireNotNull(launch.colors.defaultStyle().background)
+                override fun getDefaultStyle() = launch.colors.defaultStyle()
+                override fun getSelectionColor() = launch.colors.selectionStyle()
+                override fun getTerminalColorPalette() = launch.colors.palette()
             }).apply {
                 createTerminalSession(AssistanceConnector(child))
                 start()

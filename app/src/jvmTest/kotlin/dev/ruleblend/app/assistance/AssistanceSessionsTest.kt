@@ -24,7 +24,7 @@ class AssistanceSessionsTest {
         prepareClaudeAssistanceLaunch(
             ReadyAssistanceAssistant("claude-code", "Claude Code", CliProbe("/fake/claude", true, null)),
             AssistanceObject(kind, id, "Name $id"), Language.EN,
-            Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath(),
+            Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath(), testColors,
         )
 
     private class FakeTerminal : AssistanceTerminal {
@@ -98,7 +98,7 @@ class AssistanceSessionsTest {
         val root = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath()
         fun project(name: String) = prepareClaudeAssistanceLaunch(
             ReadyAssistanceAssistant("claude-code", "Claude Code", CliProbe("/fake/claude", true, null)),
-            AssistanceObject.fromProject(root.resolve(name)), Language.EN, root.resolve(name),
+            AssistanceObject.fromProject(root.resolve(name)), Language.EN, root.resolve(name), testColors,
         )
         try {
             sessions.open(project("alpha"))
@@ -122,7 +122,7 @@ class AssistanceSessionsTest {
         val root = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("alpha")
         fun launch(kind: AssistanceObject.Kind) = prepareClaudeAssistanceLaunch(
             ReadyAssistanceAssistant("claude-code", "Claude Code", CliProbe("/fake/claude", true, null)),
-            AssistanceObject.fromProject(root, kind), Language.EN, root,
+            AssistanceObject.fromProject(root, kind), Language.EN, root, testColors,
         )
         try {
             sessions.open(launch(AssistanceObject.Kind.PROJECT))

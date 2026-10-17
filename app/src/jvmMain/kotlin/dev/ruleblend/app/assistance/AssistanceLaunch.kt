@@ -10,6 +10,8 @@ data class AssistanceLaunch(
     val directory: Path,
     val command: List<String>,
     val environmentOverrides: Map<String, String>,
+    /** Captured from the composition at launch; a later theme change applies from the next session. */
+    val colors: AssistanceTerminalColors,
 )
 
 /** Native prefill leaves the draft in Claude's own editor; no prompt argument or PTY input. */
@@ -18,6 +20,7 @@ fun prepareClaudeAssistanceLaunch(
     target: AssistanceObject,
     language: Language,
     directory: Path,
+    colors: AssistanceTerminalColors,
 ): AssistanceLaunch {
     require(assistant.id == "claude-code") { "Native prefill is available only for Claude Code" }
     require(assistant.cli.path.isNotBlank() && '\u0000' !in assistant.cli.path) { "A CLI executable is required" }
@@ -26,5 +29,6 @@ fun prepareClaudeAssistanceLaunch(
         assistant, target, directory,
         listOf(assistant.cli.path, "--prefill", target.draft(language)),
         assistant.cli.searchPath?.let { mapOf("PATH" to it) }.orEmpty(),
+        colors,
     )
 }

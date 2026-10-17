@@ -4,6 +4,7 @@ import dev.ruleblend.app.assistance.AssistanceObject
 import dev.ruleblend.app.assistance.AssistanceSessions
 import dev.ruleblend.app.assistance.PtyAssistanceTerminal
 import dev.ruleblend.app.assistance.ReadyAssistanceAssistant
+import dev.ruleblend.app.assistance.assistanceTerminalColors
 import dev.ruleblend.app.assistance.prepareClaudeAssistanceLaunch
 import dev.ruleblend.app.i18n.Language
 import dev.ruleblend.app.util.CliProbe
@@ -30,7 +31,7 @@ fun main() = runBlocking {
     val assistant = ReadyAssistanceAssistant("claude-code", "Offline Claude", CliProbe(executable.toString(), true, System.getenv("PATH")))
     val sessions = AssistanceSessions()
     fun launch(id: String) = prepareClaudeAssistanceLaunch(
-        assistant, AssistanceObject(AssistanceObject.Kind.RULE, id, "Commit 'quotes' $(literal)"), Language.RU, root,
+        assistant, AssistanceObject(AssistanceObject.Kind.RULE, id, "Commit 'quotes' $(literal)"), Language.RU, root, assistanceTerminalColors(0xFFFFFF, 0x000000),
     )
     fun events() = root.resolve("events.jsonl").let { if (Files.exists(it)) Files.readString(it) else "" }
     fun terminal() = requireNotNull(sessions.state.value.session).terminal as PtyAssistanceTerminal
