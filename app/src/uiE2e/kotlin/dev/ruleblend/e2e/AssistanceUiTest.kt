@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -16,9 +17,11 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import dev.ruleblend.app.App
 import dev.ruleblend.app.assistance.AssistanceLaunch
+import dev.ruleblend.app.assistance.AssistanceObject
 import dev.ruleblend.app.assistance.AssistanceSessions
 import dev.ruleblend.app.assistance.AssistanceTerminal
 import dev.ruleblend.app.assistance.LocalAssistanceSessions
@@ -31,6 +34,7 @@ import dev.ruleblend.app.util.DesktopActions
 import dev.ruleblend.app.util.DesktopEnvironment
 import dev.ruleblend.app.util.uiTarget
 import dev.ruleblend.core.config.ThemeMode
+import dev.ruleblend.core.config.projectKey
 import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.storage.LibraryRepository
 import java.nio.file.Files
@@ -57,6 +61,7 @@ class AssistanceUiTest {
     private val compose = createComposeRule()
     private val children = CopyOnWriteArrayList<FakeTerminal>()
     private val launches = CopyOnWriteArrayList<AssistanceLaunch>()
+    @Volatile private var nextDirectory: Path? = null
     private val sessions = AssistanceSessions { launch ->
         launches += launch
         FakeTerminal().also(children::add)
@@ -78,6 +83,7 @@ class AssistanceUiTest {
             System.setSecurityManager(SandboxWrites(root))
             DesktopEnvironment.actions = object : DesktopActions by actions {
                 override fun probe(executable: String) = CliProbe(root.resolve("bin/$executable").toString(), true, root.resolve("bin").toString())
+                override fun directory(title: String, initialDirectory: Path?) = nextDirectory.also { nextDirectory = null }
             }
             try { base.evaluate() } finally {
                 runBlocking { sessions.shutdown() }
@@ -187,5 +193,37 @@ class AssistanceUiTest {
         compose.onNodeWithTag("assistance-close").performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
         assertTrue(children.none { it.isAlive })
+
+        // Place entry point: the project header button starts one session with the approved starting text.
+        val project = Files.createDirectories(root.resolve("work/orbit-api")).toRealPath()
+        compose.onNodeWithTag("nav-place").performClick()
+        nextDirectory = project
+        present("place-add-project")
+        compose.onNodeWithTag("place-add-project").performClick()
+        val place = "project:${project.projectKey()}"
+        val recent = uiTarget("place", place, "recent", "select")
+        val ungrouped = uiTarget("place", place, "ungrouped", "select")
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithTag(recent).fetchSemanticsNodes().isNotEmpty() ||
+                compose.onAllNodesWithTag(ungrouped).fetchSemanticsNodes().isNotEmpty()
+        }
+        val row = if (compose.onAllNodesWithTag(recent).fetchSemanticsNodes().isNotEmpty()) recent else ungrouped
+        compose.onNodeWithTag("place-list").performScrollToNode(hasTestTag(row))
+        compose.onNodeWithTag(row).performClick()
+        present("assistance-open")
+        compose.onNodeWithTag("assistance-open").performClick()
+        compose.waitUntil(5_000) { launches.size == 3 }
+        present("assistance-panel")
+        val launch = launches.last()
+        val draft = "Let's pick a profile for the project orbit-api ($project). " +
+            "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
+        assertEquals(listOf(launch.assistant.cli.path, "--prefill", draft), launch.command)
+        assertEquals(project, launch.directory.toRealPath())
+        assertEquals(AssistanceObject.Kind.PROJECT, launch.target.kind)
+        assertTrue(children.last().isAlive)
+        children.last().finish()
+        compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
+        compose.onNodeWithTag("assistance-close").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
     }
 }

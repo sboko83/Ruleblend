@@ -60,6 +60,9 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Project identity for the one-session rule is (kind, absolute path) via the existing AssistanceObject — reuses open()/Replace prompt unchanged — rejected: a separate project session controller
 - The button is passed to PlaceScreen as a composable slot — keeps the place package independent of settings/assistance sessions — rejected: reading LocalAssistanceSessions and SettingsModel inside PlaceHeader
 - Added a closing sentence that the profile targets the project's enabled assistants (set_project_agents) — it comes from the plan's Traps and keeps the assistant from installing for only its own agent — rejected: leaving it out of the skill text
+- Place scenario appended to A01 instead of a separate test — it depends on the Claude connection made in A01, and JUnit4 method order is not guaranteed, so a separate test could break A01's initial not-connected assertion — rejected: a standalone A02 test
+- Project added through the substituted DesktopActions.directory picker, as in the Phase tests — it exercises the real Place add flow — rejected: writing the project into config.json directly
+- Fixture verdicts are include/overlap/foreign/unneeded, with an expected profile of 12 of 30 — gives P003.1.4 a measurable limit and overlap traps — rejected: a flat include/exclude list
 
 ## Phase 1: Profile selection
 
@@ -129,7 +132,7 @@ Handoff:
 - Unverified: Skill procedure not exercised with a real assistant: the live run is P003.1.4
 - Unverified: Auxiliary-directory rules and the 10-item limit are unchecked in behaviour; only the text is present
 
-### [ ] P003.1.3 Add profile selection fixture
+### [x] P003.1.3 Add profile selection fixture
 Read:
 - tools/assistant_lifecycle_fixture.py
 - app/src/uiE2e/kotlin/dev/ruleblend/e2e/AssistanceUiTest.kt
@@ -150,6 +153,14 @@ Traps: Write the library through the documented storage layout, not by calling t
   Ruleblend. The fixture must not touch the real home.
 Depends: P003.1.1
 Commit: P003.1.3: add profile selection fixture
+Handoff:
+- Fixture: `python3 -B tools/profile_pick_fixture.py <empty root>` creates <root>/project/orbit-api and <root>/home/.ruleblend/library (30 items: blocks/*.md for rules, subagents and MCP; skills/<id>/). `--expected` prints the expected 12-item composition with a reason per item. Run Ruleblend with -Duser.home=<root>/home and Claude Code with HOME=<root>/home.
+- The library has no profiles on purpose: the assistant is expected to create one. The fixture runs git init and one commit in the library and in the project, with a throwaway identity and an empty global git config.
+- The Place scenario is the tail of A01 (first stage only; the restart stage returns early). It needs the Claude connection that A01 sets up through Settings.
+- The fixture library is not connected to any Claude config. P003.1.4 must set up HOME, the launcher and the MCP registration so the assistant edits the fixture library, not the user's.
+- Unverified: The Ruleblend app and MCP were not run against the generated library. Format conformity rests on reading BlockFile and McpConfigCodec, not on loading it in the app.
+- Unverified: Git identity/config isolation in the fixture was checked only by running the script once on macOS.
+- Unverified: The fixture script was not checked on Windows.
 
 ### [ ] P003.1.4 Accept profile selection live
 Read:

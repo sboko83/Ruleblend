@@ -111,6 +111,21 @@ Folder/archive/editor selection, CLI discovery, external applications and transl
 This does not check system dialogs or real translation. Every start uses a new JVM 17:
 home and environment are set before classes load; JVM writes stay within the canonical root,
 and external processes and networking are denied. Normal application startup does not install this guard.
+`AssistanceUiTest` also adds a Place project through the substituted folder picker and checks that the
+project header's assistance button opens one session whose native prefill is the approved profile-selection
+text with the project name and absolute path, in the project folder and never submitted.
+
+Profile selection fixture, for the live run of P003.1.4 and manual checks:
+
+```sh
+python3 -B tools/profile_pick_fixture.py /absolute/empty/root   # sample Kotlin project + 30-item library
+python3 -B tools/profile_pick_fixture.py --expected              # expected composition, reason per item
+```
+
+It writes `<root>/project/orbit-api` and `<root>/home/.ruleblend/library` through the documented storage
+layout and touches nothing outside `<root>`; a non-empty root or one containing the real home is refused.
+Run Ruleblend with `-Duser.home=<root>/home` and Claude Code with `HOME=<root>/home` so both see this library.
+
 `ui` defaults to the phase 0 fixture suite; `smoke` runs P-07, while `projects` runs
 P-01…P-12 separately on independent roots. P-03, P-07 and P-10 check cold restarts.
 `conflicts` runs O-01…O-12 separately; only the fixture creates external edits and malformed files,
