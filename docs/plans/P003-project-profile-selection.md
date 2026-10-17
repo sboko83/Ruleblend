@@ -84,6 +84,7 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - release() keeps the starting state instead of resetting to AssistanceState() — the terminal start runs after release() and is the slow part the starting panel exists for — rejected: clearing starting before the start and accepting a panel gap
 - The RU/EN and light/dark checks run as two rounds in A01 (EN+light, RU+dark) through the real settings controls — exercises the click-time theme capture and the UI language path end to end — rejected: setting config or the theme state directly in the test
 - Terminal background is asserted against the composition's MaterialTheme surface captured in the test — the fake terminal view does not paint JediTerm colors, so the launch data is the observable contract — rejected: pixel-sampling the fake terminal view
+- The Place header and the assistants summary wrap with FlowRow; an e2e bounds check guards it — at the 1024 px acceptance window the summary row alone overflowed the file column, so moving only the AI help button did not help — rejected: moving the AI help button into the title row
 
 ## Phase 1: Profile selection
 

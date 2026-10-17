@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -22,6 +23,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
@@ -257,6 +261,11 @@ class AssistanceUiTest {
             compose.onNodeWithTag("place-list").performScrollToNode(hasTestTag(row))
             compose.onNodeWithTag(row).performClick()
             present("assistance-open")
+            // The header wraps the AI help button instead of squeezing the assistants summary.
+            val summary = compose.onNodeWithTag("place-assistants-summary").getUnclippedBoundsInRoot()
+            val configure = compose.onNodeWithTag("place-assistants-configure").getUnclippedBoundsInRoot()
+            assertTrue(configure.width > 40.dp, "configure button squeezed to ${configure.width}")
+            assertTrue(summary.height < 60.dp, "assistants summary wrapped to ${summary.height}")
             for ((index, item) in listOf("assistance-ask", "assistance-profile").withIndex()) {
                 val held = mode == ThemeMode.DARK && index == 1
                 val gate = CountDownLatch(1).takeIf { held }

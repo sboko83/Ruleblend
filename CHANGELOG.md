@@ -26,6 +26,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   assistants launch and switches it. Assistants connected earlier ask for one reconnection.
 
 ### Fixed
+- app: in a narrow window the Place project header wraps its buttons instead of squeezing the
+  assistants summary into a column and hiding Configure.
 - Codex subagents can be installed into projects (`.codex/agents/`), including through profiles;
   they were previously skipped as unsupported.
 - Installing MCP servers and subagents no longer fails with "Is a directory" or risks

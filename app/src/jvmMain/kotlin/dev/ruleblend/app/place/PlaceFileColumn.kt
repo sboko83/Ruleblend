@@ -878,6 +878,7 @@ private fun McpNameDialog(
  * A project also carries its agents here, on the same line as its name: this screen is where a
  * checkout is set up, and the next thing done with a set-up checkout is work in it.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlaceHeader(
     model: IntegrationModel,
@@ -926,8 +927,14 @@ private fun PlaceHeader(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.padding(top = 10.dp),
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                        Box(Modifier.weight(1f)) { ProjectAssistants(model, target) }
+                    // Wraps instead of squeezing: at the minimum window width the AI help button
+                    // does not fit beside the assistants summary.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ProjectAssistants(model, target)
                         projectAssistance?.invoke(target)
                     }
                     AgentLaunchers(model)
