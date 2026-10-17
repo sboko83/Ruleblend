@@ -920,6 +920,7 @@ Only explicitly selected, fully current connections can be offered; there is no 
 The first implementation supports Claude Code only: native `--prefill` keeps the initial text
 editable without submitting it. Codex is deferred because terminal-screen heuristics do not establish
 safe draft-input readiness across authentication, onboarding and connection failures.
+Decisions: [P001](archive/P001-ai-assistance.md).
 
 The explicit choices live in `config.json.assistanceAssistants`, independently of assistant
 visibility and external-terminal settings; an absent field selects nothing. Library launches only
