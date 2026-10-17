@@ -153,6 +153,47 @@ fun SourcesState.cachedSourceCheck(repository: LibraryRepository): CachedSourceC
 }
 
 /**
+ * Records the trees an update just wrote as the upstream state of their paths. An update fetches the
+ * repository's current HEAD, usually newer than the last check, so keeping the checked fingerprints
+ * would replay every updated definition as still outdated on the next launch. Repositories never
+ * checked stay absent: there is no cached result to correct. The check time and remote HEAD keep
+ * describing the last full check.
+ */
+fun SourcesState.withUpdated(
+    repository: LibraryRepository,
+    skillIds: Set<String>,
+    subagentIds: Set<String> = emptySet(),
+    modIds: Set<String> = emptySet(),
+): SourcesState {
+    val skills = repository.listSkills().filter { it.id in skillIds && it.source != null }
+    val agents = repository.listBlocks().filter { it.id in subagentIds && it.source != null }
+    val mods = repository.listMods().filter { it.id in modIds && it.source != null }
+    return copy(sources = sources.map { state ->
+        val updatedSkills = skills.filter { it.source!!.repository == state.repository }.mapNotNull { skill ->
+            repository.loadSkillSnapshot(skill.id)?.let { skill.source!!.path to skillTreeFingerprint(it.files) }
+        }.toMap()
+        val updatedAgents = agents.filter { it.source!!.repository == state.repository }
+            .associate { "${it.source!!.assistant}:${it.source.path}" to subagentFingerprint(it) }
+        val updatedMods = mods.filter { it.source!!.repository == state.repository }.mapNotNull { mod ->
+            repository.loadModSnapshot(mod.id)?.let { Triple("mod:${mod.id}", mod.source!!.path, modTreeFingerprint(it.files)) }
+        }
+        if (updatedSkills.isEmpty() && updatedAgents.isEmpty() && updatedMods.isEmpty()) return@map state
+        val modKeys = updatedMods.map { it.first }.toSet()
+        state.copy(
+            upstreamTreeFingerprints = state.upstreamTreeFingerprints + updatedSkills,
+            missingPaths = state.missingPaths - updatedSkills.keys,
+            upstreamSubagentFingerprints = state.upstreamSubagentFingerprints + updatedAgents,
+            missingSubagentPaths = state.missingSubagentPaths - updatedAgents.keys,
+            unavailableSubagentPaths = state.unavailableSubagentPaths - updatedAgents.keys,
+            upstreamModFingerprints = state.upstreamModFingerprints + updatedMods.associate { it.first to it.third },
+            modPaths = state.modPaths + updatedMods.associate { it.first to it.second },
+            missingMods = state.missingMods - modKeys,
+            unavailableMods = state.unavailableMods - modKeys,
+        )
+    })
+}
+
+/**
  * Disposable source-check sidecar. Absence or an unreadable older sidecar starts with no state,
  * because source provenance in the library remains the source of truth.
  */

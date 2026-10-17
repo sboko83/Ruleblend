@@ -55,6 +55,17 @@ data class LibraryObject(
     val importedFromGit: Boolean get() = gitSource != null
 }
 
+/**
+ * A version as it reads on screen. A repository that declares no version is imported under the first
+ * 12 hex characters of its commit; that is a commit, not a version, so it reads as `@` plus the usual
+ * 7-character short hash instead of `v59f4649c44f4`. Library integer versions never take that shape,
+ * and a declared version of exactly 12 hex characters with a letter among them does not occur.
+ */
+fun versionLabel(version: String): String =
+    if (COMMIT_VERSION.matches(version) && version.any { it in 'a'..'f' }) "@${version.take(7)}" else "v$version"
+
+private val COMMIT_VERSION = Regex("[0-9a-f]{12}")
+
 /** Ids of the two built-ins. The colon is not a slug character, so no library object can claim them. */
 const val BUILTIN_SKILL_ID: String = "builtin:skill"
 const val BUILTIN_MCP_ID: String = "builtin:mcp"

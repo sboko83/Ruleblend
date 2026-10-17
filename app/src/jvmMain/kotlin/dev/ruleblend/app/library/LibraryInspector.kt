@@ -129,7 +129,7 @@ internal fun Inspector(
                             style = titleStyle,
                             modifier = Modifier.weight(1f, fill = false),
                         )
-                        VersionPill("v${item.version}")
+                        VersionPill(versionLabel(item.version))
                     }
                     val notes = listOfNotNull(
                         item.scope?.let { strings.libPinnedTo(projectScopeLabel(it)) },

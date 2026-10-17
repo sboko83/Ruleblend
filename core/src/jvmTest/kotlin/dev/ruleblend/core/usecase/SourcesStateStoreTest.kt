@@ -137,4 +137,48 @@ class SourcesStateStoreTest {
 
         assertEquals(SourceCheckSkillStatus.PATH_MISSING, cached.report?.perSkill?.single()?.status)
     }
+
+    @Test
+    fun `an update replaces the checked fingerprint so the next launch sees it current`() {
+        val repository = LibraryRepository(dir.resolve("library")).also { it.init() }
+        val source = GitSkillSource("https://example.com/skills.git", "checked", "skills/review")
+        val checkedFingerprint = skillTreeFingerprint(listOf(SkillFile("SKILL.md", "Checked\n".encodeToByteArray())))
+        val state = SourceCheckReport(
+            perRepo = listOf(
+                SourceCheckRepository("https://example.com/skills.git", "checked", SourceCheckRepositoryStatus.CHECKED),
+            ),
+            perSkill = listOf(
+                SourceCheckSkill("review", source.repository, source.path, SourceCheckSkillStatus.UPDATE_AVAILABLE, checkedFingerprint),
+            ),
+        ).toSourcesState("2026-09-05T12:00:00Z")
+        // The update fetched a HEAD newer than the check, so the library now differs from both.
+        repository.writeSkill(
+            SkillSnapshot(
+                Skill(id = "review", name = "Review", content = "Newer\n", source = source.copy(revision = "newer")),
+                listOf(SkillFile("SKILL.md", "Newer\n".encodeToByteArray())),
+            ),
+        )
+        assertEquals(SourceCheckSkillStatus.UPDATE_AVAILABLE, state.cachedSourceCheck(repository).report?.perSkill?.single()?.status)
+
+        val updated = state.withUpdated(repository, setOf("review"))
+
+        val cached = updated.cachedSourceCheck(repository)
+        assertEquals(SourceCheckSkillStatus.CURRENT, cached.report?.perSkill?.single()?.status)
+        assertEquals("2026-09-05T12:00:00Z", cached.lastCheckedAt)
+        assertEquals(state.sources.single().remoteHead, updated.sources.single().remoteHead)
+    }
+
+    @Test
+    fun `an update of a never checked repository adds no cached result`() {
+        val repository = LibraryRepository(dir.resolve("library")).also { it.init() }
+        repository.writeSkill(
+            SkillSnapshot(
+                Skill(id = "review", name = "Review", content = "Local\n",
+                    source = GitSkillSource("https://example.com/skills.git", "head", "skills/review")),
+                listOf(SkillFile("SKILL.md", "Local\n".encodeToByteArray())),
+            ),
+        )
+
+        assertEquals(SourcesState(), SourcesState().withUpdated(repository, setOf("review")))
+    }
 }

@@ -27,6 +27,11 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   assistants launch and switches it. Assistants connected earlier ask for one reconnection.
 
 ### Fixed
+- app: Updating skills imported from Git no longer shows the same updates again after a restart.
+- app: Pi no longer shows a red status for a skill another assistant installed into the shared
+  `.agents/skills` folder.
+- app: A skill imported from Git without a declared version shows its commit (`@59f4649`) instead of
+  a `v`-prefixed hash; a `version` in the skill's `SKILL.md` frontmatter now takes precedence.
 - app: in a narrow window the Place project header wraps its buttons instead of squeezing the
   assistants summary into a column and hiding Configure.
 - Codex subagents can be installed into projects (`.codex/agents/`), including through profiles;

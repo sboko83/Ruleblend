@@ -12,6 +12,7 @@ import dev.ruleblend.core.usecase.ImportLibrary
 import dev.ruleblend.core.usecase.MutateLibrary
 import dev.ruleblend.core.usecase.SourcesStateStore
 import dev.ruleblend.core.usecase.toSourcesState
+import dev.ruleblend.core.usecase.withUpdated
 import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.json.JsonArray
@@ -210,6 +211,7 @@ internal class GitSourceTools(
         val subagents = args.strings("subagent_ids")
         if (skills.isEmpty() && subagents.isEmpty()) throw ToolError("Select at least one skill or subagent id")
         val updated = importer().updateDefinitions(skills, subagents).value
+        sourcesState?.let { store -> store.save(store.load().withUpdated(repository, skills, subagents)) }
         buildJsonObject {
             put("skills", buildJsonArray { updated.skills.forEach { add(it.sourceSummary()) } })
             put("subagents", buildJsonArray { updated.subagents.forEach { add(it.sourceSummary()) } })

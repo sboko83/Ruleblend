@@ -478,7 +478,7 @@ private fun ObjectRow(
             )
         }
         Text(
-            "v${item.version}",
+            versionLabel(item.version),
             style = MaterialTheme.typography.labelMedium.copy(fontFamily = MonoFontFamily),
             color = RuleblendTheme.extraColors.faint,
         )

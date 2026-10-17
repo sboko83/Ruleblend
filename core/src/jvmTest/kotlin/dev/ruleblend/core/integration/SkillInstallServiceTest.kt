@@ -126,6 +126,17 @@ class SkillInstallServiceTest {
     }
 
     @Test
+    fun `Pi reports a skill another agent wrote into the shared root as ours`() {
+        service.install(globalZCode, skill)
+        assertTrue(state.all().none { it.agentId == "pi" }, state.all().toString())
+
+        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalPi, skill))
+
+        home.resolve(".agents/skills/review/SKILL.md").writeText("# Edited\n")
+        assertEquals(SkillInstallStatus(InstallStatus.MODIFIED, false), service.status(globalPi, skill))
+    }
+
+    @Test
     fun `shared skill remains until its last agent removes it`() {
         service.install(globalPi, skill)
         service.install(globalKimi, skill)

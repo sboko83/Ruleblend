@@ -111,6 +111,29 @@ class GitSkillImporterTest {
     }
 
     @Test
+    fun `a version declared in SKILL md outranks the manifest and the revision`() {
+        upstream.resolve("skills/top").createDirectories()
+        upstream.resolve("skills/top/SKILL.md").writeText("---\nname: top\nversion: 3.1.0\n---\n# Top\n")
+        upstream.resolve("skills/meta").createDirectories()
+        upstream.resolve("skills/meta/SKILL.md").writeText("---\nname: meta\nmetadata:\n  author: me\n  version: \"1.2\"\n---\n# Meta\n")
+        upstream.resolve("skills/plain").createDirectories()
+        upstream.resolve("skills/plain/SKILL.md").writeText("---\nname: plain\n---\n# Plain\n")
+        upstream.resolve(".codex-plugin/plugin.json").toFile().delete()
+        Git.open(upstream.toFile()).use { git ->
+            git.rm().addFilepattern(".codex-plugin/plugin.json").call()
+            git.add().addFilepattern("skills").call()
+            git.commit().setMessage("declared versions").setAuthor("Test", "test@example.com").call()
+        }
+
+        val plan = GitSkillImporter().fetch(upstream.toString())
+        val versions = plan.skills.associate { it.skill.name to it.skill.version }
+
+        assertEquals("3.1.0", versions["top"])
+        assertEquals("1.2", versions["meta"])
+        assertEquals(plan.revision.take(12), versions["plain"])
+    }
+
+    @Test
     fun `uses claude manifest version with the conventional skills directory`() {
         upstream.resolve(".codex-plugin/plugin.json").toFile().delete()
         upstream.resolve(".claude-plugin").createDirectories()

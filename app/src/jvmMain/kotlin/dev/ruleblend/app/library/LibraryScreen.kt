@@ -103,7 +103,7 @@ fun LibraryScreen(
                     modifier = Modifier.testTag("library-editor-back"),
                 ) { Text("← ${editorBackLabel ?: strings.navLibrary}") }
                 Text(edited?.name.orEmpty(), style = MaterialTheme.typography.titleMedium)
-                edited?.let { VersionPill("v${it.version}") }
+                edited?.let { VersionPill(versionLabel(it.version)) }
                 if (assistance != null) {
                     Spacer(Modifier.weight(1f))
                     assistance()

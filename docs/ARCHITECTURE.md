@@ -356,8 +356,11 @@ Discovery does not write library objects. Before checkout, Git objects are bound
 16 path components, 10 MiB per file and 100 MiB total; links and submodules are rejected. Manifests
 and individual subagent definitions are limited to 1 MiB. No repository code is executed.
 
-The plugin/package version is the user-facing skill version. When no manifest declares one, the
-first 12 characters of the commit SHA are used. The full SHA is always stored, so two equal display
+A version the skill's own `SKILL.md` declares (top-level `version`, or `version` under the Agent
+Skills `metadata` map) is the user-facing skill version; it outranks the plugin/package version
+because one repository can ship independently versioned skills. When neither declares one, the
+first 12 characters of the commit SHA are stored and the UI shows them as a commit, `@` plus the
+7-character short hash, not as a `v`-prefixed version. The full SHA is always stored, so two equal display
 versions from different revisions are still distinguishable. The source list is derived from the
 `repository`, `revision` and repository-relative `path` stored with every imported skill or subagent; there is no
 second source registry to drift away from that provenance.
@@ -382,7 +385,10 @@ unavailable repository remain separate results; malformed subagent files are una
 upstream-tree fingerprint keyed by skill path (subagent fingerprints use assistant plus path), and the paths the check reached the repository for and
 did not find, so a deleted path is replayed as such instead of discarding the whole cached result. It is a disposable UI cache, not provenance: a
 missing or unreadable sidecar starts empty, and the current imported definitions always decide which
-sources exist. Checks are manual by default; the optional on-launch mode runs the same check once.
+sources exist. An update fetches the current HEAD, usually newer than the last check, so it records
+the trees it wrote as the upstream fingerprints of their paths; otherwise the next launch would replay
+the pre-update check against the newer trees and offer the same update again. The check time and
+remote HEAD keep describing the last full check. Checks are manual by default; the optional on-launch mode runs the same check once.
 
 Updating selected skills and subagents resolves every id and upstream path before writing, groups
 the selection by repository and fetches each repository once. Every matching complete tree replaces
@@ -423,7 +429,9 @@ ZCode are all `.agents/skills`. Ownership follows the declared paths, not agent 
 tree when its agent's root with that directory id, in the same target scope, resolves to the same
 normalized path. Removing one agent's installation drops its ownership record and native copy; the
 shared tree stays until the last such owner removes it, even when that owner is not among the
-current target's agents.
+current target's agents. Status follows the same rule: an agent without a record of its own (Pi in a
+root ZCode filled) judges the tree by the owner's record instead of reporting a library-equal copy
+as foreign and modified.
 
 Executable intent belongs to the portable snapshot: `meta.yaml` is authoritative in the library,
 and `skill-state.json` stores the executable paths last installed, including for orphan recovery.

@@ -1,6 +1,7 @@
 package dev.ruleblend.app.place
 
 import dev.ruleblend.app.library.KindMark
+import dev.ruleblend.app.library.versionLabel
 import dev.ruleblend.app.library.BlockContextMenu
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -248,7 +249,7 @@ internal fun BlockRow(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    row.version?.let { NameTag("v$it") }
+                    row.version?.let { NameTag(versionLabel(it)) }
                     // Beside the version rather than with the writes on the right: this moves the
                     // block inside its file, it does not change what the block says. The two ends are
                     // one control — they sit tight against each other and clear of the version, or
@@ -459,7 +460,7 @@ internal fun BuiltInEntrySection(
                                 )
                                 row.version?.let {
                                     Text(
-                                        "v$it",
+                                        versionLabel(it),
                                         style = MaterialTheme.typography.labelSmall.copy(fontFamily = MonoFontFamily),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -537,7 +538,7 @@ private fun ForeignEntryRow(
                         )
                         row.version?.let {
                             Text(
-                                "v$it",
+                                versionLabel(it),
                                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = MonoFontFamily),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

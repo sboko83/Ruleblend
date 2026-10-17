@@ -2,6 +2,7 @@ package dev.ruleblend.core.storage
 
 import dev.ruleblend.core.model.GitSkillSource
 import dev.ruleblend.core.model.SkillSnapshot
+import dev.ruleblend.core.model.parseYamlFrontmatter
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -9,6 +10,7 @@ import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
 import kotlin.io.path.readText
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -172,12 +174,27 @@ class GitRepositoryImporter(
         return LocalSkillCapture.capture(
             directory = directory,
             source = GitSkillSource(repository, revision, sourcePath),
-            version = version,
+            version = declaredSkillVersion(directory) ?: version,
             executableFiles = gitSkillExecutableFiles(repositoryRoot, directory),
         )
     }
 
 }
+
+/** The version fields a skill can declare for itself, top-level or under the Agent Skills `metadata` map. */
+@Serializable
+private data class DeclaredSkillVersion(val version: String? = null, val metadata: Metadata? = null) {
+    @Serializable
+    data class Metadata(val version: String? = null)
+}
+
+/**
+ * A version the skill's own `SKILL.md` declares. It outranks the repository manifest — one repository
+ * can ship skills versioned independently — and a header that does not parse declares nothing.
+ */
+private fun declaredSkillVersion(directory: Path): String? = runCatching {
+    parseYamlFrontmatter(directory.resolve("SKILL.md").readText(), DeclaredSkillVersion.serializer())?.meta
+}.getOrNull()?.let { it.version ?: it.metadata?.version }?.trim()?.takeIf { it.isNotEmpty() }
 
 /**
  * The only repository URLs Ruleblend contacts. Provenance can arrive from an imported library

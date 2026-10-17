@@ -196,6 +196,7 @@ class SkillInstallService(
         val key = skillTargetKey(target)
         val states = destinations.map { destination ->
             val record = state.find(key, destination.agent.id, skill.id, destination.directory.id)
+                ?: sharedRecord(target, skill.id, destination)
             val executableFiles = recordedExecutableFiles(target, destination.path) ?: snapshot.files.filter { it.executable }.map { it.path }
             skillFileStatus(
                 installed = directoryFingerprint(destination.path, executableFiles),
@@ -364,6 +365,19 @@ class SkillInstallService(
     private fun heldByAnotherAgent(target: Target, skillId: String, destination: Destination): Boolean {
         val key = skillTargetKey(target)
         return state.all().any { other ->
+            other.targetKey == key && other.skillId == skillId && other.agentId != destination.agent.id &&
+                recordedPath(target, other) == destination.path.normalize()
+        }
+    }
+
+    /**
+     * The record of another agent that wrote this skill into a root this agent reads too. Pi reads
+     * `.agents/skills`, which ZCode or Kimi Code may have filled: the tree is ours there, and without
+     * this an unrecorded agent would report a copy identical to the library as foreign and modified.
+     */
+    private fun sharedRecord(target: Target, skillId: String, destination: Destination): SkillInstallRecord? {
+        val key = skillTargetKey(target)
+        return state.all().lastOrNull { other ->
             other.targetKey == key && other.skillId == skillId && other.agentId != destination.agent.id &&
                 recordedPath(target, other) == destination.path.normalize()
         }

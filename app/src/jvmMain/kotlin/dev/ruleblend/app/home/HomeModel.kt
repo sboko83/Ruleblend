@@ -29,6 +29,7 @@ import dev.ruleblend.core.usecase.SourceCheckSkillStatus
 import dev.ruleblend.core.usecase.SourcesStateStore
 import dev.ruleblend.core.usecase.cachedSourceCheck
 import dev.ruleblend.core.usecase.toSourcesState
+import dev.ruleblend.core.usecase.withUpdated
 import java.time.Instant
 import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
@@ -293,6 +294,7 @@ class HomeModel(
                     updateImportedDefinitions != null -> updateImportedDefinitions.invoke(skills, subagents)
                     else -> updateImportedSkills?.invoke(skills)
                 }
+                sourceStateStore?.let { store -> store.save(store.load().withUpdated(repository, skills, subagents, mods)) }
             }
             val names = withContext(Dispatchers.IO) {
                 repository.listSkills().filter { it.source != null }.associate { it.id to it.name }
