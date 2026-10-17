@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,6 +62,8 @@ fun LibraryScreen(
     sourceUpdatesChecked: Boolean = false,
     /** `null` where translation is not available, which also keeps UI tests free of a helper. */
     translation: TranslationModel? = null,
+    /** AI help for the selected object: in the inspector's action row, or at the end of the editor's header. */
+    assistance: (@Composable () -> Unit)? = null,
 ) {
     var dialog by remember { mutableStateOf<LibraryDialog?>(null) }
     var splitting by remember { mutableStateOf<Block?>(null) }
@@ -101,6 +104,10 @@ fun LibraryScreen(
                 ) { Text("← ${editorBackLabel ?: strings.navLibrary}") }
                 Text(edited?.name.orEmpty(), style = MaterialTheme.typography.titleMedium)
                 edited?.let { VersionPill("v${it.version}") }
+                if (assistance != null) {
+                    Spacer(Modifier.weight(1f))
+                    assistance()
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -194,6 +201,7 @@ fun LibraryScreen(
             sourceUpdateIds = sourceUpdateIds,
             sourceUpdatesChecked = sourceUpdatesChecked,
             modifier = modifier,
+            assistance = assistance,
         )
     }
 

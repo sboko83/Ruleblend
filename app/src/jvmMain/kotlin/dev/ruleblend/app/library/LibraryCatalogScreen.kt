@@ -83,6 +83,7 @@ internal fun LibraryCatalogScreen(
     sourceUpdateIds: Set<String>,
     sourceUpdatesChecked: Boolean,
     modifier: Modifier = Modifier,
+    assistance: (@Composable () -> Unit)? = null,
 ) {
     val strings = LocalStrings.current
     val catalog = model.catalog
@@ -310,6 +311,7 @@ internal fun LibraryCatalogScreen(
                         onCompareUpstream = onCompareUpstream,
                         onOpenPlace = onOpenPlace,
                         modifier = Modifier.fillMaxSize(),
+                        assistance = assistance,
                     )
                 }
             }

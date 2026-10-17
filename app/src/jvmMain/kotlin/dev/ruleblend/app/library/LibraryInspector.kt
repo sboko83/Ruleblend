@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -70,6 +71,8 @@ internal fun Inspector(
     onCompareUpstream: (LibraryObjectKey, LibraryObjectKey) -> Unit,
     onOpenPlace: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** AI help for [item]; it leads the action row, apart from the edit and delete pair. */
+    assistance: (@Composable () -> Unit)? = null,
 ) {
     val strings = LocalStrings.current
     if (item == null) {
@@ -308,7 +311,12 @@ internal fun Inspector(
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            ) {
+                assistance?.invoke()
+                Spacer(Modifier.weight(1f))
                 IconActionButton(
                     icon = RuleblendTheme.icons.edit,
                     label = if (item.importedFromGit) strings.libForkToEdit else strings.libEditFocus,

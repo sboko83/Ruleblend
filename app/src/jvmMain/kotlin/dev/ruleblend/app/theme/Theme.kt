@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.ruleblend.app.generated.resources.Res
 import dev.ruleblend.app.generated.resources.book_plus
+import dev.ruleblend.app.generated.resources.bot
 import dev.ruleblend.app.generated.resources.coverage
 import dev.ruleblend.app.generated.resources.download
 import dev.ruleblend.app.generated.resources.edit
@@ -160,6 +161,8 @@ data class RuleblendIconSet(
     val hide: DrawableResource,
     val unhide: DrawableResource,
     val install: DrawableResource,
+    /** Opens AI help for the selected object. */
+    val assistance: DrawableResource,
     val sidebarCollapse: DrawableResource,
     val sidebarExpand: DrawableResource,
 )
@@ -346,6 +349,7 @@ private val DefaultIcons = RuleblendIconSet(
     hide = Res.drawable.eye_off,
     unhide = Res.drawable.eye,
     install = Res.drawable.download,
+    assistance = Res.drawable.bot,
     sidebarCollapse = Res.drawable.sidebar_toggle,
     sidebarExpand = Res.drawable.sidebar_expand,
 )

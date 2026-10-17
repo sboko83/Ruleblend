@@ -15,6 +15,8 @@ import androidx.compose.ui.platform.testTag
 import dev.ruleblend.app.i18n.LocalStrings
 import dev.ruleblend.app.settings.SettingsModel
 import dev.ruleblend.app.theme.CompactGhostButton
+import dev.ruleblend.app.theme.IconActionButton
+import dev.ruleblend.app.theme.RuleblendTheme
 import dev.ruleblend.app.theme.RuleblendTooltip
 import kotlinx.coroutines.launch
 
@@ -54,6 +56,8 @@ fun AssistanceButton(
     onLaunch: (AssistanceObject, ReadyAssistanceAssistant) -> Unit,
     onFailure: (String) -> Unit,
     menu: List<AssistanceMenuItem> = emptyList(),
+    /** A bare icon with the label in its tooltip, for a row of other icon actions. */
+    iconOnly: Boolean = false,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -88,14 +92,25 @@ fun AssistanceButton(
         }
     }
     Box {
-        RuleblendTooltip(if (dirty) strings.assistanceSaveFirst else strings.assistanceOpen) {
-            CompactGhostButton(
-                enabled = target != null && !dirty && !busy,
+        val tooltip = if (dirty) strings.assistanceSaveFirst else strings.assistanceOpen
+        val enabled = target != null && !dirty && !busy
+        val onClick = { if (menu.isNotEmpty()) menuOpen = true else target?.let(::start) }
+        if (iconOnly) {
+            IconActionButton(
+                icon = RuleblendTheme.icons.assistance,
+                label = tooltip,
+                onClick = { onClick() },
+                enabled = enabled,
                 modifier = Modifier.testTag("assistance-open"),
-                onClick = {
-                    if (menu.isNotEmpty()) menuOpen = true else target?.let(::start)
-                },
-            ) { Text(strings.assistanceOpen) }
+            )
+        } else {
+            RuleblendTooltip(tooltip) {
+                CompactGhostButton(
+                    enabled = enabled,
+                    modifier = Modifier.testTag("assistance-open"),
+                    onClick = { onClick() },
+                ) { Text(strings.assistanceOpen) }
+            }
         }
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             menu.forEach { item ->

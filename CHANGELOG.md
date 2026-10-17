@@ -10,7 +10,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ### Added
 - app: Saving a found file with several sections to the library can keep it whole as one rule.
 - app: Settings → General → Workspace can hide the Recent section of the project list.
-- app: AI help opens Claude Code in a resizable embedded terminal for saved Library objects,
+- app: AI help (the robot button in the Library inspector and editor header) opens Claude Code in a
+  resizable embedded terminal for saved Library objects,
   with an editable starting message, explicit assistant selection and confirmed process closure.
 - app: The embedded terminal follows the app's light or dark theme; a theme change applies from the next session.
 - app: a project in Place has an AI help menu next to its assistants: "Ask a question" or "Pick a

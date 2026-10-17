@@ -746,28 +746,7 @@ internal fun App(
                             .onFailure { assistanceFailure = it.message ?: it.toString() }
                     }
                 },
-                topBarAction = if (route == AppRoute.LIBRARY && assistance != null) {
-                    {
-                        val terminalColors = assistanceTerminalColors(MaterialTheme.colorScheme)
-                        AssistanceButton(
-                            target = library.assistanceObject(),
-                            dirty = library.assistanceDraftDirty(),
-                            settings = settings,
-                            onConfigure = { settingsSection = SettingsSection.AGENTS; route = AppRoute.SETTINGS },
-                            onLaunch = { target, assistant ->
-                                // Prepared on the caller so a refused launch ends the starting panel with its failure.
-                                val launch = prepareClaudeAssistanceLaunch(
-                                    assistant, target, settings.language, libraryPath.toAbsolutePath(), terminalColors,
-                                )
-                                appScope.launch {
-                                    runCatching { assistance.open(launch) }
-                                        .onFailure { assistanceFailure = it.message ?: it.toString() }
-                                }
-                            },
-                            onFailure = { assistanceFailure = it },
-                        )
-                    }
-                } else if (route != AppRoute.SETTINGS) null else {
+                topBarAction = if (route != AppRoute.SETTINGS) null else {
                     {
                         CompactGhostButton(
                             onClick = { revealInFileManager(CONFIG_PATH) },
@@ -893,6 +872,29 @@ internal fun App(
                         sourceUpdatesChecked = home.sourceUpdates.report != null,
                         // "Where is it installed" is only an answer if it leads to the place itself.
                         onOpenPlace = { place -> openPlace(place) },
+                        assistance = if (assistance == null) null else {
+                            {
+                                val terminalColors = assistanceTerminalColors(MaterialTheme.colorScheme)
+                                AssistanceButton(
+                                    target = library.assistanceObject(),
+                                    dirty = library.assistanceDraftDirty(),
+                                    settings = settings,
+                                    onConfigure = { settingsSection = SettingsSection.AGENTS; route = AppRoute.SETTINGS },
+                                    onLaunch = { target, assistant ->
+                                        // Prepared on the caller so a refused launch ends the starting panel with its failure.
+                                        val launch = prepareClaudeAssistanceLaunch(
+                                            assistant, target, settings.language, libraryPath.toAbsolutePath(), terminalColors,
+                                        )
+                                        appScope.launch {
+                                            runCatching { assistance.open(launch) }
+                                                .onFailure { assistanceFailure = it.message ?: it.toString() }
+                                        }
+                                    },
+                                    onFailure = { assistanceFailure = it },
+                                    iconOnly = true,
+                                )
+                            }
+                        },
                     )
                     AppRoute.COVERAGE -> CoverageScreen(
                         model = coverage,
