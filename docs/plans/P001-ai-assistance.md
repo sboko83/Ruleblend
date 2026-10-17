@@ -149,6 +149,10 @@ Traps: The live run sends real model requests: get the user's agreement on the s
   isolated; ask the user before the run, block if undecided. Never touch the user's projects or
   library. The reference is pinned to project and source SHAs; check out those SHAs. The branch
   is local and never pushed; check `git log --oneline origin/main..HEAD` before rebasing.
+  Rebase conflicts: `main` still has the stale pre-docflow `docs/plans/AI_ASSISTANCE.md` and
+  `CLAUDE_CODE_MODS.md` — keep them deleted, the docflow plans win (user, 2026-10-17).
+  `AGENTS.md` is Ruleblend-managed: never hand-merge it; take either side, then reinstall the
+  project rules through Ruleblend.
 Depends: P001.1.1, P001.1.2
 Model: strong
 Commit: P001.1.3: accept profile selection
