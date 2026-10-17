@@ -29,12 +29,16 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Prefill, no automatic submission, one session — the same as for Library objects.
 - Claude Code only, as in P001.
 - Fixtures and checks are Ruleblend's own; no external repositories or the user's projects.
-- No live model requests except in P003.1.4, after the user agrees to that run.
+- No live model requests except in P003.1.4.
+- The live run uses the fixture library and project, never the user's library or projects.
 
 ## Traps
 
-- Ruleblend takes every path from the JVM `user.home`, not `$HOME`: isolate with `-Duser.home`
-  in `JAVA_TOOL_OPTIONS` plus `CODEX_HOME` and `CLAUDE_CONFIG_DIR`.
+- Ruleblend takes every path from the JVM `user.home`, not `$HOME`: the fixture library is
+  selected with `-Duser.home` in `JAVA_TOOL_OPTIONS`; Claude Code reads `$HOME`/`CLAUDE_CONFIG_DIR`.
+- Claude Code starts the Ruleblend MCP through the shared launcher `~/.ruleblend/bin/ruleblend-mcp`;
+  which build it runs and which `user.home` that build sees decide which library the assistant
+  edits.
 - The profile targets the project's enabled assistants (`set_project_agents`), not only the one
   running in the terminal.
 
@@ -49,6 +53,9 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
   assistants; text "Let's pick a profile for the project <name> (<absolute path>). Use Ruleblend
   MCP and the ruleblend skill. Let's discuss first." — approved by the user 2026-10-17; matches
   the Library entry point — a separate profile wizard.
+- Live run with real model requests in P003.1.4, Claude Code not isolated: its real config and
+  login are used — approved by the user 2026-10-17 — a separate `CLAUDE_CONFIG_DIR` with its own
+  login.
 
 ## Phase 1: Profile selection
 
@@ -134,16 +141,23 @@ Read:
 Do:
 - Rebase `feat/ai-assistance` onto `main`: project subagents for Codex and MCP installation with a
   working directory containing `.ruleblend` need `e2ca27f`.
-- Build the fixture into a temp root and run Ruleblend isolated against it.
+- Build the fixture into a temp root and run this branch's Ruleblend with `-Duser.home` set to it.
+- Make the terminal's Claude Code (real config and login) reach a Ruleblend MCP that serves the
+  fixture library, and have the P003.1.2 skill installed in it.
+- Before any write, prove it: the assistant's first MCP read (`list_rules` or `list_skills`)
+  returns fixture ids, and the installed skill contains "Picking a profile for a project".
 - From the Place entry point start Claude Code, complete the starting message, let the assistant
-  pick and, after confirmation, install the profile.
+  pick and, after confirmation, install the profile into the fixture project.
+- Restore every change made to the real `~/.claude` and `~/.ruleblend` (MCP entry, skill version,
+  launcher owner) or list it in the Handoff with the reason it stays.
 - Compare the result with `tools/profile_pick_fixture.py --expected`: matches, extras, misses,
   with both sides' reasons; check `target_status` shows every member `synced`.
 - Record the comparison and every unchecked item in the Handoff.
 Verify: `./gradlew :core:jvmTest :mcp:jvmTest :app:jvmTest`
-Traps: The run sends real model requests: get the user's agreement first. Authentication with an
-  isolated `CLAUDE_CONFIG_DIR`: log in once inside it; check first whether macOS Keychain shares
-  the real login — if isolation cannot be confirmed, block. The branch is local and never pushed;
+Traps: The user agreed to real model requests (Decisions). If the MCP read shows the user's real
+  library, end the session before any write and block: a profile created there lands in the
+  user's library. Unverified: that `JAVA_TOOL_OPTIONS` from the terminal reaches the MCP process
+  Claude Code spawns — check, do not assume. The branch is local and never pushed;
   check `git log --oneline origin/main..HEAD` before rebasing. Rebase conflicts: `main` still has
   the stale pre-docflow `docs/plans/AI_ASSISTANCE.md` and `CLAUDE_CODE_MODS.md` — keep them
   deleted, the docflow plans win (user, 2026-10-17). `AGENTS.md` is Ruleblend-managed: never
