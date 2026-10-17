@@ -9,5 +9,5 @@ class ZCodeSkillInstaller(
     agentId = "zcode",
     availabilityDirectory = home.resolve(".zcode"),
     skillFile = home.resolve(".zcode").resolve("skills").resolve(BundledSkill.NAME).resolve("SKILL.md"),
-    legacySkillFile = home.resolve(".zcode").resolve("skills").resolve("kitbash").resolve("SKILL.md"),
+    legacySkillFiles = listOf(home.resolve(".zcode").resolve("skills").resolve("kitbash").resolve("SKILL.md")),
 )

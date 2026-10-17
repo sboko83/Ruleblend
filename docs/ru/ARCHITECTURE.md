@@ -416,11 +416,13 @@ id/имя с `-changed`: upstream-update не затрёт локальную п
 
 Скиллы устанавливаются полными деревьями там, где у агента известен путь скиллов.
 Claude Code: глобально `~/.claude/skills/<id>`, в проекте `<project>/.claude/skills/<id>`.
-Codex использует только native `.codex/skills`.
-Kimi Code и ZCode записывают native-корни `.kimi-code/skills`, `.zcode/skills`
-и общий `.agents/skills` в обеих областях; Pi читает лишь общий корень.
-Ruleblend оставляет `.agents/skills` отдельной shared-интеграции, не дублируя туда каждый
-Codex-скилл. Проект записывает все деревья включённых агентов, пропуская агентов без пути скиллов.
+Остальные агенты тоже получают ровно один корень в каждой области — собственный:
+`.codex/skills`, `.kimi-code/skills`, `.zcode/skills`, а для Pi глобально `~/.pi/agent/skills`,
+в проекте `<project>/.pi/skills`. Общий для агентов `.agents/skills` Ruleblend не пишет никогда,
+хотя Codex, Kimi Code, ZCode и Pi его тоже читают: один агент — один корень, и владение остаётся
+простой записью на агента, тогда как общее дерево требовало подсчёта владельцев между агентами
+и целями, а его статус брался у агента, записавшего его последним.
+Проект записывает дерево каждого включённого агента, пропуская агентов без пути скиллов.
 
 `skill-state.json` хранит последний записанный fingerprint по цели, агенту и скиллу.
 Точная библиотечная копия — `synced`; неизменённая установленная копия после изменения
@@ -429,12 +431,15 @@ Codex-скилл. Проект записывает все деревья вкл
 Только запись sidecar делает дерево управляемым: без неё даже совпавшая с библиотекой
 копия остаётся чужой. Потеря state не создаёт владение по совпадению байтов.
 
-Один физический путь могут разделять несколько агентов: Pi и shared-корни Kimi Code/ZCode
-используют `.agents/skills`. Владение следует объявленным путям, а не id агентов:
-запись удерживает дерево, если корень её агента с этим directory id в той же области
-разрешается в тот же нормализованный путь. Удаление установки одного агента удаляет
-его запись и native-копию; общее дерево остаётся до удаления последнего владельца,
-даже если тот сейчас не входит в список агентов цели.
+Прежние версии писали и в `.agents/skills`. Их различает `directoryId` записи: `native` —
+собственный корень агента, всё прочее (`shared` или запись Pi без поля) — копия в выведенном
+из оборота дереве. При запуске приложение выводит такие копии по каждой настроенной цели:
+неизменённая копия переезжает в собственный корень агента, если там нет каталога с тем же
+именем, — так скилл, установленный для Pi, остаётся установленным; иначе она удаляется.
+Копия, изменённая после записи, остаётся на месте и становится пользовательской.
+Legacy-запись удаляется в любом случае, кроме сбоя самого переноса или удаления.
+Встроенный скилл `ruleblend` для Pi переезжает так же: своя копия в `~/.agents/skills`
+показывается устаревшей и удаляется при установке в `~/.pi/agent/skills`.
 
 Executable intent — часть переносимого снимка. В библиотеке авторитетен `meta.yaml`;
 `skill-state.json` хранит последние установленные executable-пути, включая orphan recovery.
@@ -723,7 +728,7 @@ Install и Apply update привязаны к показанному fingerprint
 WSL-home — отдельная среда, он отклоняется, а не отображается на Windows drive.
 Неверный override игнорируется только у своего ассистента, пишется в stderr и diagnostics
 Settings: одна переменная не должна останавливать приложение/MCP.
-`HOME`, `APPDATA`, `XDG_CONFIG_HOME` не перемещают общие `.agents`-корни.
+`HOME`, `APPDATA`, `XDG_CONFIG_HOME` не перемещают compatibility-файл ZCode `~/.agents/mcp.json`.
 
 | Override | Глобальный корень | MCP-конфигурация |
 |---|---|---|
@@ -734,7 +739,7 @@ Settings: одна переменная не должна останавлива
 
 Проектные корни остаются относительно выбранного native checkout.
 ZCode использует значения таблиц; его [native-скиллы](https://zcode.z.ai/en/docs/skill)
-и shared-корни не перемещаются override другого агента.
+не перемещаются override другого агента.
 
 <a id="installed-distribution-surfaces-snapshot-2026-09-04"></a>
 ### Поверхности установленных дистрибутивов: снимок 2026-09-04
@@ -747,7 +752,7 @@ ZCode использует значения таблиц; его [native-ски�
 | Агент | Конфигурация / MCP | Скиллы | Субагенты |
 |---|---|---|---|
 | Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml`, `<project>/.codex/agents/*.toml`; формат TOML, не Markdown. |
-| Pi | [Встроенный MCP в 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` и `<project>/.pi/mcp.json`; требуется доверие к проекту. | Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Нет субагентов. |
+| Pi | [Встроенный MCP в 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` и `<project>/.pi/mcp.json`; требуется доверие к проекту. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Нет субагентов. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json`, иначе `~/.kimi-code/mcp.json`; `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Последующие файлы переопределяют предыдущие. | `<KIMI_CODE_HOME>/skills/`, `<project>/.kimi-code/skills/`; общий `.agents/skills/` тоже читается. | `<KIMI_CODE_HOME>/agents/*.md`, `<project>/.kimi-code/agents/*.md`; определение в Markdown frontmatter. |
 | ZCode 3.10.1 | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | Стабильного пользовательского/workspace-формата нет. `~/.zcode/cli/agents/` хранит runtime-сессии и не используется для определений; агенты могут поступать из plugins. |
 
@@ -757,11 +762,8 @@ ZCode использует значения таблиц; его [native-ски�
 Зарегистрированный проект с исчезнувшим каталогом остаётся в списке, но недоступен
 для записи: установка и удаление завершаются ошибкой, не воссоздавая путь ради файла инструкций.
 
-Адаптер может объявить несколько skill roots в каждой области.
-`SkillInstallService` атомарно устанавливает и проверяет все различные деревья,
-с отдельным `directoryId` в `skill-state.json`; общая копия нескольких агентов пишется один раз.
-Codex получает лишь native `.codex/skills`; Kimi Code и ZCode — ещё и shared `.agents/skills`;
-Pi — только shared, глобально и в проекте/workspace.
+Адаптер объявляет не больше одного skill root в каждой области — собственный корень агента;
+shared-корни из таблицы выше агенты читают, но Ruleblend в них не пишет (см. «Установка скиллов»).
 
 <a id="subagent-formats"></a>
 ### Форматы субагентов
@@ -810,7 +812,7 @@ native key — требуемый синтаксис файла.
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
 | Codex | ✓ | ✓ | ✓ | ✓ |
 | Pi | ✓ | ✓ | ✓ | ✗ — функции нет |
-| Kimi Code | ✓ | ✓ | ✓ — native и shared roots | ✓ |
+| Kimi Code | ✓ | ✓ | ✓ | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✗ — нет стабильного формата |
 
 <a id="subagent-ownership-and-drift"></a>

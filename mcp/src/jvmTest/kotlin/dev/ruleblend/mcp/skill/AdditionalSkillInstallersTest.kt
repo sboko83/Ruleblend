@@ -5,6 +5,7 @@ import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,15 +44,44 @@ class AdditionalSkillInstallersTest {
     }
 
     @Test
-    fun `Pi installs the bundled skill in its shared native directory`() {
+    fun `Pi installs the bundled skill in its own directory`() {
         home.resolve(".pi/agent").createDirectories()
         val installer = PiSkillInstaller(home)
 
         installer.install()
 
-        val skill = home.resolve(".agents/skills/ruleblend/SKILL.md")
+        val skill = home.resolve(".pi/agent/skills/ruleblend/SKILL.md")
         assertEquals(BundledSkill.text, skill.readText())
+        assertFalse(home.resolve(".agents").exists())
         installer.uninstall()
         assertFalse(skill.exists())
+    }
+
+    @Test
+    fun `Pi retires the bundled skill earlier versions left in the shared directory`() {
+        home.resolve(".pi/agent").createDirectories()
+        val shared = home.resolve(".agents/skills/ruleblend/SKILL.md").also { it.parent.createDirectories() }
+        shared.writeText(BundledSkill.text)
+        val installer = PiSkillInstaller(home)
+
+        assertEquals(SkillStatus.OUTDATED, installer.status())
+        installer.install()
+
+        assertEquals(SkillStatus.INSTALLED, installer.status())
+        assertFalse(shared.exists())
+        assertFalse(shared.parent.exists())
+    }
+
+    @Test
+    fun `Pi leaves a foreign skill in the shared directory alone`() {
+        home.resolve(".pi/agent").createDirectories()
+        val shared = home.resolve(".agents/skills/ruleblend/SKILL.md").also { it.parent.createDirectories() }
+        shared.writeText("# Someone else's ruleblend skill\n")
+        val installer = PiSkillInstaller(home)
+
+        assertEquals(SkillStatus.NOT_INSTALLED, installer.status())
+        installer.install()
+
+        assertEquals("# Someone else's ruleblend skill\n", shared.readText())
     }
 }

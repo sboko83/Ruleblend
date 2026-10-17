@@ -31,7 +31,7 @@ data class AgentCapabilities(
 fun AgentAdapter.capabilities(): AgentCapabilities = AgentCapabilities(
     rules = AgentCapability(CapabilityState.SUPPORTED),
     mcp = AgentCapability(CapabilityState.SUPPORTED),
-    skills = scopedCapability(globalSkillDirectories().isNotEmpty(), projectSkillDirectories(Path.of("")).isNotEmpty()),
+    skills = scopedCapability(globalSkillsDirectory() != null, projectSkillsDirectory(Path.of("")) != null),
     subagents = when {
         subagentSupport == SubagentSupport.UNSUPPORTED ->
             AgentCapability(CapabilityState.UNSUPPORTED, CapabilityLimit.NOT_SUPPORTED)

@@ -311,7 +311,7 @@ class Phase1Test {
         assertTrue(Files.exists(project.resolve(".codex/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".kimi-code/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".zcode/skills/e2e-skill/SKILL.md")))
-        assertTrue(Files.exists(project.resolve(".agents/skills/e2e-skill/SKILL.md")))
+        assertTrue(Files.exists(project.resolve(".pi/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".kimi-code/agents/e2e-agent.md")))
         assertFalse(Files.exists(project.resolve(".codex/agents/e2e-agent.toml")))
         assertTrue(project.resolve(".codex/config.toml").readText().contains("e2e-server"))
@@ -484,7 +484,7 @@ class Phase1Test {
             home.resolve(".ruleblend/mcp-state.json"), home.resolve(".ruleblend/skill-state.json"), home.resolve(".ruleblend/subagent-state.json"),
             project.resolve(".codex/config.toml"), project.resolve(".kimi-code/mcp.json"), project.resolve(".kimi-code/agents/e2e-agent.md"),
             project.resolve(".codex/skills/e2e-skill/SKILL.md"), project.resolve(".kimi-code/skills/e2e-skill/SKILL.md"),
-            project.resolve(".zcode/skills/e2e-skill/SKILL.md"), project.resolve(".agents/skills/e2e-skill/SKILL.md"),
+            project.resolve(".zcode/skills/e2e-skill/SKILL.md"), project.resolve(".pi/skills/e2e-skill/SKILL.md"),
             library.resolve("skills/e2e-skill/files/SKILL.md"), library.resolve("skills/e2e-skill/meta.yaml"))
         val before = files.associateWith { Files.readAllBytes(it).toList() }
         route("library")
@@ -522,7 +522,7 @@ class Phase1Test {
             assertEquals("# Foreign instructions\nKeep this line.\n\n", project.resolve("AGENTS.md").readText())
             assertEquals("untouched project note\n", project.resolve("notes.txt").readText())
             for (copy in listOf(".claude/skills/e2e-skill", ".codex/skills/e2e-skill", ".kimi-code/skills/e2e-skill",
-                    ".zcode/skills/e2e-skill", ".agents/skills/e2e-skill", ".claude/agents/e2e-agent.md", ".kimi-code/agents/e2e-agent.md")) {
+                    ".zcode/skills/e2e-skill", ".pi/skills/e2e-skill", ".claude/agents/e2e-agent.md", ".kimi-code/agents/e2e-agent.md")) {
                 assertFalse(Files.exists(project.resolve(copy)), copy)
             }
             for (file in listOf(".mcp.json", ".codex/config.toml", ".kimi-code/mcp.json")) {
@@ -592,7 +592,8 @@ class Phase1Test {
         assertTrue(Files.exists(home.resolve(".kimi/agents/e2e-agent.md")))
         assertTrue(home.resolve(".zcode/AGENTS.md").readText().contains("E2E rule v1"))
         assertTrue(home.resolve(".pi/agent/AGENTS.md").readText().contains("E2E rule v1"))
-        assertTrue(Files.exists(home.resolve(".agents/skills/e2e-skill/SKILL.md")))
+        assertTrue(Files.exists(home.resolve(".pi/agent/skills/e2e-skill/SKILL.md")))
+        assertFalse(Files.exists(home.resolve(".agents/skills")))
         for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".agents/mcp.json", ".pi/agent/mcp.json")) {
             assertTrue(home.resolve(file).readText().contains("e2e-server"), file)
         }
@@ -620,24 +621,15 @@ class Phase1Test {
             chooseGlobal(agent)
             for ((kind, id) in listOf("RULE" to "e2e-rule", "SKILL" to "e2e-skill", "SUBAGENT" to "e2e-agent", "MCP" to "e2e-server")) {
                 if (kind == "SUBAGENT" && agent in listOf("zcode", "pi")) continue
-                if (kind == "SKILL" && agent in listOf("pi", "kimi-code")) {
-                    compose.onNodeWithTag("place-palette-search").performTextReplacement(id)
-                    compose.onNodeWithTag(uiTarget("palette", "$kind:$id", "agent:$agent", "remove")).performClick()
-                    compose.waitUntil(15_000) {
-                        !home.resolve(".ruleblend/skill-state.json").readText().contains("\"agentId\": \"$agent\"")
-                    }
-                    assertTrue(Files.exists(home.resolve(".agents/skills/e2e-skill/SKILL.md")))
-                } else changePlaceCopy(kind, id, "agent:$agent", "remove", "install")
+                changePlaceCopy(kind, id, "agent:$agent", "remove", "install")
             }
-            if (agent == "kimi-code") assertTrue(Files.exists(home.resolve(".agents/skills/e2e-skill/SKILL.md")))
         }
         chooseGlobal("pi")
         compose.onNodeWithTag("place-palette-search").performTextReplacement("e2e-skill")
         compose.onNodeWithTag(uiTarget("palette", "SKILL:e2e-skill", "agent:pi", "install")).assertIsDisplayed()
         assertFalse(home.resolve(".claude/CLAUDE.md").readText().contains("E2E rule v2"))
         assertFalse(home.resolve(".codex/AGENTS.md").readText().contains("E2E rule v2"))
-        // The last recorded owner of the shared tree removes it; no global copy survives.
-        for (copy in listOf(".agents/skills/e2e-skill", ".claude/skills/e2e-skill", ".codex/skills/e2e-skill",
+        for (copy in listOf(".pi/agent/skills/e2e-skill", ".claude/skills/e2e-skill", ".codex/skills/e2e-skill",
                 ".kimi/skills/e2e-skill", ".zcode/skills/e2e-skill", ".claude/agents/e2e-agent.md",
                 ".codex/agents/e2e-agent.toml", ".kimi/agents/e2e-agent.md")) {
             assertFalse(Files.exists(home.resolve(copy)), copy)

@@ -15,5 +15,5 @@ class ClaudeCodeSkillInstaller(
     agentId = "claude-code",
     availabilityDirectory = paths.claude,
     skillFile = paths.claude.resolve("skills").resolve(BundledSkill.NAME).resolve("SKILL.md"),
-    legacySkillFile = paths.claude.resolve("skills").resolve("kitbash").resolve("SKILL.md"),
+    legacySkillFiles = listOf(paths.claude.resolve("skills").resolve("kitbash").resolve("SKILL.md")),
 )

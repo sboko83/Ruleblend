@@ -786,8 +786,8 @@ class Phase3Test {
 
     @Test fun O11_sameNamesAtDifferentAddressesDoNotAlias() {
         val nativeSkill = project.resolve(".claude/skills/duplicate")
-        val sharedSkill = project.resolve(".agents/skills/duplicate")
-        for (path in listOf(nativeSkill, sharedSkill)) {
+        val otherSkill = project.resolve(".codex/skills/duplicate")
+        for (path in listOf(nativeSkill, otherSkill)) {
             Files.createDirectories(path)
             path.resolve("SKILL.md").writeText("---\nname: duplicate\ndescription: ${path.parent}\n---\n# Duplicate\n")
         }
@@ -798,18 +798,18 @@ class Phase3Test {
         otherMcp.writeText("[mcp_servers.duplicate]\ncommand = \"/bin/date\"\n")
         start(); add(project); select(project); showTab("skills")
         val nativeKey = "skill:$nativeSkill"
-        val sharedKey = "skill:$sharedSkill"
+        val otherKey = "skill:$otherSkill"
         foreign("place-foreign-hidden:$nativeKey")
         assertTrue(nativeSkill.resolve("SKILL.md").readText().contains("Duplicate"))
-        foreign("place-foreign-save:$sharedKey")
+        foreign("place-foreign-save:$otherKey")
         compose.waitUntil(15_000) { Files.exists(library.resolve("skills/duplicate/files/SKILL.md")) }
-        waitManagedEntry("skill", "duplicate", sharedKey)
+        waitManagedEntry("skill", "duplicate", otherKey)
         showTab("mcp")
         foreign("place-foreign-remove:mcp:$nativeMcp:duplicate")
         compose.onNodeWithTag("dialog-confirm").performClick()
         compose.waitUntil(15_000) { !nativeMcp.readText().contains("\"duplicate\"") }
         assertTrue(otherMcp.readText().contains("mcp_servers.duplicate"))
-        assertTrue(sharedSkill.resolve("SKILL.md").readText().contains("Duplicate"))
+        assertTrue(otherSkill.resolve("SKILL.md").readText().contains("Duplicate"))
     }
 
     @Test fun O12_groupWriteFailureIsReportedWithoutClaimingFullSuccess() {

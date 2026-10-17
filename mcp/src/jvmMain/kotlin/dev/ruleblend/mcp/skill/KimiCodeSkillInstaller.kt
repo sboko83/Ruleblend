@@ -8,7 +8,7 @@ class KimiCodeSkillInstaller(home: KimiCodeHome = KimiCodeHome.current()) : File
     agentId = "kimi-code",
     availabilityDirectory = home.directory,
     skillFile = home.directory.resolve("skills").resolve(BundledSkill.NAME).resolve("SKILL.md"),
-    legacySkillFile = home.directory.resolve("skills").resolve("kitbash").resolve("SKILL.md"),
+    legacySkillFiles = listOf(home.directory.resolve("skills").resolve("kitbash").resolve("SKILL.md")),
 ) {
     /** [home] is the operating-system home, see [KimiCodeHome.under]. */
     constructor(home: Path) : this(KimiCodeHome.under(home))

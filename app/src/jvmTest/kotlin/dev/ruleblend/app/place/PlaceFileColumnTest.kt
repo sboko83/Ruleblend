@@ -51,7 +51,6 @@ import dev.ruleblend.core.integration.IntegrationService
 import dev.ruleblend.core.integration.LegacyMarkers
 import dev.ruleblend.core.integration.SkillInstallService
 import dev.ruleblend.core.integration.SkillInstallStateStore
-import dev.ruleblend.core.integration.SkillDirectory
 import dev.ruleblend.core.integration.SubagentInstallService
 import dev.ruleblend.core.integration.SubagentInstallStateStore
 import dev.ruleblend.core.integration.SubagentSupport
@@ -124,7 +123,7 @@ class PlaceFileColumnTest {
         subagents: Boolean = false,
         agentId: String = "claude-code",
         agentName: String = "Claude Code",
-        skillRoots: List<Path>? = null,
+        skillRoot: Path? = null,
     ) = object : AgentAdapter {
         override val id = agentId
         override val name = agentName
@@ -133,10 +132,7 @@ class PlaceFileColumnTest {
         override fun projectFile(projectDir: Path): Path = projectDir.resolve("AGENTS.md")
         override fun projectRedirectFile(projectDir: Path): Path = projectDir.resolve("CLAUDE.md")
         override fun projectSkillsDirectory(projectDir: Path): Path? =
-            if (skills) projectDir.resolve(".claude").resolve("skills") else null
-        override fun projectSkillDirectories(projectDir: Path): List<SkillDirectory> =
-            skillRoots?.mapIndexed { index, path -> SkillDirectory("root-$index", path) }
-                ?: super.projectSkillDirectories(projectDir)
+            skillRoot ?: if (skills) projectDir.resolve(".claude").resolve("skills") else null
         override val subagentSupport: SubagentSupport =
             if (subagents) SubagentSupport.SUPPORTED else SubagentSupport.UNSUPPORTED
         override val subagentFormat = if (subagents) ClaudeCodeSubagentFormat else null
@@ -179,6 +175,7 @@ class PlaceFileColumnTest {
         mcp: Boolean = false,
         skills: Boolean = false,
         subagents: Boolean = false,
+        /** One agent per root, in [agentNames] order. */
         skillRoots: List<Path>? = null,
         mcpEntry: McpServerConfig? = null,
         /** Several agents, each holding its own copy of the entry — the case a drift can come apart in. */
@@ -187,8 +184,11 @@ class PlaceFileColumnTest {
         repository = repository,
         configStore = configStore,
         agents =
-            if (mcpEntries.isEmpty()) listOf(agent(root, skills, subagents, skillRoots = skillRoots))
-            else mcpEntries.keys.map { id -> agent(root, skills, subagents, id, agentNames.getValue(id), skillRoots) },
+            if (skillRoots != null) skillRoots.zip(agentNames.entries).map { (path, agent) ->
+                agent(root, skills, subagents, agent.key, agent.value, skillRoot = path)
+            }
+            else if (mcpEntries.isEmpty()) listOf(agent(root, skills, subagents))
+            else mcpEntries.keys.map { id -> agent(root, skills, subagents, id, agentNames.getValue(id)) },
         backupService = BackupService(root.resolve("backups")),
         service = IntegrationService(blockResolver = repository::loadBlock),
         mcpService = McpInstallService(
@@ -453,9 +453,9 @@ class PlaceFileColumnTest {
     }
 
     @Test fun `skill roots with equal labels use separate lazy list keys`() {
-        val native = project.resolve(".codex/skills").also { it.createDirectories() }
-        val shared = project.resolve(".agents/skills").also { it.createDirectories() }
-        val model = model(skillRoots = listOf(native, shared))
+        val claude = project.resolve(".claude/skills").also { it.createDirectories() }
+        val codex = project.resolve(".codex/skills").also { it.createDirectories() }
+        val model = model(skillRoots = listOf(claude, codex))
         show(model, ThemeMode.LIGHT)
 
         compose.onNodeWithText(strings.libSkills).performClick()

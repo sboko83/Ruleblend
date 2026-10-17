@@ -10,19 +10,21 @@ import kotlin.io.path.readText
 /**
  * Shared ownership and atomic-write behavior for agents that load one `SKILL.md` from a known
  * directory. The availability directory is agent-specific and need not contain the skill itself.
+ * [legacySkillFiles] are earlier addresses of the same skill; a copy Ruleblend wrote there reads as
+ * outdated and is removed on the next install or uninstall.
  */
 abstract class FileSkillInstaller(
     final override val agentId: String,
     private val availabilityDirectory: Path,
     private val skillFile: Path,
-    private val legacySkillFile: Path? = null,
+    private val legacySkillFiles: List<Path> = emptyList(),
 ) : SkillInstaller {
 
     override fun isAvailable(): Boolean = availabilityDirectory.exists()
 
     override fun status(): SkillStatus {
         if (!skillFile.exists()) {
-            return if (legacySkillFile.isOwnedLegacySkill()) SkillStatus.OUTDATED else SkillStatus.NOT_INSTALLED
+            return if (ownedLegacySkills().isNotEmpty()) SkillStatus.OUTDATED else SkillStatus.NOT_INSTALLED
         }
         val text = skillFile.readText()
         return when {
@@ -34,7 +36,7 @@ abstract class FileSkillInstaller(
 
     override fun installedVersion(): Int? {
         val text = skillFile.takeIf { it.exists() }?.readText()
-            ?: return if (legacySkillFile.isOwnedLegacySkill()) 0 else null
+            ?: return ownedLegacySkills().firstOrNull()?.let { BundledSkill.versionIn(it.readText()) ?: 0 }
         return BundledSkill.versionIn(text)
     }
 
@@ -54,11 +56,13 @@ abstract class FileSkillInstaller(
         removeOwnedLegacySkill()
     }
 
-    private fun Path?.isOwnedLegacySkill(): Boolean =
-        this?.takeIf { it.exists() }?.readText()?.contains(BundledSkill.LEGACY_MARKER) == true
+    private fun ownedLegacySkills(): List<Path> = legacySkillFiles.filter { file ->
+        val text = file.takeIf { it.exists() }?.readText() ?: return@filter false
+        text.contains(BundledSkill.LEGACY_MARKER) || BundledSkill.isOwned(text)
+    }
 
     private fun removeOwnedLegacySkill() {
-        if (legacySkillFile.isOwnedLegacySkill()) removeSkillFile(requireNotNull(legacySkillFile))
+        ownedLegacySkills().forEach(::removeSkillFile)
     }
 
     private fun removeSkillFile(file: Path) {

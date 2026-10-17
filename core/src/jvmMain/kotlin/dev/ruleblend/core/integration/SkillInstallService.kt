@@ -27,7 +27,6 @@ data class SkillInstallStatus(val status: InstallStatus, val conflict: Boolean)
 
 /** One skill directory discovered at an agent root Ruleblend manages. */
 data class SkillDirEntry(
-    val directoryId: String,
     val path: Path,
     val id: String,
     val meta: SkillFrontmatter,
@@ -35,11 +34,7 @@ data class SkillDirEntry(
     val text: String = "",
 )
 
-/**
- * Stable place-local key for a skill directory: the address itself. Two agents can name their roots
- * alike — `.codex/skills` and `.kimi-code/skills` are both `native` — so only the path tells one
- * physical entry from another.
- */
+/** Stable place-local key for a skill directory: the address itself. */
 fun skillPlaceEntryKey(directory: Path): String = "skill:${directory.pathIdentity()}"
 
 /** Installs complete library skill directories without overwriting unknown or hand-edited trees. */
@@ -53,13 +48,15 @@ class SkillInstallService(
     private val agentById: (String) -> AgentAdapter?,
     /** Holds the preflight, the directory writes and the state records together. */
     private val coordinator: TargetMutationCoordinator = TargetMutationCoordinator(),
+    /** OS home whose `.agents/skills` held agent-global copies of earlier versions. */
+    private val sharedHome: Path = Path.of(System.getProperty("user.home")),
 ) {
 
     fun appliesTo(target: Target): Boolean = destinations(target, "placeholder").isNotEmpty()
 
     fun unsupportedAgents(target: Target): List<String> {
         val agents = agentsOf(target)
-        return agents.filter { agent -> directoriesFor(target, agent).isEmpty() }.map { it.id }
+        return agents.filter { agent -> rootOf(target, agent) == null }.map { it.id }
     }
 
     fun install(target: Target, skill: Skill, overwrite: Boolean = false, origin: String? = null) = mutate(target, skill.id) {
@@ -73,7 +70,7 @@ class SkillInstallService(
         // Preflight every destination before writing the first one, so a foreign tree cannot leave
         // a multi-agent project half-updated.
         val preflight = destinations.associateWith { destination ->
-            val record = state.find(key, destination.agent.id, skill.id, destination.directory.id)
+            val record = state.find(key, destination.agent.id, skill.id)
             val installedModes = recordedExecutableFiles(target, destination.path) ?: executableFiles
             val installed = directoryFingerprint(destination.path, installedModes)
             val safe = installed == null || installed == libraryFingerprint || installed == record?.fingerprint
@@ -106,10 +103,9 @@ class SkillInstallService(
                             destination.agent.id,
                             skill.id,
                             libraryFingerprint,
-                            destination.directory.id,
-                            destination.path.name,
-                            origin ?: preflight.getValue(destination).second,
-                            executableFiles,
+                            directoryName = destination.path.name,
+                            origin = origin ?: preflight.getValue(destination).second,
+                            executableFiles = executableFiles,
                         ),
                     )
                 }
@@ -137,16 +133,16 @@ class SkillInstallService(
         val libraryFingerprint = files?.let(::skillTreeFingerprint)
         val executableFiles = files.orEmpty().filter { it.executable }.map { it.path }
         destinations(target, skill.id).forEach { destination ->
-            val record = state.find(key, destination.agent.id, skill.id, destination.directory.id)
+            val record = state.find(key, destination.agent.id, skill.id)
             val installed = directoryFingerprint(destination.path, recordedExecutableFiles(target, destination.path) ?: executableFiles)
             if (installed != null) {
                 requireNotNull(record) { "${destination.path} is not managed by Ruleblend; Ruleblend left it in place" }
                 require(installed == record.fingerprint || installed == libraryFingerprint) {
                     "${destination.path} was edited after installation; Ruleblend left it in place"
                 }
-                if (!heldByAnotherAgent(target, skill.id, destination)) deleteTree(destination.path)
+                deleteTree(destination.path)
             }
-            state.remove(key, destination.agent.id, skill.id, destination.directory.id)
+            state.remove(key, destination.agent.id, skill.id)
         }
     }
 
@@ -160,15 +156,15 @@ class SkillInstallService(
         return coordinator.mutate(*destinations.map { it.path }.plusElement(state.file).toTypedArray()) {
             val key = skillTargetKey(target)
             val trees = destinations.map { destination ->
-                val record = state.find(key, destination.agent.id, skillId, destination.directory.id)
+                val record = state.find(key, destination.agent.id, skillId)
                 Triple(destination, directoryFingerprint(destination.path, recordedExecutableFiles(target, destination.path).orEmpty()), record)
             }
             if (trees.any { (_, installed, record) -> installed != null && installed != record?.fingerprint }) {
                 return@mutate OrphanRemoval.PROTECTED
             }
             trees.forEach { (destination, installed, _) ->
-                if (installed != null && !heldByAnotherAgent(target, skillId, destination)) deleteTree(destination.path)
-                state.remove(key, destination.agent.id, skillId, destination.directory.id)
+                if (installed != null) deleteTree(destination.path)
+                state.remove(key, destination.agent.id, skillId)
             }
             if (trees.any { it.second != null }) OrphanRemoval.REMOVED else OrphanRemoval.ABSENT
         }
@@ -181,7 +177,7 @@ class SkillInstallService(
      */
     fun removeForeign(target: Target, entry: SkillDirEntry) = coordinator.mutate(entry.path) {
         val current = entries(target).firstOrNull {
-            it.directoryId == entry.directoryId && it.path.normalize() == entry.path.normalize() && it.id == entry.id
+            it.path.normalize() == entry.path.normalize() && it.id == entry.id
         }
         requireNotNull(current) { "${entry.path} is no longer a skill directory of this target" }
         deleteTree(current.path)
@@ -195,8 +191,7 @@ class SkillInstallService(
         if (destinations.isEmpty()) return null
         val key = skillTargetKey(target)
         val states = destinations.map { destination ->
-            val record = state.find(key, destination.agent.id, skill.id, destination.directory.id)
-                ?: sharedRecord(target, skill.id, destination)
+            val record = state.find(key, destination.agent.id, skill.id)
             val executableFiles = recordedExecutableFiles(target, destination.path) ?: snapshot.files.filter { it.executable }.map { it.path }
             skillFileStatus(
                 installed = directoryFingerprint(destination.path, executableFiles),
@@ -234,19 +229,18 @@ class SkillInstallService(
     }
 
     /** Skill directories [target]'s agents read, in agent order; a directory is listed once. */
-    fun directories(target: Target): List<Path> =
-        skillDirectories(target).map { it.path }
+    fun directories(target: Target): List<Path> = roots(target)
 
     /**
      * Lists direct skill directories under every root [target]'s agents read. The traversal never
      * follows symbolic links, so an agent root cannot make this read outside its declared path.
      */
-    fun entries(target: Target): List<SkillDirEntry> = skillDirectories(target).flatMap { root ->
-        if (Files.isSymbolicLink(root.path) || !Files.isDirectory(root.path, NOFOLLOW_LINKS)) return@flatMap emptyList()
+    fun entries(target: Target): List<SkillDirEntry> = roots(target).flatMap { root ->
+        if (Files.isSymbolicLink(root) || !Files.isDirectory(root, NOFOLLOW_LINKS)) return@flatMap emptyList()
         // A root someone else fills is read, never trusted: an unreadable directory, or a `SKILL.md`
         // that is not text, drops that one entry instead of taking the whole place down with it.
         val children = runCatching {
-            Files.list(root.path).use { paths ->
+            Files.list(root).use { paths ->
                 paths
                     .filter { directory ->
                         !Files.isSymbolicLink(directory) &&
@@ -263,7 +257,6 @@ class SkillInstallService(
             val id = directory.fileName.toString()
             val parsed = parseSkillFrontmatter(text)
             SkillDirEntry(
-                directoryId = root.id,
                 path = directory,
                 id = id,
                 meta = parsed.copy(name = parsed.name?.takeIf { it.isNotBlank() } ?: id),
@@ -282,16 +275,14 @@ class SkillInstallService(
         ignoredEntryKeys: Set<String> = emptySet(),
     ): List<PlaceEntry<SkillDirEntry, String>> {
         val key = skillTargetKey(target)
-        // A record names its root by agent and directory id; the address it stands for is what the
-        // disk entries are keyed by, so it is resolved here rather than compared id to id.
-        val roots = agentsOf(target).flatMap { agent ->
-            directoriesFor(target, agent).map { directory -> (agent.id to directory.id) to directory.path.normalize() }
-        }.toMap()
+        // A record names its root by agent; the address it stands for is what the disk entries are
+        // keyed by, so it is resolved here rather than compared id to id.
+        val roots = agentsOf(target).mapNotNull { agent -> rootOf(target, agent)?.let { agent.id to it } }.toMap()
         val sidecarEntries = state.all()
             .asSequence()
             .filter { it.targetKey == key }
             .mapNotNull { record ->
-                roots[record.agentId to record.directoryId]?.let { root ->
+                roots[record.agentId]?.let { root ->
                     PlaceSidecarEntry(skillPlaceEntryKey(root.resolve(record.directoryName)), record.skillId)
                 }
             }
@@ -321,15 +312,13 @@ class SkillInstallService(
         require(!sameAsLibrary || files == snapshotResolver(skill.id)?.files) { "${entry.path} changed after it was saved to the library" }
         val fingerprint = skillTreeFingerprint(files)
         val key = skillTargetKey(target)
-        val owners = agentsOf(target).flatMap { agent ->
-            directoriesFor(target, agent).filter { directory ->
-                directory.id == entry.directoryId && directory.path.normalize().resolve(entry.id) == entry.path.normalize()
-            }.map { agent to it }
+        val owners = agentsOf(target).filter { agent ->
+            rootOf(target, agent)?.resolve(entry.id) == entry.path.normalize()
         }
         require(owners.isNotEmpty()) { "${entry.path} is no longer a skill directory of this target" }
-        owners.forEach { (agent, directory) ->
+        owners.forEach { agent ->
             state.record(SkillInstallRecord(
-                key, agent.id, skill.id, fingerprint, directory.id, directoryName = entry.id,
+                key, agent.id, skill.id, fingerprint, directoryName = entry.id,
                 executableFiles = files.filter { it.executable }.map { it.path },
             ))
         }
@@ -348,6 +337,48 @@ class SkillInstallService(
     }
 
     /**
+     * Clears the copies earlier versions wrote into [target]'s cross-agent `.agents/skills` tree.
+     * An unchanged copy moves into its agent's own root when that root holds no copy of the skill
+     * yet, so a skill installed for Pi stays installed; otherwise it is deleted. A copy edited since
+     * it was written stays where it is and is no longer Ruleblend's. Returns the records cleared; a
+     * record whose tree could not be moved or deleted stays for the next attempt.
+     */
+    fun retireSharedCopies(target: Target): Int {
+        val key = skillTargetKey(target)
+        // Copies that still need a native home go first: Kimi Code and ZCode wrote the same shared
+        // tree Pi read, and deleting it for them would strand Pi.
+        val records = state.legacy().filter { it.targetKey == key }
+            .sortedBy { record -> state.find(key, record.agentId, record.skillId) != null }
+        if (records.isEmpty()) return 0
+        val shared = sharedRoot(target)
+        val agents = agentsOf(target).associateBy { it.id }
+        val nativePaths = records.mapNotNull { record ->
+            agents[record.agentId]?.let { rootOf(target, it) }?.resolve(record.directoryName)
+        }
+        val sharedPaths = records.map { shared.resolve(it.directoryName).normalize() }
+        return coordinator.mutate(*(sharedPaths + nativePaths + state.file).distinct().toTypedArray()) {
+            records.count { record ->
+                runCatching {
+                    val legacyPath = shared.resolve(record.directoryName).normalize()
+                    val installed = directoryFingerprint(legacyPath, record.executableFiles.orEmpty())
+                    if (installed != null && installed == record.fingerprint) {
+                        val root = agents[record.agentId]?.let { rootOf(target, it) }
+                        val nativePath = root?.resolve(record.directoryName)
+                        if (nativePath != null && !nativePath.exists() && state.find(key, record.agentId, record.skillId) == null) {
+                            Files.createDirectories(root)
+                            Files.move(legacyPath, nativePath)
+                            state.record(record)
+                        } else {
+                            deleteTree(legacyPath)
+                        }
+                    }
+                    state.removeLegacy(record)
+                }.isSuccess
+            }
+        }
+    }
+
+    /**
      * One mutation over every directory [skill] occupies in [target], and over the state file
      * describing them. A preflight that decided a tree may be written must still hold when the
      * write lands, so the check, the write and its record share one lock.
@@ -355,41 +386,13 @@ class SkillInstallService(
     private fun <T> mutate(target: Target, skillId: String, body: () -> T): T =
         coordinator.mutate(*destinations(target, skillId).map { it.path }.plusElement(state.file).toTypedArray(), body = body)
 
-    private data class Destination(val agent: AgentAdapter, val directory: SkillDirectory, val path: Path)
-
-    /**
-     * Agents can declare one physical skill root (Pi's default and the shared roots of Kimi Code and
-     * ZCode are all `.agents/skills`). Another agent's record in the same scope that resolves to the
-     * same path keeps the tree after this agent lets go.
-     */
-    private fun heldByAnotherAgent(target: Target, skillId: String, destination: Destination): Boolean {
-        val key = skillTargetKey(target)
-        return state.all().any { other ->
-            other.targetKey == key && other.skillId == skillId && other.agentId != destination.agent.id &&
-                recordedPath(target, other) == destination.path.normalize()
-        }
-    }
-
-    /**
-     * The record of another agent that wrote this skill into a root this agent reads too. Pi reads
-     * `.agents/skills`, which ZCode or Kimi Code may have filled: the tree is ours there, and without
-     * this an unrecorded agent would report a copy identical to the library as foreign and modified.
-     */
-    private fun sharedRecord(target: Target, skillId: String, destination: Destination): SkillInstallRecord? {
-        val key = skillTargetKey(target)
-        return state.all().lastOrNull { other ->
-            other.targetKey == key && other.skillId == skillId && other.agentId != destination.agent.id &&
-                recordedPath(target, other) == destination.path.normalize()
-        }
-    }
+    private data class Destination(val agent: AgentAdapter, val path: Path)
 
     private fun recordedPath(target: Target, record: SkillInstallRecord): Path? {
         val agent = agentsOf(target).firstOrNull { it.id == record.agentId } ?: agentById(record.agentId) ?: return null
-        return directoriesFor(target, agent).firstOrNull { it.id == record.directoryId }
-            ?.path?.resolve(record.directoryName)?.normalize()
+        return rootOf(target, agent)?.resolve(record.directoryName)?.normalize()
     }
 
-    /** Shared roots use the latest physical write, even when another agent performed it. */
     private fun recordedExecutableFiles(target: Target, path: Path): List<String>? =
         state.all().lastOrNull {
             it.targetKey == skillTargetKey(target) && recordedPath(target, it) == path.normalize()
@@ -400,37 +403,37 @@ class SkillInstallService(
      * must follow that sidecar address, never infer a new path from the now-missing library object.
      */
     private fun orphanDestinations(target: Target, skillId: String): List<Destination> {
-        val roots = agentsOf(target).flatMap { agent ->
-            directoriesFor(target, agent).map { directory -> (agent.id to directory.id) to (agent to directory) }
-        }.toMap()
+        val roots = agentsOf(target).mapNotNull { agent -> rootOf(target, agent)?.let { agent.id to (agent to it) } }.toMap()
         return state.all()
             .asSequence()
             .filter { it.targetKey == skillTargetKey(target) && it.skillId == skillId }
             .mapNotNull { record ->
-                roots[record.agentId to record.directoryId]?.let { (agent, directory) ->
-                    Destination(agent, directory, directory.path.resolve(record.directoryName))
-                }
+                roots[record.agentId]?.let { (agent, root) -> Destination(agent, root.resolve(record.directoryName)) }
             }
             .toList()
     }
 
-    private fun skillDirectories(target: Target): List<SkillDirectory> =
-        agentsOf(target).flatMap { directoriesFor(target, it) }
-            .map { directory -> directory.copy(path = directory.path.normalize()) }
-            .distinctBy { it.path }
+    private fun roots(target: Target): List<Path> = agentsOf(target).mapNotNull { rootOf(target, it) }.distinct()
 
     private fun destinations(target: Target, skillId: String): List<Destination> =
-        agentsOf(target).flatMap { agent ->
-            directoriesFor(target, agent).map { directory ->
-                val name = state.find(skillTargetKey(target), agent.id, skillId, directory.id)?.directoryName ?: skillId
-                Destination(agent, directory, directory.path.resolve(name).normalize())
+        agentsOf(target).mapNotNull { agent ->
+            rootOf(target, agent)?.let { root ->
+                val name = state.find(skillTargetKey(target), agent.id, skillId)?.directoryName ?: skillId
+                Destination(agent, root.resolve(name).normalize())
             }
-        }.distinctBy { it.path }
+        }
 
-    private fun directoriesFor(target: Target, agent: AgentAdapter): List<SkillDirectory> = when (target) {
-        is AgentGlobalTarget -> agent.globalSkillDirectories()
-        is ProjectTarget -> agent.projectSkillDirectories(target.dir)
-    }
+    /** The agent's own skill root at [target]'s scope; never the cross-agent `.agents/skills` tree. */
+    private fun rootOf(target: Target, agent: AgentAdapter): Path? = when (target) {
+        is AgentGlobalTarget -> agent.globalSkillsDirectory()
+        is ProjectTarget -> agent.projectSkillsDirectory(target.dir)
+    }?.normalize()
+
+    /** Where earlier versions wrote the [SkillInstallRecord.isNative]-less copies of [target]. */
+    private fun sharedRoot(target: Target): Path = when (target) {
+        is AgentGlobalTarget -> sharedHome
+        is ProjectTarget -> target.dir
+    }.resolve(".agents").resolve("skills").normalize()
 
     private fun agentsOf(target: Target): List<AgentAdapter> = when (target) {
         is AgentGlobalTarget -> listOf(target.agent)

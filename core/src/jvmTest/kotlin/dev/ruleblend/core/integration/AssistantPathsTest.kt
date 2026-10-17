@@ -27,15 +27,15 @@ class AssistantPathsTest {
         assertTrue(claude.isAvailable())
         assertTrue(pi.isAvailable())
         assertEquals(paths.codex.resolve("AGENTS.md"), codex.globalFile())
-        assertEquals(paths.codex.resolve("skills"), codex.globalSkillDirectories().single().path)
+        assertEquals(paths.codex.resolve("skills"), codex.globalSkillsDirectory())
         assertEquals(paths.codex.resolve("agents"), codex.globalSubagentDirectory())
         assertEquals(paths.claude.resolve("CLAUDE.md"), claude.globalFile())
         assertEquals(paths.claude.resolve("skills"), claude.globalSkillsDirectory())
         assertEquals(paths.claude.resolve("agents"), claude.globalSubagentDirectory())
         assertEquals(paths.claude.resolve(".claude.json"), paths.claudeConfig)
         assertEquals(home.resolve("pi-custom/AGENTS.md"), pi.globalFile())
-        assertEquals(home.resolve(".agents/skills"), pi.globalSkillsDirectory())
-        assertEquals(home.resolve("project/.codex/skills"), codex.projectSkillDirectories(home.resolve("project")).single().path)
+        assertEquals(home.resolve("pi-custom/skills"), pi.globalSkillsDirectory())
+        assertEquals(home.resolve("project/.codex/skills"), codex.projectSkillsDirectory(home.resolve("project")))
     }
 
     @Test fun explicitHomesUseDefaultsAndIgnoreUnrelatedWindowsVariables() {

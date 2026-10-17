@@ -95,22 +95,12 @@ class AgentAdapterTest {
         assertEquals(SubagentSupport.SUPPORTED, CodexAdapter(home).subagentSupport)
         assertEquals(home.resolve(".codex/agents/review.toml"), CodexAdapter(home).globalSubagentFile("review"))
         assertEquals(project.resolve(".codex/agents/review.toml"), CodexAdapter(home).projectSubagentFile(project, "review"))
-        assertEquals(
-            listOf(
-                SkillDirectory("native", home.resolve(".codex/skills")),
-            ),
-            CodexAdapter(home).globalSkillDirectories(),
-        )
-        assertEquals(
-            listOf(
-                SkillDirectory("native", project.resolve(".codex/skills")),
-            ),
-            CodexAdapter(home).projectSkillDirectories(project),
-        )
+        assertEquals(home.resolve(".codex/skills"), CodexAdapter(home).globalSkillsDirectory())
+        assertEquals(project.resolve(".codex/skills"), CodexAdapter(home).projectSkillsDirectory(project))
         assertEquals(home.resolve(".pi").resolve("agent").resolve("AGENTS.md"), PiAdapter(home).globalFile())
         assertEquals(project.resolve("AGENTS.md"), PiAdapter(home).projectFile(project))
-        assertEquals(home.resolve(".agents/skills"), PiAdapter(home).globalSkillsDirectory())
-        assertEquals(project.resolve(".agents/skills"), PiAdapter(home).projectSkillsDirectory(project))
+        assertEquals(home.resolve(".pi/agent/skills"), PiAdapter(home).globalSkillsDirectory())
+        assertEquals(project.resolve(".pi/skills"), PiAdapter(home).projectSkillsDirectory(project))
         assertEquals(home.resolve(".kimi-code").resolve("AGENTS.md"), KimiCodeAdapter(home).globalFile())
         assertEquals(project.resolve("AGENTS.md"), KimiCodeAdapter(home).projectFile(project))
         assertEquals(SubagentSupport.SUPPORTED, KimiCodeAdapter(home).subagentSupport)
@@ -118,31 +108,12 @@ class AgentAdapterTest {
         assertEquals(project.resolve(".kimi-code/agents/review.md"), KimiCodeAdapter(home).projectSubagentFile(project, "review"))
         assertEquals(home.resolve(".kimi-code/skills"), KimiCodeAdapter(home).globalSkillsDirectory())
         assertEquals(project.resolve(".kimi-code/skills"), KimiCodeAdapter(home).projectSkillsDirectory(project))
-        assertEquals(
-            listOf(
-                SkillDirectory("native", home.resolve(".kimi-code/skills")),
-                SkillDirectory("shared", home.resolve(".agents/skills")),
-            ),
-            KimiCodeAdapter(home).globalSkillDirectories(),
-        )
         assertEquals(home.resolve(".zcode").resolve("AGENTS.md"), ZCodeAdapter(home).globalFile())
         assertEquals(project.resolve("AGENTS.md"), ZCodeAdapter(home).projectFile(project))
         assertEquals(SubagentSupport.UNSUPPORTED, ZCodeAdapter(home).subagentSupport)
         assertNull(ZCodeAdapter(home).globalSubagentFile("review"))
-        assertEquals(
-            listOf(
-                SkillDirectory("native", home.resolve(".zcode/skills")),
-                SkillDirectory("shared", home.resolve(".agents/skills")),
-            ),
-            ZCodeAdapter(home).globalSkillDirectories(),
-        )
-        assertEquals(
-            listOf(
-                SkillDirectory("native", project.resolve(".zcode/skills")),
-                SkillDirectory("shared", project.resolve(".agents/skills")),
-            ),
-            ZCodeAdapter(home).projectSkillDirectories(project),
-        )
+        assertEquals(home.resolve(".zcode/skills"), ZCodeAdapter(home).globalSkillsDirectory())
+        assertEquals(project.resolve(".zcode/skills"), ZCodeAdapter(home).projectSkillsDirectory(project))
     }
 
     @Test

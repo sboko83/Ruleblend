@@ -568,6 +568,16 @@ internal fun App(
         settings.load()
         home.checkSkillSourcesOnLaunch()
     }
+    // Skills now live only in each agent's own directory; copies earlier versions left in the
+    // shared `.agents/skills` trees are moved home or cleared once, before anyone reads them.
+    LaunchedEffect(skillService) {
+        withContext(Dispatchers.IO) {
+            configuredTargets(configStore.load(), agents).all.forEach { target ->
+                runCatching { skillService.retireSharedCopies(target) }
+                    .onFailure { System.err.println("Ruleblend: shared skill cleanup failed for ${target.name}: ${it.message}") }
+            }
+        }
+    }
     // The remote worker is best-effort and never holds the first frame: an automatic remote is
     // checked once per launch before any screen decides what it needs to render.
     LaunchedEffect(libraryGit) {

@@ -16,7 +16,13 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
+import kotlin.io.path.writeBytes
 import kotlin.io.path.writeText
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.put
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -60,7 +66,7 @@ class SkillInstallServiceTest {
         snapshots = mutableMapOf("review" to snapshot("# Review\n", version = "1"))
         state = SkillInstallStateStore(home.resolve(".ruleblend"))
         val agents = listOf(ClaudeCodeAdapter(home), CodexAdapter(home), PiAdapter(home), KimiCodeAdapter(home), ZCodeAdapter(home))
-        service = SkillInstallService(state, { snapshots[it] }, agentById = { id -> agents.firstOrNull { it.id == id } })
+        service = SkillInstallService(state, { snapshots[it] }, agentById = { id -> agents.firstOrNull { it.id == id } }, sharedHome = home)
     }
 
     @AfterTest
@@ -70,17 +76,85 @@ class SkillInstallServiceTest {
     }
 
     @Test
-    fun `Codex installs skills only in its native root while Pi uses the shared root`() {
-        service.install(globalCodex, skill)
+    fun `every agent installs skills only in its own root`() {
+        listOf(globalCodex, globalPi, globalKimi, globalZCode).forEach { service.install(it, skill) }
+        listOf(kimiProjectTarget, zCodeProjectTarget, ProjectTarget(project, listOf(PiAdapter(home)))).forEach { service.install(it, skill) }
 
-        assertEquals("# Review\n", home.resolve(".codex/skills/review/SKILL.md").readText())
-        assertFalse(home.resolve(".agents/skills/review").exists())
-
-        service.install(globalPi, skill)
-
-        assertEquals("# Review\n", home.resolve(".agents/skills/review/SKILL.md").readText())
-        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalCodex, skill))
+        listOf(".codex/skills", ".pi/agent/skills", ".kimi-code/skills", ".zcode/skills").forEach { root ->
+            assertEquals("# Review\n", home.resolve("$root/review/SKILL.md").readText(), root)
+        }
+        listOf(".pi/skills", ".kimi-code/skills", ".zcode/skills").forEach { root ->
+            assertEquals("# Review\n", project.resolve("$root/review/SKILL.md").readText(), root)
+        }
+        assertFalse(home.resolve(".agents").exists())
+        assertFalse(project.resolve(".agents").exists())
         assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalPi, skill))
+        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(zCodeProjectTarget, skill))
+    }
+
+    @Test
+    fun `a Pi copy left in the shared root moves into Pi's own root`() {
+        val shared = legacyCopy(home.resolve(".agents/skills/review"), skillTargetKey(globalPi), "pi", directoryId = null)
+
+        assertEquals(1, service.retireSharedCopies(globalPi))
+
+        assertFalse(shared.exists())
+        assertEquals("# Review\n", home.resolve(".pi/agent/skills/review/SKILL.md").readText())
+        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalPi, skill))
+        assertTrue(state.legacy().isEmpty(), state.legacy().toString())
+    }
+
+    @Test
+    fun `a shared project copy moves home even when other agents recorded it too`() {
+        val target = ProjectTarget(project, listOf(PiAdapter(home), ZCodeAdapter(home)))
+        service.install(zCodeProjectTarget, skill)
+        val shared = legacyCopy(project.resolve(".agents/skills/review"), skillTargetKey(target), "zcode", "shared")
+        legacyCopy(shared, skillTargetKey(target), "pi", directoryId = null)
+
+        assertEquals(2, service.retireSharedCopies(target))
+
+        assertFalse(shared.exists())
+        assertEquals("# Review\n", project.resolve(".pi/skills/review/SKILL.md").readText())
+        assertEquals("# Review\n", project.resolve(".zcode/skills/review/SKILL.md").readText())
+        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(target, skill))
+        assertTrue(state.legacy().isEmpty(), state.legacy().toString())
+    }
+
+    @Test
+    fun `a shared copy beside a native one is deleted`() {
+        service.install(globalKimi, skill)
+        val shared = legacyCopy(home.resolve(".agents/skills/review"), skillTargetKey(globalKimi), "kimi-code", "shared")
+
+        assertEquals(1, service.retireSharedCopies(globalKimi))
+
+        assertFalse(shared.exists())
+        assertEquals("# Review\n", home.resolve(".kimi-code/skills/review/SKILL.md").readText())
+        assertTrue(state.legacy().isEmpty())
+    }
+
+    @Test
+    fun `an edited shared copy stays and is no longer managed`() {
+        val shared = legacyCopy(home.resolve(".agents/skills/review"), skillTargetKey(globalPi), "pi", directoryId = null)
+        shared.resolve("SKILL.md").writeText("# Edited\n")
+
+        assertEquals(1, service.retireSharedCopies(globalPi))
+
+        assertEquals("# Edited\n", shared.resolve("SKILL.md").readText())
+        assertFalse(home.resolve(".pi/agent/skills/review").exists())
+        assertNull(service.status(globalPi, skill))
+        assertTrue(state.legacy().isEmpty())
+    }
+
+    @Test
+    fun `a shared copy never replaces a directory already in the native root`() {
+        val shared = legacyCopy(home.resolve(".agents/skills/review"), skillTargetKey(globalPi), "pi", directoryId = null)
+        val foreign = home.resolve(".pi/agent/skills/review").createDirectories().resolve("SKILL.md")
+        foreign.writeText("# Mine\n")
+
+        service.retireSharedCopies(globalPi)
+
+        assertFalse(shared.exists())
+        assertEquals("# Mine\n", foreign.readText())
     }
 
     /** A path is an `Iterable<Path>`: the lock set must name the state file, not its name components. */
@@ -113,89 +187,12 @@ class SkillInstallServiceTest {
     }
 
     @Test
-    fun `ZCode installs skills in native and shared directories at both scopes`() {
-        service.install(globalZCode, skill)
-        service.install(zCodeProjectTarget, skill)
-
-        assertEquals("# Review\n", home.resolve(".zcode/skills/review/SKILL.md").readText())
-        assertEquals("# Review\n", home.resolve(".agents/skills/review/SKILL.md").readText())
-        assertEquals("# Review\n", project.resolve(".zcode/skills/review/SKILL.md").readText())
-        assertEquals("# Review\n", project.resolve(".agents/skills/review/SKILL.md").readText())
-        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalZCode, skill))
-        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(zCodeProjectTarget, skill))
-    }
-
-    @Test
-    fun `Pi reports a skill another agent wrote into the shared root as ours`() {
-        service.install(globalZCode, skill)
-        assertTrue(state.all().none { it.agentId == "pi" }, state.all().toString())
-
-        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(globalPi, skill))
-
-        home.resolve(".agents/skills/review/SKILL.md").writeText("# Edited\n")
-        assertEquals(SkillInstallStatus(InstallStatus.MODIFIED, false), service.status(globalPi, skill))
-    }
-
-    @Test
-    fun `shared skill remains until its last agent removes it`() {
-        service.install(globalPi, skill)
-        service.install(globalKimi, skill)
-        service.install(globalZCode, skill)
-        val shared = home.resolve(".agents/skills/review/SKILL.md")
-        assertTrue(state.all().any { it.agentId == "zcode" && it.directoryId == "shared" }, state.all().toString())
-
-        service.remove(globalPi, skill)
-        assertTrue(shared.exists(), state.all().toString())
-        service.remove(globalKimi, skill)
-        assertTrue(shared.exists())
-        assertFalse(home.resolve(".kimi-code/skills/review/SKILL.md").exists())
-        service.remove(globalZCode, skill)
-        assertFalse(shared.exists())
-        assertFalse(home.resolve(".zcode/skills/review/SKILL.md").exists())
-    }
-
-    @Test
-    fun `shared project skill stays while an agent outside the target still owns it`() {
-        service.install(ProjectTarget(project, listOf(PiAdapter(home))), skill)
-        service.install(kimiProjectTarget, skill)
-        val shared = project.resolve(".agents/skills/review/SKILL.md")
-
-        service.remove(ProjectTarget(project, listOf(PiAdapter(home))), skill)
-        assertTrue(shared.exists(), state.all().toString())
-        service.remove(kimiProjectTarget, skill)
-        assertFalse(shared.exists())
-        assertFalse(project.resolve(".kimi-code/skills/review/SKILL.md").exists())
-    }
-
-    @Test
-    fun `a new adapter declaring the shared root holds it without service changes`() {
-        val future = object : AgentAdapter {
-            override val id = "future"
-            override val name = "Future"
-            override fun isAvailable() = true
-            override fun globalFile(): Path = home.resolve(".future/AGENTS.md")
-            override fun projectFile(projectDir: Path): Path = projectDir.resolve("AGENTS.md")
-            override fun globalSkillDirectories() = listOf(SkillDirectory("common", home.resolve(".agents/skills")))
-        }
-        val agents = listOf(PiAdapter(home), future)
-        val service = SkillInstallService(state, { snapshots[it] }, agentById = { id -> agents.firstOrNull { it.id == id } })
-        service.install(globalPi, skill)
-        service.install(AgentGlobalTarget(future), skill)
-        val shared = home.resolve(".agents/skills/review/SKILL.md")
-
-        service.remove(globalPi, skill)
-        assertTrue(shared.exists(), state.all().toString())
-        service.remove(AgentGlobalTarget(future), skill)
-        assertFalse(shared.exists())
-    }
-
-    @Test
     fun `project install writes every agent skills tree once`() {
         service.install(projectTarget, skill)
 
         assertTrue(project.resolve(".claude/skills/review/SKILL.md").exists())
         assertTrue(project.resolve(".codex/skills/review/SKILL.md").exists())
-        assertTrue(project.resolve(".agents/skills/review/references/checklist.md").exists())
+        assertTrue(project.resolve(".pi/skills/review/references/checklist.md").exists())
         assertEquals(emptyList(), service.unsupportedAgents(projectTarget))
         assertTrue(service.installedEverywhere(projectTarget, skill))
     }
@@ -255,14 +252,12 @@ class SkillInstallServiceTest {
         assertEquals(
             listOf(
                 SkillDirEntry(
-                    "default",
                     root.resolve("format"),
                     "format",
                     dev.ruleblend.core.model.SkillFrontmatter("formatter", "Formats Kotlin", "2.1"),
                     "---\nname: formatter\ndescription: Formats Kotlin\nversion: 2.1\n---\n\n# Format\n",
                 ),
                 SkillDirEntry(
-                    "default",
                     root.resolve("review"),
                     "review",
                     dev.ruleblend.core.model.SkillFrontmatter("review"),
@@ -305,7 +300,7 @@ class SkillInstallServiceTest {
             directory.createDirectories()
             directory.resolve("SKILL.md").writeText("---\nname: review\n---\n")
         }
-        state.record(SkillInstallRecord(skillTargetKey(target), CodexAdapter(home).id, "review", "fingerprint", "native"))
+        state.record(SkillInstallRecord(skillTargetKey(target), CodexAdapter(home).id, "review", "fingerprint"))
 
         val entries = service.classifiedEntries(target, librarySkillIds = setOf("review"))
 
@@ -398,6 +393,30 @@ class SkillInstallServiceTest {
         assertEquals(SkillInstallStatus(InstallStatus.UPDATE_AVAILABLE, false), service.status(globalClaude, snapshot.skill))
     }
 
+    /**
+     * A copy an earlier version wrote into a shared `.agents/skills` tree: the files of the current
+     * review snapshot at [directory], and a record under the retired root id ([directoryId] `null`
+     * stands for a record that predates the field, as Pi's did).
+     */
+    private fun legacyCopy(directory: Path, targetKey: String, agentId: String, directoryId: String?): Path {
+        val files = requireNotNull(snapshots["review"]).files
+        files.forEach { file ->
+            directory.resolve(file.path).also { it.parent.createDirectories() }.writeBytes(file.bytes)
+        }
+        val stateFile = home.resolve(".ruleblend/skill-state.json")
+        val existing = if (stateFile.exists()) Json.parseToJsonElement(stateFile.readText()).jsonArray.toList() else emptyList()
+        val record = buildJsonObject {
+            put("targetKey", targetKey)
+            put("agentId", agentId)
+            put("skillId", "review")
+            put("fingerprint", skillTreeFingerprint(files))
+            directoryId?.let { put("directoryId", it) }
+        }
+        stateFile.parent.createDirectories()
+        stateFile.writeText(JsonArray(existing + record).toString())
+        return directory
+    }
+
     private fun snapshot(content: String, version: String, includeReference: Boolean = true): SkillSnapshot {
         val model = Skill("review", "review", version = version, content = content)
         val files = buildList {
@@ -412,7 +431,7 @@ class SkillInstallServiceTest {
         // A locked second destination must roll the first agent back to its previous version.
         service.install(projectTarget, skill)
         snapshots["review"] = snapshot("# Review, revised\n", version = "2")
-        val second = project.resolve(".agents/skills/review/SKILL.md")
+        val second = project.resolve(".pi/skills/review/SKILL.md")
         blockFileReplacement(second).use {
             val outcome = runCatching { service.install(projectTarget, skill) }
 
@@ -514,19 +533,6 @@ class SkillInstallServiceTest {
         assertEquals(OrphanRemoval.REMOVED, outcome)
         assertFalse(home.resolve(".claude/skills/review").exists())
         assertTrue(service.installedOrigins(globalClaude).isEmpty())
-    }
-
-    @Test
-    fun `an orphaned shared copy stays while another agent still owns it`() {
-        service.install(globalPi, skill)
-        service.install(globalKimi, skill)
-        snapshots.remove("review")
-        val shared = home.resolve(".agents/skills/review/SKILL.md")
-
-        assertEquals(OrphanRemoval.REMOVED, service.removeOrphan(globalPi, "review"))
-        assertTrue(shared.exists(), state.all().toString())
-        assertEquals(OrphanRemoval.REMOVED, service.removeOrphan(globalKimi, "review"))
-        assertFalse(shared.exists())
     }
 
     @Test

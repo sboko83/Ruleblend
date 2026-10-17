@@ -749,12 +749,12 @@ class RuleblendToolsTest {
         val installed = tools.install(args("target" to project.toString(), "group_id" to "ios")) as JsonObject
         assertEquals(listOf(skill.id), (installed["installed_skills"] as JsonArray).map { it.jsonPrimitive.content })
         assertTrue(project.resolve(".claude/skills/review/SKILL.md").exists())
-        assertTrue(project.resolve(".agents/skills/review/SKILL.md").exists())
+        assertTrue(project.resolve(".zcode/skills/review/SKILL.md").exists())
 
         val removed = tools.uninstall(args("target" to project.toString(), "group_id" to "ios")) as JsonObject
         assertEquals(listOf(skill.id), (removed["removed_skills"] as JsonArray).map { it.jsonPrimitive.content })
         assertFalse(project.resolve(".claude/skills/review").exists())
-        assertFalse(project.resolve(".agents/skills/review").exists())
+        assertFalse(project.resolve(".zcode/skills/review").exists())
     }
 
     @Test

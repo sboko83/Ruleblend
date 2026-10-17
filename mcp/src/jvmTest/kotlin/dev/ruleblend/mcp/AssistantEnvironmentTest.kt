@@ -101,7 +101,7 @@ class AssistantEnvironmentTest {
         val installers = listOf(
             ClaudeCodeSkillInstaller(paths = paths) to paths.claude.resolve("skills"),
             CodexSkillInstaller(paths = paths) to paths.codex.resolve("skills"),
-            PiSkillInstaller(paths = paths) to home.resolve(".agents/skills"),
+            PiSkillInstaller(paths = paths) to paths.pi.resolve("skills"),
             KimiCodeSkillInstaller(kimi) to paths.kimi.resolve("skills"),
         )
         for ((installer, directory) in installers) {

@@ -3,9 +3,6 @@ package dev.ruleblend.core.integration
 import java.nio.file.Path
 import kotlin.io.path.exists
 
-/** One skill root an agent reads at a scope; [id] keeps its ownership record distinct. */
-data class SkillDirectory(val id: String, val path: Path)
-
 /** Whether an agent has a safe, file-backed subagent definition surface. */
 enum class SubagentSupport {
     SUPPORTED,
@@ -49,10 +46,13 @@ interface AgentAdapter {
      */
     fun projectRedirectFile(projectDir: Path): Path? = null
 
-    /** User-level skill root, or `null` when Ruleblend has no native skill integration. */
+    /**
+     * The agent's own user-level skill root, or `null` when Ruleblend has no skill integration.
+     * Ruleblend writes only here, never into the cross-agent `.agents/skills` tree.
+     */
     fun globalSkillsDirectory(): Path? = null
 
-    /** Project-level skill root, or `null` when Ruleblend has no native skill integration. */
+    /** The agent's own project-level skill root. See [globalSkillsDirectory]. */
     fun projectSkillsDirectory(projectDir: Path): Path? = null
 
     /** Whether Ruleblend can manage this agent's subagent definitions. */
@@ -72,17 +72,6 @@ interface AgentAdapter {
 
     /** File Ruleblend will use for [id] at project scope, if the agent supports subagents. */
     fun projectSubagentFile(projectDir: Path, id: String): Path? = subagentFile(projectSubagentDirectory(projectDir), id)
-
-    /**
-     * Skill roots read globally. Most agents have one; agents that combine native and shared skill
-     * roots override this rather than dropping one of the surfaces they load.
-     */
-    fun globalSkillDirectories(): List<SkillDirectory> =
-        globalSkillsDirectory()?.let { listOf(SkillDirectory("default", it)) } ?: emptyList()
-
-    /** Skill roots read from one project or workspace. See [globalSkillDirectories]. */
-    fun projectSkillDirectories(projectDir: Path): List<SkillDirectory> =
-        projectSkillsDirectory(projectDir)?.let { listOf(SkillDirectory("default", it)) } ?: emptyList()
 
     private fun subagentFile(directory: Path?, id: String): Path? = directory?.let {
         requireNotNull(subagentFormat) { "$name declares a subagent directory without a format" }
@@ -137,13 +126,9 @@ class CodexAdapter(
 
     override fun projectFile(projectDir: Path): Path = projectDir.resolve("AGENTS.md")
 
-    override fun globalSkillDirectories(): List<SkillDirectory> = listOf(
-        SkillDirectory("native", paths.codex.resolve("skills")),
-    )
+    override fun globalSkillsDirectory(): Path = paths.codex.resolve("skills")
 
-    override fun projectSkillDirectories(projectDir: Path): List<SkillDirectory> = listOf(
-        SkillDirectory("native", projectDir.resolve(".codex").resolve("skills")),
-    )
+    override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".codex").resolve("skills")
 
     override val subagentSupport = SubagentSupport.SUPPORTED
     override val subagentFormat = CodexSubagentFormat
@@ -158,7 +143,6 @@ class KimiCodeAdapter(home: KimiCodeHome = KimiCodeHome.current()) : AgentAdapte
     constructor(home: Path) : this(KimiCodeHome.under(home))
 
     private val kimiHome: Path = home.directory
-    private val sharedHome: Path = home.userHome
 
     override val id: String = "kimi-code"
     override val name: String = "Kimi Code"
@@ -173,16 +157,6 @@ class KimiCodeAdapter(home: KimiCodeHome = KimiCodeHome.current()) : AgentAdapte
     override fun globalSkillsDirectory(): Path = kimiHome.resolve("skills")
 
     override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".kimi-code").resolve("skills")
-
-    override fun globalSkillDirectories(): List<SkillDirectory> = listOf(
-        SkillDirectory("native", kimiHome.resolve("skills")),
-        SkillDirectory("shared", sharedHome.resolve(".agents").resolve("skills")),
-    )
-
-    override fun projectSkillDirectories(projectDir: Path): List<SkillDirectory> = listOf(
-        SkillDirectory("native", projectDir.resolve(".kimi-code").resolve("skills")),
-        SkillDirectory("shared", projectDir.resolve(".agents").resolve("skills")),
-    )
 
     override val subagentSupport = SubagentSupport.SUPPORTED
     override val subagentFormat = KimiCodeSubagentFormat
@@ -205,15 +179,9 @@ class ZCodeAdapter(
 
     override fun projectFile(projectDir: Path): Path = projectDir.resolve("AGENTS.md")
 
-    override fun globalSkillDirectories(): List<SkillDirectory> = listOf(
-        SkillDirectory("native", home.resolve(".zcode").resolve("skills")),
-        SkillDirectory("shared", home.resolve(".agents").resolve("skills")),
-    )
+    override fun globalSkillsDirectory(): Path = home.resolve(".zcode").resolve("skills")
 
-    override fun projectSkillDirectories(projectDir: Path): List<SkillDirectory> = listOf(
-        SkillDirectory("native", projectDir.resolve(".zcode").resolve("skills")),
-        SkillDirectory("shared", projectDir.resolve(".agents").resolve("skills")),
-    )
+    override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".zcode").resolve("skills")
 }
 
 /**
@@ -235,7 +203,7 @@ class PiAdapter(
 
     override fun projectFile(projectDir: Path): Path = projectDir.resolve("AGENTS.md")
 
-    override fun globalSkillsDirectory(): Path = paths.userHome.resolve(".agents").resolve("skills")
+    override fun globalSkillsDirectory(): Path = paths.pi.resolve("skills")
 
-    override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".agents").resolve("skills")
+    override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".pi").resolve("skills")
 }

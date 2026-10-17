@@ -411,12 +411,14 @@ upstream tree or automatic merge is stored for the fork.
 ## Skill installation
 
 Library skills install as complete directory trees for agents with a known skill location. Claude
-Code uses `~/.claude/skills/<id>` globally and `<project>/.claude/skills/<id>` per project; Codex
-uses only its native `.codex/skills` root. Kimi Code and ZCode each write their native root
-(`.kimi-code/skills`, `.zcode/skills`) and the shared `.agents/skills` root at both scopes; Pi reads
-the shared root only. Ruleblend reserves `.agents/skills` for a separate shared-assistant integration
-rather than making Codex duplicate every library skill there. A project target writes every tree of
-each enabled agent and skips agents without a known skill location.
+Code uses `~/.claude/skills/<id>` globally and `<project>/.claude/skills/<id>` per project. Every
+other agent likewise gets exactly one root per scope, its own: `.codex/skills`, `.kimi-code/skills`,
+`.zcode/skills`, and for Pi `~/.pi/agent/skills` globally and `<project>/.pi/skills` per project.
+Ruleblend never writes the cross-agent `.agents/skills` tree, even though Codex, Kimi Code, ZCode and
+Pi also read it: one agent, one root keeps ownership a plain per-agent record, where a shared tree
+had to be reference-counted across agents and targets and its status borrowed from whichever agent
+wrote it last. A project target writes the tree of each enabled agent and skips agents without a
+known skill location.
 
 `skill-state.json` records the fingerprint last written per target, agent and skill. An exact library
 tree is `synced`; an unchanged installed tree after a library edit is `update-available`; an unknown
@@ -424,14 +426,14 @@ or hand-edited tree is `modified`. Unknown or edited trees require explicit over
 never deletes one.
 Only a record makes a tree managed: without one it is foreign even when it equals the library tree,
 so a lost state file turns copies into foreign entries, never into silently owned ones.
-Agents may declare one physical skill root: Pi's default root and the shared roots of Kimi Code and
-ZCode are all `.agents/skills`. Ownership follows the declared paths, not agent ids: a record holds a
-tree when its agent's root with that directory id, in the same target scope, resolves to the same
-normalized path. Removing one agent's installation drops its ownership record and native copy; the
-shared tree stays until the last such owner removes it, even when that owner is not among the
-current target's agents. Status follows the same rule: an agent without a record of its own (Pi in a
-root ZCode filled) judges the tree by the owner's record instead of reporting a library-equal copy
-as foreign and modified.
+Earlier versions also wrote `.agents/skills`. A record's `directoryId` tells the two apart: `native`
+for the agent's own root, anything else (`shared`, or a Pi record without the field) for a copy in
+the retired tree. On launch the app retires those per configured target: an unchanged copy moves
+into its agent's own root when that root holds nothing under the name, so a skill installed for Pi
+stays installed; otherwise it is deleted. A copy edited since it was written stays where it is and
+becomes the user's. The legacy record goes either way, except when the move or delete itself fails.
+Pi's bundled `ruleblend` skill follows the same move: an owned copy left in `~/.agents/skills` reads
+as outdated and is removed when the skill is installed into `~/.pi/agent/skills`.
 
 Executable intent belongs to the portable snapshot: `meta.yaml` is authoritative in the library,
 and `skill-state.json` stores the executable paths last installed, including for orphan recovery.
@@ -727,7 +729,7 @@ bundled skill share the same resolution. Overrides must be absolute native paths
 WSL homes are a separate environment and are rejected instead of being mapped onto a Windows drive.
 A rejected override is ignored for its assistant only, logged to stderr and shown in Settings
 diagnostics: one stray variable must not stop the app or the MCP server from starting.
-`HOME`, `APPDATA` and `XDG_CONFIG_HOME` do not relocate these assistants' shared `.agents` roots.
+`HOME`, `APPDATA` and `XDG_CONFIG_HOME` do not relocate ZCode's compatibility `~/.agents/mcp.json`.
 
 | Override | Global root | MCP configuration |
 |---|---|---|
@@ -737,7 +739,7 @@ diagnostics: one stray variable must not stop the app or the MCP server from sta
 | [`KIMI_CODE_HOME`](https://moonshotai.github.io/kimi-code/en/configuration/config-files.html) | replaces `~/.kimi-code` | `<root>/mcp.json` |
 
 Project roots stay relative to the chosen native checkout. ZCode uses the defaults in the tables;
-its [native skills](https://zcode.z.ai/en/docs/skill) and shared roots do not move with another agent's override.
+its [native skills](https://zcode.z.ai/en/docs/skill) do not move with another agent's override.
 
 ### Installed distribution surfaces (snapshot: 2026-09-04)
 
@@ -750,7 +752,7 @@ adapter, skill, subagent and MCP sections below; no adapter changes follow from 
 | Agent | Configuration / MCP | Skills | Subagents |
 |---|---|---|---|
 | Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml`, `<project>/.codex/agents/*.toml`; the format is TOML, not Markdown. |
-| Pi | [Built-in MCP in 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` and `<project>/.pi/mcp.json`; project trust is required. | Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | No subagents. |
+| Pi | [Built-in MCP in 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` and `<project>/.pi/mcp.json`; project trust is required. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | No subagents. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json` (fall back to `~/.kimi-code/mcp.json`); `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Later files override earlier ones. | `<KIMI_CODE_HOME>/skills/` and `<project>/.kimi-code/skills/`; `.agents/skills/` is also read for shared skills. | `<KIMI_CODE_HOME>/agents/*.md` and `<project>/.kimi-code/agents/*.md`; Markdown frontmatter carries the definition. |
 | ZCode 3.10.1 | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | No stable user or workspace file format. `~/.zcode/cli/agents/` holds runtime sessions and is never a definition destination; plugins may contribute agents. |
 
@@ -760,11 +762,8 @@ column, and a switch leaves existing files untouched). A registered project whos
 exists stays in the list but is never written to: every install and removal into it fails instead of
 recreating the path around one instruction file.
 
-An adapter may declare more than one skill root at either scope. `SkillInstallService` installs and
-checks every distinct tree atomically, with a separate `directoryId` in `skill-state.json`; a shared
-tree claimed by two enabled agents is written once. Codex receives only its native `.codex/skills`
-copy; Kimi Code and ZCode also receive their shared `.agents/skills` copy, while Pi receives the
-shared copy only, globally and per project or workspace.
+An adapter declares at most one skill root per scope, the agent's own; the shared roots in the
+table above are read by the agents but never written by Ruleblend (see Skill installation).
 
 ### Subagent formats
 
@@ -817,7 +816,7 @@ an instruction file.
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
 | Codex | ✓ | ✓ | ✓ | ✓ |
 | Pi | ✓ | ✓ | ✓ | ✗ — no subagent feature |
-| Kimi Code | ✓ | ✓ | ✓ — native and shared roots | ✓ |
+| Kimi Code | ✓ | ✓ | ✓ | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✗ — no stable definition format |
 
 ### Subagent ownership and drift

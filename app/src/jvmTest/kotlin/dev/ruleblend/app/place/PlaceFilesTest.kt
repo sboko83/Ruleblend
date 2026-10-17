@@ -66,8 +66,8 @@ class PlaceFilesTest {
     @Test fun `a skill root outside an agent global folder keeps its full home-qualified address`() {
         val home = Path.of(System.getProperty("user.home"))
 
-        assertEquals("~${File.separator}.agents${File.separator}skills",
-            displayPath(home.resolve(".codex"), home.resolve(".agents/skills")))
+        assertEquals("~${File.separator}.zcode${File.separator}skills",
+            displayPath(home.resolve(".codex"), home.resolve(".zcode/skills")))
     }
 
     @Test fun `a project shows its rules file, pointer, mcp config and skills directory as one row of tabs`() {
@@ -267,7 +267,6 @@ class PlaceFilesTest {
             description: String? = null,
         ) = PlaceEntry(
             value = SkillDirEntry(
-                directoryId = "default",
                 path = Path.of("/skills/$id"),
                 id = id,
                 meta = SkillFrontmatter(name = "$id skill", description = description, version = "7"),
@@ -304,7 +303,7 @@ class PlaceFilesTest {
             ),
             entries = listOf(
                 PlaceEntry(
-                    value = SkillDirEntry("native", Path.of("/skills/format"), "format", SkillFrontmatter(name = "Format")),
+                    value = SkillDirEntry(Path.of("/skills/format"), "format", SkillFrontmatter(name = "Format")),
                     key = "skill:/skills/format",
                     libraryId = "format",
                     origin = PlaceEntryOrigin.MANAGED,
@@ -320,13 +319,13 @@ class PlaceFilesTest {
 
     @Test fun `a skill tab reads only the root it is the tab of`() {
         fun entry(root: String, id: String) = PlaceEntry(
-            value = SkillDirEntry("native", Path.of("$root/$id"), id, SkillFrontmatter(name = id)),
+            value = SkillDirEntry(Path.of("$root/$id"), id, SkillFrontmatter(name = id)),
             key = "skill:$root/$id",
             libraryId = id,
             origin = PlaceEntryOrigin.FOREIGN,
         )
 
-        val entries = listOf(entry("/project/.codex/skills", "review"), entry("/project/.agents/skills", "format"))
+        val entries = listOf(entry("/project/.codex/skills", "review"), entry("/project/.kimi-code/skills", "format"))
 
         assertEquals(
             listOf("review"),

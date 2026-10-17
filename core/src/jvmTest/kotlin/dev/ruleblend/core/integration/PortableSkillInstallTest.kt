@@ -107,26 +107,6 @@ class PortableSkillInstallTest {
     }
 
     @Test
-    fun `shared roots use the modes most recently installed by any owner`() {
-        val pi = PiAdapter(home)
-        val kimi = KimiCodeAdapter(home)
-        val adapters = listOf(pi, kimi)
-        val service = SkillInstallService(state, { snapshot }, { id -> adapters.firstOrNull { it.id == id } })
-        val piTarget = AgentGlobalTarget(pi)
-        val kimiTarget = AgentGlobalTarget(kimi)
-        service.install(piTarget, skill)
-        service.install(kimiTarget, skill)
-        snapshot = requireNotNull(snapshot).let { original ->
-            original.copy(files = original.files.map { it.copy(executable = false) })
-        }
-        service.install(kimiTarget, skill)
-        assertEquals(InstallStatus.SYNCED, service.status(piTarget, skill)?.status)
-        val expected = requireNotNull(snapshot).files.toSet()
-        snapshot = null
-        assertEquals(expected, service.capture(piTarget, service.entries(piTarget).single()).files.toSet())
-    }
-
-    @Test
     fun `legacy record can match the library but cannot hide content edits`() {
         service().install(target, skill)
         state.record(state.all().single().copy(executableFiles = null))

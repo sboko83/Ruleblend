@@ -12,6 +12,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class SkillInstallStateStoreTest {
 
@@ -56,16 +57,36 @@ class SkillInstallStateStoreTest {
     }
 
     @Test
-    fun `separate roots of one agent retain independent records`() {
+    fun `copies in the retired shared root read as legacy records`() {
+        dir.resolve("skill-state.json").writeText(
+            """[
+              {"targetKey":"agent","agentId":"claude-code","skillId":"review","fingerprint":"claude"},
+              {"targetKey":"agent","agentId":"pi","skillId":"review","fingerprint":"pi"},
+              {"targetKey":"agent","agentId":"zcode","skillId":"review","fingerprint":"native","directoryId":"native"},
+              {"targetKey":"agent","agentId":"zcode","skillId":"review","fingerprint":"shared","directoryId":"shared"}
+            ]""",
+        )
         val store = SkillInstallStateStore(dir)
-        store.record(SkillInstallRecord("agent", "zcode", "review", "native", "native"))
-        store.record(SkillInstallRecord("agent", "zcode", "review", "shared", "shared"))
 
-        assertEquals("native", store.find("agent", "zcode", "review", "native")?.fingerprint)
-        assertEquals("shared", store.find("agent", "zcode", "review", "shared")?.fingerprint)
-        store.remove("agent", "zcode", "review", "native")
-        assertNull(store.find("agent", "zcode", "review", "native"))
-        assertEquals("shared", store.find("agent", "zcode", "review", "shared")?.fingerprint)
+        assertEquals("claude", store.find("agent", "claude-code", "review")?.fingerprint)
+        assertEquals("native", store.find("agent", "zcode", "review")?.fingerprint)
+        assertNull(store.find("agent", "pi", "review"))
+        assertEquals(setOf("pi" to "pi", "zcode" to "shared"), store.legacy().map { it.agentId to it.fingerprint }.toSet())
+
+        store.remove("agent", "zcode", "review")
+        assertNull(store.find("agent", "zcode", "review"))
+        assertEquals(2, store.legacy().size)
+        store.removeLegacy(store.legacy().first { it.agentId == "zcode" })
+        assertEquals(listOf("pi"), store.legacy().map { it.agentId })
+    }
+
+    @Test
+    fun `a new record always describes the native root`() {
+        val store = SkillInstallStateStore(dir)
+        store.record(SkillInstallRecord("agent", "pi", "review", "fp", directoryId = "shared"))
+
+        assertEquals(NATIVE_SKILL_ROOT, store.find("agent", "pi", "review")?.directoryId)
+        assertTrue(store.legacy().isEmpty())
     }
 
     /** One state file holds every record, so two agents recorded at once share a read-modify-write. */

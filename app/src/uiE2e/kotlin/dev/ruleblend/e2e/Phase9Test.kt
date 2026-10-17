@@ -398,7 +398,7 @@ class Phase9Test {
         section("agents")
         val codexConfig = home.resolve(".codex/config.toml")
         val codexSkill = home.resolve(".codex/skills/ruleblend/SKILL.md")
-        val piSkill = home.resolve(".agents/skills/ruleblend/SKILL.md")
+        val piSkill = home.resolve(".pi/agent/skills/ruleblend/SKILL.md")
         if (stage == "first") {
             compose.onNodeWithText(EnStrings.connectStatusSkillForeign).assertIsDisplayed()
             compose.onNodeWithTag("settings-connect-codex").performClick()
