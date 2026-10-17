@@ -45,9 +45,10 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Two-stage selection, screening then choice over the shortlist — in an earlier experiment with a
   local model a single pass judged each item alone and took up to 31 items, ignoring a limit
   stated in the prompt — one-pass ranking. Not yet tried with Claude Code.
-- Place entry point and starting text: proposal — the assistance button in the project header next
-  to its assistants; text "Let's pick a profile for the project <name> (<absolute path>). Use
-  Ruleblend MCP and the ruleblend skill. Let's discuss first." Approval pending.
+- Place entry point and starting text: the assistance button in the project header next to its
+  assistants; text "Let's pick a profile for the project <name> (<absolute path>). Use Ruleblend
+  MCP and the ruleblend skill. Let's discuss first." — approved by the user 2026-10-17; matches
+  the Library entry point — a separate profile wizard.
 
 ## Phase 1: Profile selection
 
@@ -69,8 +70,8 @@ Do:
 - Describe the Place entry point in docs/ARCHITECTURE.md#ui and docs/ru/ARCHITECTURE.md.
 - Add a CHANGELOG bullet; raise `appBuild` by one.
 Verify: `./gradlew :app:jvmTest`
-Traps: Decisions must record the user's approval of the entry point and starting text; while the
-  entry says "Approval pending", stop with `docflow block`.
+Traps: Use the approved starting text from Decisions verbatim; a different wording needs the
+  user's approval first.
 Depends: -
 Commit: P003.1.1: add Place assistance entry
 
