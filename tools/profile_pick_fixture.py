@@ -171,6 +171,9 @@ def build(root):
     project = root / 'project' / PROJECT_NAME
     for relative, text in PROJECT_FILES.items():
         write_atomic(project / relative, text)
+    # Ruleblend counts Claude Code as available when its home exists; without it no project agent
+    # can be enabled and the profile cannot be installed.
+    (root / 'home' / '.claude').mkdir()
     git = ['git', '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid']
     for directory in (library, project):
         env = {**os.environ, 'HOME': str(root / 'home'), 'GIT_CONFIG_GLOBAL': os.devnull}

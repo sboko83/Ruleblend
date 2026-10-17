@@ -63,6 +63,8 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Place scenario appended to A01 instead of a separate test — it depends on the Claude connection made in A01, and JUnit4 method order is not guaranteed, so a separate test could break A01's initial not-connected assertion — rejected: a standalone A02 test
 - Project added through the substituted DesktopActions.directory picker, as in the Phase tests — it exercises the real Place add flow — rejected: writing the project into config.json directly
 - Fixture verdicts are include/overlap/foreign/unneeded, with an expected profile of 12 of 30 — gives P003.1.4 a measurable limit and overlap traps — rejected: a flat include/exclude list
+- Live run driven through a Python PTY with the Place button's exact argv instead of clicking the button — this session has no Accessibility or Screen Recording permission and the mobile MCP desktop and repl tools fail — rejected: blocking the unit until UI automation is available
+- Only the real ~/.claude/skills/ruleblend was swapped temporarily; the real launcher and MCP entry were left untouched because the launcher already runs this branch's packaged build (its embedded SKILL.md matches the source byte for byte) and JAVA_TOOL_OPTIONS selects the fixture library — rejected: reconnecting Claude from a real-home Ruleblend run, which would rewrite the MCP entry, launcher owner and skill state
 
 ## Phase 1: Profile selection
 
@@ -162,7 +164,7 @@ Handoff:
 - Unverified: Git identity/config isolation in the fixture was checked only by running the script once on macOS.
 - Unverified: The fixture script was not checked on Windows.
 
-### [ ] P003.1.4 Accept profile selection live
+### [x] P003.1.4 Accept profile selection live
 Read:
 - tools/profile_pick_fixture.py
 - docs/UI_E2E.md:L100-172
@@ -193,3 +195,15 @@ Traps: The user agreed to real model requests (Decisions). If the MCP read shows
 Depends: P003.1.1, P003.1.2, P003.1.3
 Model: strong
 Commit: P003.1.4: accept profile selection
+Handoff:
+- Live run on fixture root /private/tmp/p003-live.oLG9 (kept for inspection; backup of the real ruleblend skill in /private/tmp/p003-live-backup, PTY driver and transcript in /private/tmp/p003-live-tools/raw.log). Result: profile kotlin-ktor-service with 8 items installed into the fixture project, target_status (checked by a direct MCP call against the fixture home) shows all 8 synced.
+- Comparison with --expected: 8 matches, 0 extras, 4 misses. Misses with both sides' reasons: mcp github (fixture: CI and the remote live on GitHub; assistant: no git remote and ci.yml alone does not prove hosting; the fixture project indeed has no remote, so the fixture contradicts its own reason); conventional-commits (fixture: generic and cheap; assistant: not stack-bound and conflicts with the commit format in the user's real global CLAUDE.md); secure-coding-basics and code-reviewer (fixture: generic; assistant: generic, not tied to the stack). All overlap traps (kotlin-style-strict, junit4-testing, spring-boot-conventions, gitlab-ci-pipelines) and every foreign/unneeded item were excluded correctly.
+- The run was not started from the Place button: this session has no Accessibility or Screen Recording permission (osascript -25211, screencapture fails), and the mobile MCP desktop companion and repl supervisor are unavailable. Claude Code was started in a Python PTY with exactly the argv the Place button builds: claude --prefill '<approved text>', cwd = project folder, app environment with JAVA_TOOL_OPTIONS. The prefill appeared unsubmitted.
+- Proof before writes: the skill loaded via Skill(ruleblend) from the real ~/.claude/skills/ruleblend, temporarily replaced with this branch's v12, which contains 'Picking a profile for a project'. The first MCP call was list_targets, not list_rules; it returned the fixture home path. The following list_rules returned fixture ids.
+- JAVA_TOOL_OPTIONS from the parent env reaches the Ruleblend MCP that Claude Code spawns through the real shared launcher: confirmed by ruleblend.lock appearing in the fixture home after `claude mcp get ruleblend`, and by fixture paths in the live session's MCP results.
+- Real state restored: ~/.claude/skills/ruleblend is back to v10 and identical to the backup; sha256 of ~/.ruleblend/bin/ruleblend-mcp, skill-state.json, mcp-state.json and config.json is unchanged; the ruleblend entry in ~/.claude.json is unchanged. Remaining on purpose: Claude Code's own trust entry projects['/private/tmp/p003-live.oLG9/project/orbit-api'] in ~/.claude.json and the directory ~/.claude/projects/-private-tmp-p003-live-oLG9-project-orbit-api. Reason: the global rule forbids deleting under ~/.claude without an explicit request, and ~/.claude.json is rewritten concurrently by other sessions.
+- The assistant also committed the installed files in the fixture project (8f2d72c), following the user's real global CLAUDE.md commit rule; the user's real global instructions influence the live selection.
+- Unverified: Place button click -> embedded terminal launch not exercised in the real window (no Accessibility or Screen Recording permission); only the identical argv was run in a PTY, and AssistanceUiTest covers the click
+- Unverified: The fixture app's own readiness for the Place button (Claude MCP registered and skill installed in the fixture home via Settings) was not set up or checked
+- Unverified: Packaged build identity is checked only via the embedded SKILL.md digest, not by comparing class jars with the branch sources
+- Unverified: docs/UI_E2E.md paragraph (left from the earlier attempt) not re-reviewed against the button path, only against the PTY path used here

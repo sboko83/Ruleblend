@@ -122,9 +122,13 @@ python3 -B tools/profile_pick_fixture.py /absolute/empty/root   # sample Kotlin 
 python3 -B tools/profile_pick_fixture.py --expected              # expected composition, reason per item
 ```
 
-It writes `<root>/project/orbit-api` and `<root>/home/.ruleblend/library` through the documented storage
-layout and touches nothing outside `<root>`; a non-empty root or one containing the real home is refused.
-Run Ruleblend with `-Duser.home=<root>/home` and Claude Code with `HOME=<root>/home` so both see this library.
+It writes `<root>/project/orbit-api`, `<root>/home/.ruleblend/library` through the documented storage
+layout and an empty `<root>/home/.claude`, so Ruleblend counts Claude Code as available there; it touches
+nothing outside `<root>`. A non-empty root or one containing the real home is refused.
+Start Ruleblend with `JAVA_TOOL_OPTIONS=-Duser.home=<root>/home`. Claude Code keeps the real `HOME` and
+login; it inherits the variable and passes it to the Ruleblend MCP it starts through the shared launcher,
+so that MCP serves the fixture library. The launcher runs the build it points at, and the real
+`~/.claude/skills/ruleblend` is the skill Claude Code loads: both must be this branch's for a live run.
 
 `ui` defaults to the phase 0 fixture suite; `smoke` runs P-07, while `projects` runs
 P-01…P-12 separately on independent roots. P-03, P-07 and P-10 check cold restarts.
