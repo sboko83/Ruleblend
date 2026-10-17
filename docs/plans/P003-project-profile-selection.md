@@ -59,6 +59,7 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Starting text stays English for the RU interface — the plan requires the approved wording verbatim and a Russian variant needs user approval — rejected: a translated RU draft like the Library ones
 - Project identity for the one-session rule is (kind, absolute path) via the existing AssistanceObject — reuses open()/Replace prompt unchanged — rejected: a separate project session controller
 - The button is passed to PlaceScreen as a composable slot — keeps the place package independent of settings/assistance sessions — rejected: reading LocalAssistanceSessions and SettingsModel inside PlaceHeader
+- Added a closing sentence that the profile targets the project's enabled assistants (set_project_agents) — it comes from the plan's Traps and keeps the assistant from installing for only its own agent — rejected: leaving it out of the skill text
 
 ## Phase 1: Profile selection
 
@@ -93,7 +94,7 @@ Handoff:
 - Unverified: No UI test for the Place button itself (click -> launch); only the starting text and one-session rule are covered by unit tests
 - Unverified: Russian ARCHITECTURE paragraph placement under '## UI' is a judgement call; not reviewed by the user
 
-### [ ] P003.1.2 Add profile picking to the skill
+### [x] P003.1.2 Add profile picking to the skill
 Read:
 - mcp/src/jvmMain/resources/dev/ruleblend/mcp/skill/SKILL.md
 Do:
@@ -122,6 +123,11 @@ Traps: The marker line version is separate from `appBuild`; raising it reports e
   assistant as out of date, which is intended here.
 Depends: -
 Commit: P003.1.2: add profile picking to skill
+Handoff:
+- SKILL.md marker is now v11 and BundledSkillTest.EXPECTED_DIGEST is c620779e...; any further SKILL.md edit (e.g. after the P003.1.4 live run) must raise the marker again and replace the digest with the one the test failure prints.
+- The new section sits before 'Choosing the target' in SKILL.md; appBuild is 276.
+- Unverified: Skill procedure not exercised with a real assistant: the live run is P003.1.4
+- Unverified: Auxiliary-directory rules and the 10-item limit are unchecked in behaviour; only the text is present
 
 ### [ ] P003.1.3 Add profile selection fixture
 Read:

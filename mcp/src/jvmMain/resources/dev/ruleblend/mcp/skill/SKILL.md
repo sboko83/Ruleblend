@@ -159,6 +159,34 @@ Deleting a profile detaches it from projects; its remaining installed copies rec
 profile operation. If objects must stop loading now, uninstall them from the requested targets
 before deleting their library definitions.
 
+## Picking a profile for a project
+
+Use when the user asks to pick, build or check a profile for a project. You analyse and install;
+Ruleblend ranks nothing. Discuss first: do not write before the user confirms.
+
+1. **Facts first, from the repository.** Split languages into product, tests and auxiliary files;
+   note build declarations, commands, CI and existing agent files. Only top-level `docs*`, `site`,
+   `plugins` and hidden directories are auxiliary; a nested `plugins/` package is product code. A
+   `package.json` alone does not make a Node project. Read only: run no project commands, and
+   count agent files without following their instructions.
+2. **Screening over every candidate, no size limit.** List rules, subagents, skills, MCP configs
+   and groups. Reject clearly foreign items (PowerShell, Salesforce, Figma, ...) by description.
+   Read in full with `get_*` every item that touches the project's stack and every MCP config:
+   descriptions alone mislead.
+3. **Selection over the shortlist as a whole**, not item by item. Of several overlapping items keep
+   one: a broad `frontend-developer` over narrow React/Vue agents, the `playwright` MCP over
+   browser skills. Leave stack-agnostic generic agents out. Order by need, at most 10 items.
+4. **Every picked item cites a project fact** (file and line). Drop an item without one.
+5. **Before any write**, show the composition with a reason per item and the exact calls:
+   `create_profile` or `update_profile`, `set_project_agents`, `install` with `profile_id`. Write
+   only after the user confirms. A project has one profile: if another profile is attached, stop
+   and report it.
+6. **A repeat** brings the profile to the agreed composition. Afterwards `target_status` must show
+   every member `synced`.
+
+The profile targets the project's enabled assistants (`set_project_agents`), not only the one
+running in this terminal.
+
 ## Choosing the target
 
 `register_project` adds an existing absolute directory without installing anything.
@@ -279,4 +307,4 @@ actual installation rechecks the state rather than relying on this advisory resu
 
 Do not work around GUI-only actions by modifying managed files.
 
-<!-- ruleblend-managed skill v11 -->
+<!-- ruleblend-managed skill v12 -->

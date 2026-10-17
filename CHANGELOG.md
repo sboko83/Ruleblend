@@ -14,6 +14,9 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   with an editable starting message, explicit assistant selection and confirmed process closure.
 - app: a project in Place has an AI help button next to its assistants; it opens Claude Code in
   the project folder with an editable starting message for picking a profile.
+- skill: the bundled ruleblend skill can pick a profile for a project: it analyses the project, shows
+  the composition with reasons and installs it after confirmation. Connected assistants ask for
+  a skill update.
 
 ### Changed
 - macOS, Linux: installed and development builds register the same MCP launcher, so switching
