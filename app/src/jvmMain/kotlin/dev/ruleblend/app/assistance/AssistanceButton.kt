@@ -21,6 +21,30 @@ import kotlinx.coroutines.launch
 /** One item of the button's menu; a button without items launches [AssistanceButton.target] directly. */
 data class AssistanceMenuItem(val label: String, val tag: String, val target: AssistanceObject)
 
+/** Only a handed-off launch leaves [starting] to [AssistanceSessions.open]; every other ending clears it. */
+internal suspend fun launchAssistance(
+    sessions: AssistanceSessions?,
+    starting: AssistanceStarting?,
+    select: suspend () -> AssistanceSelection,
+    onConfigure: () -> Unit,
+    onLaunch: (ReadyAssistanceAssistant) -> Unit,
+    onChoose: (List<ReadyAssistanceAssistant>) -> Unit,
+    onFailure: (String) -> Unit,
+) {
+    var launched = false
+    try {
+        when (val selection = select()) {
+            AssistanceSelection.Configure -> onConfigure()
+            is AssistanceSelection.Launch -> { onLaunch(selection.assistant); launched = true }
+            is AssistanceSelection.Choose -> onChoose(selection.assistants)
+        }
+    } catch (failure: Exception) {
+        onFailure(failure.message ?: failure.toString())
+    } finally {
+        if (!launched) starting?.let { sessions?.end(it) }
+    }
+}
+
 @Composable
 fun AssistanceButton(
     target: AssistanceObject?,
@@ -37,18 +61,29 @@ fun AssistanceButton(
     var busy by remember { mutableStateOf(false) }
     var choiceTarget by remember { mutableStateOf<AssistanceObject?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    val sessions = LocalAssistanceSessions.current
     fun start(selectedTarget: AssistanceObject) {
+        val starting = when (val begin = sessions?.begin(selectedTarget)) {
+            AssistanceBegin.Busy -> return
+            is AssistanceStarting -> begin
+            AssistanceBegin.Current, null -> null
+        }
         busy = true
         scope.launch {
             try {
-                settings.refreshAssistanceAssistants()
-                when (val selection = selectAssistanceAssistant(settings.assistanceAssistants, settings.readyAssistanceAssistants)) {
-                    AssistanceSelection.Configure -> onConfigure()
-                    is AssistanceSelection.Launch -> onLaunch(selectedTarget, selection.assistant)
-                    is AssistanceSelection.Choose -> { choices = selection.assistants; choiceTarget = selectedTarget }
-                }
-            } catch (failure: Exception) {
-                onFailure(failure.message ?: failure.toString())
+                launchAssistance(
+                    sessions, starting,
+                    select = {
+                        val refreshedAt = System.nanoTime()
+                        settings.refreshAssistanceAssistants()
+                        logAssistanceTiming("assistant refresh", refreshedAt)
+                        selectAssistanceAssistant(settings.assistanceAssistants, settings.readyAssistanceAssistants)
+                    },
+                    onConfigure = onConfigure,
+                    onLaunch = { onLaunch(selectedTarget, it) },
+                    onChoose = { choices = it; choiceTarget = selectedTarget },
+                    onFailure = onFailure,
+                )
             } finally { busy = false }
         }
     }
@@ -75,7 +110,9 @@ fun AssistanceButton(
             choices.forEach { assistant ->
                 DropdownMenuItem(text = { Text(assistant.name) }, onClick = {
                     choices = emptyList()
-                    choiceTarget?.let { onLaunch(it, assistant) }
+                    choiceTarget?.let { target ->
+                        runCatching { onLaunch(target, assistant) }.onFailure { onFailure(it.message ?: it.toString()) }
+                    }
                 })
             }
         }

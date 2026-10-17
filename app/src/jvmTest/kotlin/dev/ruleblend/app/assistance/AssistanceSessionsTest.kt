@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -137,6 +138,97 @@ class AssistanceSessionsTest {
             assertEquals(2, terminals.size)
             assertFalse(terminals.first().isAlive)
             assertEquals(AssistanceObject.Kind.PROFILE, sessions.state.value.session?.launch?.target?.kind)
+        } finally { sessions.shutdown() }
+    }
+
+    @Test fun `starting panel appears on the click and the session replaces it`() = runBlocking {
+        val terminals = mutableListOf<FakeTerminal>()
+        val sessions = AssistanceSessions { FakeTerminal().also(terminals::add) }
+        try {
+            val initial = launch()
+            val starting = assertIs<AssistanceStarting>(sessions.begin(initial.target))
+            assertSame(starting, sessions.state.value.starting)
+            // A second click while starting must not start a second process.
+            assertSame(AssistanceBegin.Busy, sessions.begin(launch("another").target))
+            var handedOff: ReadyAssistanceAssistant? = null
+            launchAssistance(sessions, starting, select = { AssistanceSelection.Launch(initial.assistant) },
+                onConfigure = { error("No configure") }, onLaunch = { handedOff = it },
+                onChoose = { error("No choice") }, onFailure = { error(it) })
+            assertEquals(initial.assistant, handedOff)
+            assertSame(starting, sessions.state.value.starting)
+            sessions.open(initial)
+            assertNull(sessions.state.value.starting)
+            assertSame(terminals.single(), sessions.state.value.session?.terminal)
+        } finally { sessions.shutdown() }
+    }
+
+    @Test fun `starting panel clears on configure, a choice and failure without a session`() = runBlocking {
+        val sessions = AssistanceSessions { FakeTerminal() }
+        try {
+            val target = launch().target
+            var configured = false
+            launchAssistance(sessions, assertIs<AssistanceStarting>(sessions.begin(target)),
+                select = { AssistanceSelection.Configure }, onConfigure = { configured = true },
+                onLaunch = { error("No launch") }, onChoose = { error("No choice") }, onFailure = { error(it) })
+            assertTrue(configured)
+            assertEquals(AssistanceState(), sessions.state.value)
+            var choices = emptyList<ReadyAssistanceAssistant>()
+            launchAssistance(sessions, assertIs<AssistanceStarting>(sessions.begin(target)),
+                select = { AssistanceSelection.Choose(listOf(launch().assistant)) }, onConfigure = { error("No configure") },
+                onLaunch = { error("No launch") }, onChoose = { choices = it }, onFailure = { error(it) })
+            assertEquals(1, choices.size)
+            assertEquals(AssistanceState(), sessions.state.value)
+            var failure: String? = null
+            launchAssistance(sessions, assertIs<AssistanceStarting>(sessions.begin(target)),
+                select = { error("Refresh failed") }, onConfigure = { error("No configure") },
+                onLaunch = { error("No launch") }, onChoose = { error("No choice") }, onFailure = { failure = it })
+            assertEquals("Refresh failed", failure)
+            assertEquals(AssistanceState(), sessions.state.value)
+            // A refused launch reports through the same failure path.
+            launchAssistance(sessions, assertIs<AssistanceStarting>(sessions.begin(target)),
+                select = { AssistanceSelection.Launch(launch().assistant) }, onConfigure = { error("No configure") },
+                onLaunch = { error("Launch refused") }, onChoose = { error("No choice") }, onFailure = { failure = it })
+            assertEquals("Launch refused", failure)
+            assertEquals(AssistanceState(), sessions.state.value)
+            // A stale ending cannot clear a newer launch's panel.
+            val stale = assertIs<AssistanceStarting>(sessions.begin(target))
+            sessions.end(stale)
+            val newer = assertIs<AssistanceStarting>(sessions.begin(target))
+            sessions.end(stale)
+            assertSame(newer, sessions.state.value.starting)
+        } finally { sessions.shutdown() }
+    }
+
+    @Test fun `failed process start clears the starting panel`() = runBlocking {
+        val sessions = AssistanceSessions { error("Executable missing") }
+        try {
+            val initial = launch()
+            assertIs<AssistanceStarting>(sessions.begin(initial.target))
+            assertFailsWith<IllegalStateException> { sessions.open(initial) }
+            assertEquals(AssistanceState(), sessions.state.value)
+        } finally { sessions.shutdown() }
+    }
+
+    @Test fun `live session keeps its terminal and asks to replace without a starting panel`() = runBlocking {
+        val terminals = mutableListOf<FakeTerminal>()
+        val sessions = AssistanceSessions { FakeTerminal().also(terminals::add) }
+        try {
+            val initial = launch()
+            sessions.open(initial)
+            val replacement = launch("another")
+            assertSame(AssistanceBegin.Current, sessions.begin(replacement.target))
+            assertNull(sessions.state.value.starting)
+            sessions.open(replacement)
+            assertNotNull(sessions.state.value.confirmation)
+            assertSame(terminals.single(), sessions.state.value.session?.terminal)
+            assertNull(sessions.state.value.starting)
+            sessions.cancel(assertNotNull(sessions.state.value.confirmation))
+            // A finished session of the same target is refocused, not restarted behind a panel.
+            terminals.single().exit(0)
+            withTimeout(2_000) { while (sessions.state.value.session?.exitCode == null) delay(5) }
+            assertSame(AssistanceBegin.Current, sessions.begin(initial.target))
+            assertIs<AssistanceStarting>(sessions.begin(replacement.target))
+            Unit
         } finally { sessions.shutdown() }
     }
 

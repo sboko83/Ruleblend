@@ -4,12 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +45,8 @@ fun AssistanceLayout(
     session: AssistanceSession?,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Shown from the click until [session] starts; it hides an older finished session meanwhile. */
+    starting: AssistanceStarting? = null,
     content: @Composable () -> Unit,
 ) {
     var requestedHeight by remember { mutableStateOf(300f) }
@@ -52,7 +57,7 @@ fun AssistanceLayout(
         val height = requestedHeight.coerceIn(100f, maximum)
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f).fillMaxWidth()) { content() }
-            if (session != null) {
+            if (session != null || starting != null) {
                 Box(Modifier.fillMaxWidth().height(6.dp)
                     .background(MaterialTheme.colorScheme.outlineVariant)
                     .testTag("assistance-resize")
@@ -66,10 +71,22 @@ fun AssistanceLayout(
                 Column(Modifier.fillMaxWidth().height(height.dp).testTag("assistance-panel")) {
                     Row(Modifier.fillMaxWidth().height(34.dp).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text("${session.launch.target.name} · ${session.launch.assistant.name}",
+                        val title = starting?.target?.name
+                            ?: session?.let { "${it.launch.target.name} · ${it.launch.assistant.name}" }.orEmpty()
+                        Text(title,
                             style = MaterialTheme.typography.labelMedium, maxLines = 1,
                             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        DialogCloseButton(strings.actionClose, onClose, Modifier.testTag("assistance-close"))
+                        // Nothing to close yet: the launch ends on its own with a session or a failure.
+                        if (starting == null) DialogCloseButton(strings.actionClose, onClose, Modifier.testTag("assistance-close"))
+                    }
+                    if (session == null || starting != null) {
+                        Column(Modifier.fillMaxWidth().weight(1f).testTag("assistance-starting"),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+                            CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                            Text(strings.assistanceStarting, style = MaterialTheme.typography.bodyMedium)
+                        }
+                        return@Column
                     }
                     val terminal = session.terminal
                     val terminalModifier = Modifier.fillMaxWidth().weight(1f).testTag("assistance-terminal")

@@ -739,6 +739,7 @@ internal fun App(
                 },
                 // Settings is the only surface whose subject is a folder on this machine.
                 assistanceSession = assistanceState.session,
+                assistanceStarting = assistanceState.starting,
                 onCloseAssistance = {
                     appScope.launch {
                         runCatching { assistance?.requestClose() }
@@ -754,12 +755,13 @@ internal fun App(
                             settings = settings,
                             onConfigure = { settingsSection = SettingsSection.AGENTS; route = AppRoute.SETTINGS },
                             onLaunch = { target, assistant ->
+                                // Prepared on the caller so a refused launch ends the starting panel with its failure.
+                                val launch = prepareClaudeAssistanceLaunch(
+                                    assistant, target, settings.language, libraryPath.toAbsolutePath(), terminalColors,
+                                )
                                 appScope.launch {
-                                    runCatching {
-                                        assistance.open(prepareClaudeAssistanceLaunch(
-                                            assistant, target, settings.language, libraryPath.toAbsolutePath(), terminalColors,
-                                        ))
-                                    }.onFailure { assistanceFailure = it.message ?: it.toString() }
+                                    runCatching { assistance.open(launch) }
+                                        .onFailure { assistanceFailure = it.message ?: it.toString() }
                                 }
                             },
                             onFailure = { assistanceFailure = it },
@@ -848,12 +850,13 @@ internal fun App(
                                 settings = settings,
                                 onConfigure = { settingsSection = SettingsSection.AGENTS; route = AppRoute.SETTINGS },
                                 onLaunch = { target, assistant ->
+                                    // Prepared on the caller so a refused launch ends the starting panel with its failure.
+                                    val launch = prepareClaudeAssistanceLaunch(
+                                        assistant, target, settings.language, project.dir.toAbsolutePath(), terminalColors,
+                                    )
                                     appScope.launch {
-                                        runCatching {
-                                            assistance.open(prepareClaudeAssistanceLaunch(
-                                                assistant, target, settings.language, project.dir.toAbsolutePath(), terminalColors,
-                                            ))
-                                        }.onFailure { assistanceFailure = it.message ?: it.toString() }
+                                        runCatching { assistance.open(launch) }
+                                            .onFailure { assistanceFailure = it.message ?: it.toString() }
                                     }
                                 },
                                 onFailure = { assistanceFailure = it },

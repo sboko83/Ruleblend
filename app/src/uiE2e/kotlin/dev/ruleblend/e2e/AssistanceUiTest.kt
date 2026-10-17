@@ -130,7 +130,7 @@ class AssistanceUiTest {
         if (restart) {
             assertEquals(listOf("claude-code"), config.load().assistanceAssistants)
             compose.onNodeWithTag("assistance-open").performClick()
-            present("assistance-panel")
+            present("assistance-terminal")
             assertEquals(1, launches.size)
             children.single().finish()
             compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
@@ -152,7 +152,7 @@ class AssistanceUiTest {
         compose.waitUntil(5_000) { config.load().assistanceAssistants == listOf("claude-code") }
         select("assistance-one")
         compose.onNodeWithTag("assistance-open").performClick()
-        present("assistance-panel")
+        present("assistance-terminal")
         assertEquals(1, launches.size)
         assertEquals(listOf(launches.single().assistant.cli.path, "--prefill", launches.single().target.draft(dev.ruleblend.app.i18n.Language.EN)), launches.single().command)
         compose.onNodeWithTag("nav-home").performClick()
@@ -216,7 +216,7 @@ class AssistanceUiTest {
             present(item)
             compose.onNodeWithTag(item).performClick()
             compose.waitUntil(5_000) { launches.size == 3 + index }
-            present("assistance-panel")
+            present("assistance-terminal")
             val launch = launches.last()
             val draft = if (index == 0) "Project orbit-api ($project). I need help with "
             else "Let's pick a profile for the project orbit-api ($project). " +

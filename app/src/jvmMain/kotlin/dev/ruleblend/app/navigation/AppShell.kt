@@ -87,6 +87,7 @@ fun AppShell(
     /** Drawn over the whole window, rail included, inside the shell's focus so chords survive it. */
     overlay: (@Composable () -> Unit)? = null,
     assistanceSession: dev.ruleblend.app.assistance.AssistanceSession? = null,
+    assistanceStarting: dev.ruleblend.app.assistance.AssistanceStarting? = null,
     onCloseAssistance: () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
@@ -157,7 +158,7 @@ fun AppShell(
                 )
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     TopBar(labelFor(route), onOpenCommands, topBarAction)
-                    dev.ruleblend.app.assistance.AssistanceLayout(assistanceSession, onCloseAssistance) {
+                    dev.ruleblend.app.assistance.AssistanceLayout(assistanceSession, onCloseAssistance, starting = assistanceStarting) {
                         Box(Modifier.fillMaxSize().testTag("route-${route.name.lowercase()}"), contentAlignment = Alignment.TopStart) { content() }
                     }
                 }

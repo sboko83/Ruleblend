@@ -10,8 +10,15 @@ import com.pty4j.WinSize
 import java.util.concurrent.TimeUnit
 import javax.swing.SwingUtilities
 
-private class AssistanceConnector(private val child: PtyProcess) : ProcessTtyConnector(child, Charsets.UTF_8) {
+private class AssistanceConnector(
+    private val child: PtyProcess,
+    private val spawnedAt: Long,
+) : ProcessTtyConnector(child, Charsets.UTF_8) {
+    @Volatile private var output = false
     override fun getName(): String = "Ruleblend assistant"
+    override fun read(buf: CharArray, offset: Int, length: Int): Int = super.read(buf, offset, length).also { count ->
+        if (count > 0 && !output) { output = true; logAssistanceTiming("first output after spawn", spawnedAt) }
+    }
     override fun resize(termSize: TermSize) {
         if (child.isAlive) child.winSize = WinSize(termSize.columns, termSize.rows)
     }
@@ -40,6 +47,7 @@ fun startAssistanceTerminal(launch: AssistanceLaunch): PtyAssistanceTerminal {
         putAll(launch.environmentOverrides)
         put("TERM", "xterm-256color")
     }
+    val spawnedAt = System.nanoTime()
     val child = PtyProcessBuilder(launch.command.toTypedArray())
         .setDirectory(launch.directory.toString()).setEnvironment(environment)
         .setInitialColumns(90).setInitialRows(24).setRedirectErrorStream(true).start()
@@ -55,7 +63,7 @@ fun startAssistanceTerminal(launch: AssistanceLaunch): PtyAssistanceTerminal {
                 override fun getSelectionColor() = launch.colors.selectionStyle()
                 override fun getTerminalColorPalette() = launch.colors.palette()
             }).apply {
-                createTerminalSession(AssistanceConnector(child))
+                createTerminalSession(AssistanceConnector(child, spawnedAt))
                 start()
             }
         }

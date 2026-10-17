@@ -75,6 +75,12 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Terminal colors travel inside AssistanceLaunch as plain RGB ints — the PTY start needs nothing from the composition — rejected: reading MaterialTheme inside startAssistanceTerminal
 - Light or dark is derived from the luminance of the resolved surface color — it covers ThemeMode.SYSTEM without exposing the theme token — rejected: passing a dark flag from RuleblendTheme
 - Dark ANSI black (index 0) stays low-contrast (2.2:1 on the dark background) — it is conventional and the contrast test excludes it — rejected: lightening it
+- Starting state is set synchronously by AssistanceSessions.begin with compareAndSet outside the mutex — the refresh runs before open() and the mutex, so a suspending entry would keep the panel waiting — rejected: setting it inside the mutex-serialised open()
+- A second click while starting is ignored (AssistanceBegin.Busy) — guarantees no second process and no surprise replace prompt — rejected: letting it continue to open() and the replace confirmation
+- A finished session of the same target keeps today's refocus path without a starting panel — open() refocuses it anyway, so a panel would only flash — rejected: showing the starting panel whenever no live session exists
+- The click flow moved into internal suspend launchAssistance with a `launched` flag; only a handed-off launch leaves the panel to open() — makes configure, choice, failure and cancellation endings unit-testable and covers the button leaving composition — rejected: testing through a Compose button test
+- Main prepares the AssistanceLaunch before appScope.launch — a require() failure in preparation surfaces in the button flow and ends the starting panel — rejected: a ticket-less clear in Main's failure handler
+- The starting panel has no close button — nothing is running yet and the launch ends by itself with a session or failure — rejected: a close that would clear the panel while the launch still opens a terminal
 
 ## Phase 1: Profile selection
 
@@ -272,7 +278,7 @@ Handoff:
 - Unverified: Appearance in a real window: no Compose Desktop run or screenshot, so the colors on actual light and dark themes are not visually checked.
 - Unverified: Behavior with a real claude session on top of the themed terminal: not run.
 
-### [ ] P003.2.3 Show the terminal panel at once
+### [x] P003.2.3 Show the terminal panel at once
 Read:
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceSessions.kt
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceButton.kt
@@ -291,6 +297,16 @@ Traps: `AssistanceSessions` serialises operations with a mutex; the starting sta
 Depends: P003.2.1
 Model: strong
 Commit: P003.2.3: show terminal panel at once
+Handoff:
+- Measured with a temporary harness on the real components (refresh replica of config load + BundledIntegration.states() + discoverAssistanceAssistants with the real claude probe; real AssistanceSessions/startAssistanceTerminal with /opt/homebrew/bin/claude and an isolated CLAUDE_CONFIG_DIR), not by clicking in the app: assistant refresh 102 ms cold, 38-40 ms warm; startAssistanceTerminal 2081 ms on the first launch in the JVM (pty4j/JediTerm cold load), 22-28 ms afterwards; first PTY output 1875 ms after spawn cold, 211-228 ms warm. The slow part is the first terminal start, not the refresh.
+- Each launch logs three stderr lines prefixed `ruleblend assistance:` (assistant refresh, terminal start, first output after spawn).
+- AssistanceState.starting holds an AssistanceStarting; AssistanceSessions.begin(target) is non-suspending and returns AssistanceStarting, AssistanceBegin.Current (live session, or a finished session of the same target) or AssistanceBegin.Busy (another launch is starting; the click is ignored). open() always clears starting in finally; end(starting) clears only that exact launch.
+- The click flow is now internal suspend launchAssistance(...) in AssistanceButton.kt; Main's onLaunch lambdas call prepareClaudeAssistanceLaunch synchronously so a refused launch ends the starting panel via onFailure.
+- The starting panel reuses the `assistance-panel` container with an inner `assistance-starting` column and no close button; the e2e test now waits for `assistance-terminal` after a click.
+- appBuild is 280.
+- Unverified: Starting panel layout and indeterminate indicator not inspected by eye in the running app (no Accessibility/Screen Recording permission); only unit tests and the e2e semantics test ran
+- Unverified: Timings come from a harness on the real components with an isolated CLAUDE_CONFIG_DIR, not from a click in the real app with the user's Claude config and MCP servers
+- Unverified: The e2e test does not assert the starting panel itself: its fake terminal starts instantly, so the panel is replaced before it can be observed
 
 ## Phase 3: Acceptance
 

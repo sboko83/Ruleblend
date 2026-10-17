@@ -15,6 +15,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - app: The embedded terminal follows the app's light or dark theme; a theme change applies from the next session.
 - app: a project in Place has an AI help menu next to its assistants: "Ask a question" or "Pick a
   profile" opens Claude Code in the project folder with an editable starting message in the interface language.
+- app: AI help shows the terminal panel at once, with a progress indicator while Claude Code starts.
 - skill: the bundled ruleblend skill can pick a profile for a project: it analyses the project, shows
   the composition with reasons and installs it after confirmation, leaving the files uncommitted.
   Connected assistants ask for a skill update.
