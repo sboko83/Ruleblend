@@ -5,10 +5,13 @@ start_read: README.md
 start_budget: 4000
 ---
 ## Queue
-- P003
 - P001
 
 ## Frozen
 - P002 — building mods into the app is premature (user, 2026-10-16)
 
 ## Backlog
+- Prewarm pty4j/JediTerm in the background at app start so the first AI help terminal opens without
+  the ~2 s cold start (see docs/archive/P003-project-profile-selection.md).
+- Re-run live profile picking against tools/profile_pick_fixture.py (9-item oracle, GitHub MCP case)
+  and run the fixture script on Windows.

@@ -932,7 +932,10 @@ assistants, with "Ask a question" and "Pick a profile". The target is the projec
 folder path; the CLI starts in that folder and the starting text follows the UI language. Help and
 profile picking are separate target kinds, so the one-session rule treats them as different
 sessions. It reuses the Library launch path, so prefill, the single session and the replacement
-prompt are shared; a different project or item replaces the session after confirmation. The profile procedure lives in the bundled skill, not in `app`.
+prompt are shared; a different project or item replaces the session after confirmation. The profile
+procedure lives in the bundled skill, not in `app`. The embedded terminal takes the app theme at
+launch, and its panel shows a starting state from the click until the terminal is ready. Decisions:
+[P003](archive/P003-project-profile-selection.md).
 
 One application-owned controller serializes terminal launches and binds close/replacement approvals
 to the current process. Navigation only changes focus; natural exit retains the terminal screen.
