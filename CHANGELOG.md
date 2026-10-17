@@ -12,6 +12,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - app: Settings → General → Workspace can hide the Recent section of the project list.
 - app: AI help opens Claude Code in a resizable embedded terminal for saved Library objects,
   with an editable starting message, explicit assistant selection and confirmed process closure.
+- app: a project in Place has an AI help button next to its assistants; it opens Claude Code in
+  the project folder with an editable starting message for picking a profile.
 
 ### Changed
 - macOS, Linux: installed and development builds register the same MCP launcher, so switching

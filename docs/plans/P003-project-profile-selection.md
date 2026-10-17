@@ -56,10 +56,13 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - Live run with real model requests in P003.1.4, Claude Code not isolated: its real config and
   login are used — approved by the user 2026-10-17 — a separate `CLAUDE_CONFIG_DIR` with its own
   login.
+- Starting text stays English for the RU interface — the plan requires the approved wording verbatim and a Russian variant needs user approval — rejected: a translated RU draft like the Library ones
+- Project identity for the one-session rule is (kind, absolute path) via the existing AssistanceObject — reuses open()/Replace prompt unchanged — rejected: a separate project session controller
+- The button is passed to PlaceScreen as a composable slot — keeps the place package independent of settings/assistance sessions — rejected: reading LocalAssistanceSessions and SettingsModel inside PlaceHeader
 
 ## Phase 1: Profile selection
 
-### [ ] P003.1.1 Add Place assistance entry point
+### [x] P003.1.1 Add Place assistance entry point
 Read:
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceButton.kt
 - app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceLaunch.kt
@@ -81,6 +84,14 @@ Traps: Use the approved starting text from Decisions verbatim; a different wordi
   user's approval first.
 Depends: -
 Commit: P003.1.1: add Place assistance entry
+Handoff:
+- Place entry point: AssistanceObject.Kind.PROJECT, id = absolute project folder path, name = folder name; the launch directory is the project folder. Button is injected into PlaceScreen/PlaceFileColumn/PlaceHeader via the projectAssistance slot, wired in Main.kt next to the Library one.
+- The starting text for PROJECT is English for both UI languages (approved wording only); the project is named by its folder name, not by a registered display name.
+- The panel title shows '<project name> · Claude Code'; the testTag 'assistance-open' is reused (the Library and Place buttons are never on screen together).
+- The bundled SKILL.md does not yet contain the profile-selection procedure; nothing in this unit touched it, so SKILL.md and MCP_ENTRY_VERSION markers were not bumped.
+- Unverified: Header layout of the button next to a collapsed/expanded ProjectAssistants panel not checked visually in the running app or with a Compose UI test
+- Unverified: No UI test for the Place button itself (click -> launch); only the starting text and one-session rule are covered by unit tests
+- Unverified: Russian ARCHITECTURE paragraph placement under '## UI' is a judgement call; not reviewed by the user
 
 ### [ ] P003.1.2 Add profile picking to the skill
 Read:

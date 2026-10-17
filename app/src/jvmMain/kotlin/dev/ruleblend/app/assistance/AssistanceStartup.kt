@@ -12,14 +12,19 @@ import dev.ruleblend.mcp.McpRegistration
 import dev.ruleblend.mcp.skill.SkillStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
-/** Metadata of a saved Library object; its body remains available through the existing MCP. */
+/**
+ * Metadata of a saved Library object; its body remains available through the existing MCP.
+ * A [Kind.PROJECT] target is a Place project: its ID is the absolute folder path.
+ */
 data class AssistanceObject(val kind: Kind, val id: String, val name: String) {
     enum class Kind(val english: String, val russian: String) {
         RULE("rule", "правило"),
         MCP("MCP server", "MCP-сервер"),
         SUBAGENT("subagent", "субагент"),
         SKILL("skill", "скилл"),
+        PROJECT("project", "проект"),
     }
 
     init {
@@ -27,7 +32,11 @@ data class AssistanceObject(val kind: Kind, val id: String, val name: String) {
         require(name.isNotBlank() && name.none(Char::isISOControl)) { "A single-line object name is required" }
     }
 
-    fun draft(language: Language): String = when (language) {
+    fun draft(language: Language): String = if (kind == Kind.PROJECT) {
+        // The approved wording is English-only; the assistant answers in the user's language anyway.
+        "Let's pick a profile for the project $name ($id). " +
+            "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
+    } else when (language) {
         Language.EN -> "Let's discuss the ${kind.english} $name (ID: $id). " +
             "Use Ruleblend MCP and the ruleblend skill. Let's discuss the task first."
         Language.RU -> "Обсудим ${kind.russian} $name (ID: $id). " +
@@ -43,6 +52,12 @@ data class AssistanceObject(val kind: Kind, val id: String, val name: String) {
             },
             block.id, block.name,
         )
+
+        fun fromProject(directory: Path): AssistanceObject {
+            require(directory.isAbsolute) { "An absolute project path is required" }
+            val name = directory.fileName?.toString() ?: directory.toString()
+            return AssistanceObject(Kind.PROJECT, directory.toString(), name)
+        }
 
         fun fromSaved(skill: Skill): AssistanceObject = AssistanceObject(Kind.SKILL, skill.id, skill.name)
     }

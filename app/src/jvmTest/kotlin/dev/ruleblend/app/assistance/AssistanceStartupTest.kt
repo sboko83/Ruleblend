@@ -111,6 +111,22 @@ class AssistanceStartupTest {
         }
     }
 
+    @Test fun `project target carries the approved starting text and its folder`() {
+        val directory = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("space Юникод")
+        val target = AssistanceObject.fromProject(directory)
+        assertEquals(AssistanceObject.Kind.PROJECT, target.kind)
+        assertEquals("space Юникод", target.name)
+        val expected = "Let's pick a profile for the project space Юникод ($directory). " +
+            "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
+        assertEquals(expected, target.draft(Language.EN))
+        assertEquals(expected, target.draft(Language.RU))
+        val assistant = ReadyAssistanceAssistant(claude.id, claude.name, probe)
+        val launch = prepareClaudeAssistanceLaunch(assistant, target, Language.EN, directory)
+        assertEquals(listOf(probe.path, "--prefill", expected), launch.command)
+        assertEquals(directory, launch.directory)
+        assertFailsWith<IllegalArgumentException> { AssistanceObject.fromProject(Path.of("relative")) }
+    }
+
     private fun state(id: String, mcp: McpRegistration = McpRegistration.REGISTERED,
                       skill: SkillStatus = SkillStatus.INSTALLED) = AgentIntegrationState(
         id, BundledMcpState(mcp, 1), BundledSkillState(skill, 1),

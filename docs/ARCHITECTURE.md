@@ -927,6 +927,12 @@ saved user-owned rules, MCP entries, subagents and skills; a dirty editor must b
 While its embedded CLI runs, Library reuses its normal disk loader without waiting for window focus:
 clean editors follow external writes and dirty drafts remain in memory.
 
+Place offers the same launch for a project: the AI help button in the project header, next to its
+assistants. The target is the project name and absolute folder path; the CLI starts in that folder
+and the starting text asks to pick a profile. It reuses the Library launch path, so prefill, the
+single session and the replacement prompt are shared; a different project replaces the session
+after confirmation. The profile procedure lives in the bundled skill, not in `app`.
+
 One application-owned controller serializes terminal launches and binds close/replacement approvals
 to the current process. Navigation only changes focus; natural exit retains the terminal screen.
 Window close and native application quit share the same approval path; the shell leaves AWT focus

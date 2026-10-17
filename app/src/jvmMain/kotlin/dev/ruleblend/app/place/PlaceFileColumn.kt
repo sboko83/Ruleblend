@@ -122,6 +122,7 @@ fun PlaceFileColumn(
     translation: TranslationModel? = null,
     onTabSelected: (PlaceTabKind) -> Unit = {},
     modUi: dev.ruleblend.app.library.ModUiModel? = null,
+    projectAssistance: (@Composable (ProjectTarget) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalStrings.current
@@ -193,7 +194,7 @@ fun PlaceFileColumn(
     Column(modifier.fillMaxSize()) {
         // Which place is being read. The list on the left answers this only while the open place is
         // in it, and a filter can leave it out; the file view names the place itself.
-        PlaceHeader(model, target)
+        PlaceHeader(model, target, projectAssistance)
         // Tabs wrap rather than scroll away: a place holds a handful of kinds and each of them
         // must be reachable by eye, which a row cut off at the window edge is not.
         // The active tab's underline lands on the hairline below the strip: the strip and the rule
@@ -878,7 +879,11 @@ private fun McpNameDialog(
  * checkout is set up, and the next thing done with a set-up checkout is work in it.
  */
 @Composable
-private fun PlaceHeader(model: IntegrationModel, target: Target) {
+private fun PlaceHeader(
+    model: IntegrationModel,
+    target: Target,
+    projectAssistance: (@Composable (ProjectTarget) -> Unit)? = null,
+) {
     var attachingProfile by remember(target) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     Column {
@@ -921,7 +926,10 @@ private fun PlaceHeader(model: IntegrationModel, target: Target) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.padding(top = 10.dp),
                 ) {
-                    ProjectAssistants(model, target)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                        Box(Modifier.weight(1f)) { ProjectAssistants(model, target) }
+                        projectAssistance?.invoke(target)
+                    }
                     AgentLaunchers(model)
                     ProjectProfileChips(model, target, onAttach = { attachingProfile = true })
                 }

@@ -72,6 +72,8 @@ fun PlaceScreen(
     placeMcpExpandedByDefault: Boolean = false,
     translation: TranslationModel? = null,
     modUi: dev.ruleblend.app.library.ModUiModel? = null,
+    /** The AI-help entry point of a project; `null` where there is no assistance session host. */
+    projectAssistance: (@Composable (ProjectTarget) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Removing a project and saving a file are disk work: the click hands them to a coroutine.
@@ -130,6 +132,7 @@ fun PlaceScreen(
                     translation = translation,
                     onTabSelected = { paletteTab = it },
                     modUi = modUi,
+                    projectAssistance = projectAssistance,
                     modifier = Modifier.weight(1f),
                 )
                 fit.trailing?.let { width ->

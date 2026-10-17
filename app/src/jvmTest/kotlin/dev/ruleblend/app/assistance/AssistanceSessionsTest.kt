@@ -92,6 +92,30 @@ class AssistanceSessionsTest {
         } finally { sessions.shutdown() }
     }
 
+    @Test fun `project launches share the single session and replace only after approval`() = runBlocking {
+        val terminals = mutableListOf<FakeTerminal>()
+        val sessions = AssistanceSessions { FakeTerminal().also(terminals::add) }
+        val root = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath()
+        fun project(name: String) = prepareClaudeAssistanceLaunch(
+            ReadyAssistanceAssistant("claude-code", "Claude Code", CliProbe("/fake/claude", true, null)),
+            AssistanceObject.fromProject(root.resolve(name)), Language.EN, root.resolve(name),
+        )
+        try {
+            sessions.open(project("alpha"))
+            sessions.open(project("alpha"))
+            assertEquals(1, terminals.size)
+            assertEquals(null, sessions.state.value.confirmation)
+            sessions.open(project("beta"))
+            val pending = assertNotNull(sessions.state.value.confirmation)
+            assertEquals(1, terminals.size)
+            assertTrue(terminals.single().isAlive)
+            assertFalse(sessions.confirm(pending))
+            assertEquals(2, terminals.size)
+            assertFalse(terminals.first().isAlive)
+            assertEquals("beta", sessions.state.value.session?.launch?.target?.name)
+        } finally { sessions.shutdown() }
+    }
+
     @Test fun `application exit uses the same live confirmation and reaps the owned process`() = runBlocking {
         val terminal = FakeTerminal()
         val sessions = AssistanceSessions { terminal }

@@ -42,6 +42,7 @@ import dev.ruleblend.app.assistance.AssistanceSessions
 import dev.ruleblend.app.assistance.AssistanceAction
 import dev.ruleblend.app.assistance.AssistanceState
 import dev.ruleblend.app.assistance.AssistanceButton
+import dev.ruleblend.app.assistance.AssistanceObject
 import dev.ruleblend.app.assistance.assistanceObject
 import dev.ruleblend.app.assistance.assistanceDraftDirty
 import dev.ruleblend.app.assistance.prepareClaudeAssistanceLaunch
@@ -830,6 +831,24 @@ internal fun App(
                         placeSubagentsExpandedByDefault = settings.placeSubagentsExpandedByDefault,
                         placeMcpExpandedByDefault = settings.placeMcpExpandedByDefault,
                         translation = translation,
+                        projectAssistance = if (assistance == null) null else { project ->
+                            AssistanceButton(
+                                target = AssistanceObject.fromProject(project.dir.toAbsolutePath()),
+                                dirty = false,
+                                settings = settings,
+                                onConfigure = { settingsSection = SettingsSection.AGENTS; route = AppRoute.SETTINGS },
+                                onLaunch = { target, assistant ->
+                                    appScope.launch {
+                                        runCatching {
+                                            assistance.open(prepareClaudeAssistanceLaunch(
+                                                assistant, target, settings.language, project.dir.toAbsolutePath(),
+                                            ))
+                                        }.onFailure { assistanceFailure = it.message ?: it.toString() }
+                                    }
+                                },
+                                onFailure = { assistanceFailure = it },
+                            )
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                     AppRoute.LIBRARY -> LibraryScreen(
