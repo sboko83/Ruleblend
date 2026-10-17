@@ -81,6 +81,9 @@ project entry point and the procedure. Split from P001 (its pre-docflow phase 7)
 - The click flow moved into internal suspend launchAssistance with a `launched` flag; only a handed-off launch leaves the panel to open() — makes configure, choice, failure and cancellation endings unit-testable and covers the button leaving composition — rejected: testing through a Compose button test
 - Main prepares the AssistanceLaunch before appScope.launch — a require() failure in preparation surfaces in the button flow and ends the starting panel — rejected: a ticket-less clear in Main's failure handler
 - The starting panel has no close button — nothing is running yet and the launch ends by itself with a session or failure — rejected: a close that would clear the panel while the launch still opens a terminal
+- release() keeps the starting state instead of resetting to AssistanceState() — the terminal start runs after release() and is the slow part the starting panel exists for — rejected: clearing starting before the start and accepting a panel gap
+- The RU/EN and light/dark checks run as two rounds in A01 (EN+light, RU+dark) through the real settings controls — exercises the click-time theme capture and the UI language path end to end — rejected: setting config or the theme state directly in the test
+- Terminal background is asserted against the composition's MaterialTheme surface captured in the test — the fake terminal view does not paint JediTerm colors, so the launch data is the observable contract — rejected: pixel-sampling the fake terminal view
 
 ## Phase 1: Profile selection
 
@@ -310,7 +313,7 @@ Handoff:
 
 ## Phase 3: Acceptance
 
-### [ ] P003.3.1 Accept assistance polish
+### [x] P003.3.1 Accept assistance polish
 Read:
 - app/src/uiE2e/kotlin/dev/ruleblend/e2e/AssistanceUiTest.kt
 - docs/UI_E2E.md:L100-172
@@ -323,3 +326,13 @@ Traps: A failing scenario is fixed in this unit if the fix is small; otherwise b
 Depends: P003.2.1, P003.2.2, P003.2.3
 Model: strong
 Commit: P003.3.1: accept assistance polish
+Handoff:
+- Place project header breaks at a 1024 px window (minimum window is 900 dp): with the AI help button next to it, the assistants summary squeezes «5 из 5 подключено» into a one-letter-per-line column and place-assistants-configure gets zero width (bounds 625..625); seen in artifacts/assistance-first/place-menu-ru.png. Needs a layout decision (e.g. wrap the button below the summary when narrow); not fixed here
+- AssistanceSessions.release() now keeps AssistanceState.starting, so the starting panel stays through the terminal start; before this fix it vanished exactly during the slow cold start
+- AssistanceUiTest holds a terminal start through startGate (CountDownLatch) and drives language/theme through settings-language-*/settings-theme-*; the test's own theme state is wired to App's onThemeModeChanged
+- appBuild is 281
+- Unverified: Real JediTerm rendering of the light/dark terminal colors: the e2e uses a fake terminal view; no real window with a PTY was run (sandbox forbids external processes)
+- Unverified: Behaviour with a real claude session on top of the themed terminal: not run (no live model requests in this unit)
+- Unverified: Launch timings in the real app with the user's Claude config and MCP servers: still only the P003.2.3 harness numbers
+- Unverified: EN menu and assistance-dark screenshots were written but not viewed; RU menu and the starting panel screenshots were viewed
+- Unverified: Place header layout defect at narrow widths is reported, not fixed

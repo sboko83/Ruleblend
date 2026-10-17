@@ -2,18 +2,24 @@ package dev.ruleblend.e2e
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -27,6 +33,7 @@ import dev.ruleblend.app.assistance.AssistanceTerminal
 import dev.ruleblend.app.assistance.LocalAssistanceSessions
 import dev.ruleblend.app.assistance.LocalAssistanceTerminalView
 import dev.ruleblend.app.i18n.EnStrings
+import dev.ruleblend.app.i18n.Language
 import dev.ruleblend.app.openConfigStore
 import dev.ruleblend.app.theme.RuleblendTheme
 import dev.ruleblend.app.util.CliProbe
@@ -52,6 +59,7 @@ import org.junit.rules.TestRule
 import org.junit.runners.model.Statement
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /** Full root flow, isolated profiles and a controllable offline terminal; native input is separate. */
@@ -62,8 +70,13 @@ class AssistanceUiTest {
     private val children = CopyOnWriteArrayList<FakeTerminal>()
     private val launches = CopyOnWriteArrayList<AssistanceLaunch>()
     @Volatile private var nextDirectory: Path? = null
+    /** Holds the next terminal start, so the starting panel stays observable until it opens. */
+    @Volatile private var startGate: CountDownLatch? = null
+    private var theme by mutableStateOf(ThemeMode.LIGHT)
+    @Volatile private var surface = 0
     private val sessions = AssistanceSessions { launch ->
         launches += launch
+        startGate?.let { gate -> startGate = null; check(gate.await(30, TimeUnit.SECONDS)) }
         FakeTerminal().also(children::add)
     }
     private class FakeTerminal : AssistanceTerminal {
@@ -107,6 +120,23 @@ class AssistanceUiTest {
         present(uiTarget("library", "RULE:$id", "inspector", "selected"))
     }
 
+    private fun screenshot(name: String) {
+        val bitmap = compose.onAllNodes(isRoot()).onFirst().captureToImage().asSkiaBitmap()
+        Image.makeFromBitmap(bitmap).use { image ->
+            image.encodeToData()!!.use { Files.write(artifacts.resolve("$name.png"), it.bytes) }
+        }
+    }
+    private fun settings(language: Language, mode: ThemeMode) {
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.onNodeWithTag("settings-nav-general").performClick()
+        present("settings-panel-general")
+        compose.onNodeWithTag("settings-language-${language.name.lowercase()}").performClick()
+        compose.onNodeWithTag("settings-theme-${mode.name.lowercase()}").performClick()
+        compose.waitUntil(15_000) {
+            theme == mode && openConfigStore().load().let { it.themeMode == mode && it.language == language.name.lowercase() }
+        }
+    }
+
     @Test fun A01_settingsLaunchNavigationReloadAndConfirmedClose() {
         val config = openConfigStore()
         val restart = System.getProperty("ruleblend.e2e.stage") == "restart"
@@ -116,13 +146,15 @@ class AssistanceUiTest {
         repository.saveBlock(Block(id = "assistance-one", name = "Assistance one", content = "Initial saved body"))
         repository.saveBlock(Block(id = "assistance-two", name = "Assistance two", content = "Second body"))
         compose.setContent {
-            RuleblendTheme(ThemeMode.LIGHT) {
+            RuleblendTheme(theme) {
+                val scheme = MaterialTheme.colorScheme
+                SideEffect { surface = scheme.surface.toArgb() and 0xFFFFFF }
                 CompositionLocalProvider(
                     LocalAssistanceSessions provides sessions,
                     LocalAssistanceTerminalView provides { _: AssistanceTerminal, modifier: Modifier ->
                         Box(modifier.fillMaxSize()) { Text("Offline terminal · editable CLI draft") }
                     },
-                ) { App(config, onThemeModeChanged = {}) }
+                ) { App(config, onThemeModeChanged = { theme = it }) }
             }
         }
         present("nav-library")
@@ -154,7 +186,7 @@ class AssistanceUiTest {
         compose.onNodeWithTag("assistance-open").performClick()
         present("assistance-terminal")
         assertEquals(1, launches.size)
-        assertEquals(listOf(launches.single().assistant.cli.path, "--prefill", launches.single().target.draft(dev.ruleblend.app.i18n.Language.EN)), launches.single().command)
+        assertEquals(listOf(launches.single().assistant.cli.path, "--prefill", launches.single().target.draft(Language.EN)), launches.single().command)
         compose.onNodeWithTag("nav-home").performClick()
         compose.onNodeWithTag("assistance-panel").assertIsDisplayed()
         select("assistance-one")
@@ -179,10 +211,7 @@ class AssistanceUiTest {
         compose.waitUntil(5_000) { launches.size == 2 }
         assertFalse(children.first().isAlive)
         compose.onNodeWithTag("assistance-panel").assertIsDisplayed()
-        val bitmap = compose.onRoot().captureToImage().asSkiaBitmap()
-        Image.makeFromBitmap(bitmap).use { image ->
-            image.encodeToData()!!.use { Files.write(artifacts.resolve("assistance-panel.png"), it.bytes) }
-        }
+        screenshot("assistance-panel")
         compose.onNodeWithTag("assistance-close").performClick()
         present("dialog-confirm")
         compose.onNodeWithTag("dialog-dismiss").performClick()
@@ -194,7 +223,8 @@ class AssistanceUiTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
         assertTrue(children.none { it.isAlive })
 
-        // Place entry point: the project header menu starts one session per item with its starting text.
+        // Place entry point: each menu item starts one session with its starting text in the UI language,
+        // and the terminal takes the app theme of the click; one start is held to observe the starting panel.
         val project = Files.createDirectories(root.resolve("work/orbit-api")).toRealPath()
         compose.onNodeWithTag("nav-place").performClick()
         nextDirectory = project
@@ -203,32 +233,65 @@ class AssistanceUiTest {
         val place = "project:${project.projectKey()}"
         val recent = uiTarget("place", place, "recent", "select")
         val ungrouped = uiTarget("place", place, "ungrouped", "select")
-        compose.waitUntil(15_000) {
-            compose.onAllNodesWithTag(recent).fetchSemanticsNodes().isNotEmpty() ||
-                compose.onAllNodesWithTag(ungrouped).fetchSemanticsNodes().isNotEmpty()
+        val drafts = mapOf(
+            Language.EN to listOf(
+                "Project orbit-api ($project). I need help with ",
+                "Let's pick a profile for the project orbit-api ($project). " +
+                    "Use Ruleblend MCP and the ruleblend skill. Let's discuss first.",
+            ),
+            Language.RU to listOf(
+                "Проект orbit-api ($project). Нужна помощь с ",
+                "Подберём профиль для проекта orbit-api ($project). " +
+                    "Используй Ruleblend MCP и skill ruleblend. Сначала обсудим.",
+            ),
+        )
+        val backgrounds = mutableMapOf<Boolean, Int>()
+        for ((language, mode) in listOf(Language.EN to ThemeMode.LIGHT, Language.RU to ThemeMode.DARK)) {
+            settings(language, mode)
+            compose.onNodeWithTag("nav-place").performClick()
+            compose.waitUntil(15_000) {
+                compose.onAllNodesWithTag(recent).fetchSemanticsNodes().isNotEmpty() ||
+                    compose.onAllNodesWithTag(ungrouped).fetchSemanticsNodes().isNotEmpty()
+            }
+            val row = if (compose.onAllNodesWithTag(recent).fetchSemanticsNodes().isNotEmpty()) recent else ungrouped
+            compose.onNodeWithTag("place-list").performScrollToNode(hasTestTag(row))
+            compose.onNodeWithTag(row).performClick()
+            present("assistance-open")
+            for ((index, item) in listOf("assistance-ask", "assistance-profile").withIndex()) {
+                val held = mode == ThemeMode.DARK && index == 1
+                val gate = CountDownLatch(1).takeIf { held }
+                startGate = gate
+                val before = launches.size
+                compose.onNodeWithTag("assistance-open").performClick()
+                present(item)
+                if (index == 0) screenshot("place-menu-${language.name.lowercase()}")
+                compose.onNodeWithTag(item).performClick()
+                if (gate != null) {
+                    present("assistance-starting")
+                    compose.waitUntil(5_000) { launches.size == before + 1 }
+                    assertTrue(compose.onAllNodesWithTag("assistance-terminal").fetchSemanticsNodes().isEmpty())
+                    screenshot("assistance-starting")
+                    gate.countDown()
+                }
+                compose.waitUntil(5_000) { launches.size == before + 1 }
+                present("assistance-terminal")
+                compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-starting").fetchSemanticsNodes().isEmpty() }
+                val launch = launches.last()
+                assertEquals(listOf(launch.assistant.cli.path, "--prefill", drafts.getValue(language)[index]), launch.command)
+                assertEquals(project, launch.directory.toRealPath())
+                assertEquals(if (index == 0) AssistanceObject.Kind.PROJECT else AssistanceObject.Kind.PROFILE, launch.target.kind)
+                assertEquals(mode == ThemeMode.DARK, launch.colors.dark)
+                assertEquals(surface, launch.colors.background)
+                backgrounds[launch.colors.dark] = launch.colors.background
+                if (held) screenshot("assistance-dark")
+                assertTrue(children.last().isAlive)
+                children.last().finish()
+                compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
+                compose.onNodeWithTag("assistance-close").performClick()
+                compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
+            }
         }
-        val row = if (compose.onAllNodesWithTag(recent).fetchSemanticsNodes().isNotEmpty()) recent else ungrouped
-        compose.onNodeWithTag("place-list").performScrollToNode(hasTestTag(row))
-        compose.onNodeWithTag(row).performClick()
-        present("assistance-open")
-        for ((index, item) in listOf("assistance-ask", "assistance-profile").withIndex()) {
-            compose.onNodeWithTag("assistance-open").performClick()
-            present(item)
-            compose.onNodeWithTag(item).performClick()
-            compose.waitUntil(5_000) { launches.size == 3 + index }
-            present("assistance-terminal")
-            val launch = launches.last()
-            val draft = if (index == 0) "Project orbit-api ($project). I need help with "
-            else "Let's pick a profile for the project orbit-api ($project). " +
-                "Use Ruleblend MCP and the ruleblend skill. Let's discuss first."
-            assertEquals(listOf(launch.assistant.cli.path, "--prefill", draft), launch.command)
-            assertEquals(project, launch.directory.toRealPath())
-            assertEquals(if (index == 0) AssistanceObject.Kind.PROJECT else AssistanceObject.Kind.PROFILE, launch.target.kind)
-            assertTrue(children.last().isAlive)
-            children.last().finish()
-            compose.waitUntil(5_000) { sessions.state.value.session?.exitCode == 0 }
-            compose.onNodeWithTag("assistance-close").performClick()
-            compose.waitUntil(5_000) { compose.onAllNodesWithTag("assistance-panel").fetchSemanticsNodes().isEmpty() }
-        }
+        assertNotEquals(backgrounds.getValue(false), backgrounds.getValue(true))
+        settings(Language.EN, ThemeMode.LIGHT)
     }
 }

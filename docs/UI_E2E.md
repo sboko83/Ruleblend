@@ -111,9 +111,13 @@ Folder/archive/editor selection, CLI discovery, external applications and transl
 This does not check system dialogs or real translation. Every start uses a new JVM 17:
 home and environment are set before classes load; JVM writes stay within the canonical root,
 and external processes and networking are denied. Normal application startup does not install this guard.
-`AssistanceUiTest` also adds a Place project through the substituted folder picker and checks that the
-project header's assistance button opens one session whose native prefill is the approved profile-selection
-text with the project name and absolute path, in the project folder and never submitted.
+`AssistanceUiTest` also adds a Place project through the substituted folder picker. Each item of the
+project header's AI help menu, "Ask a question" and "Pick a profile", opens one session in the project
+folder whose native prefill is that item's starting text in the interface language, never submitted; the
+items run once in English with the light theme and once in Russian with the dark one. The terminal colors
+of each launch follow the theme of the click. One terminal start is held, so the starting panel is checked
+before the terminal replaces it. Screenshots of the menu, the starting panel and the dark panel are
+written to the test's artifacts.
 
 Profile selection fixture, for the live run of P003.1.4 and manual checks:
 

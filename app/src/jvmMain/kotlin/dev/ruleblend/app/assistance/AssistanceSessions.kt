@@ -183,6 +183,7 @@ class AssistanceSessions(
         mutableState.value.session?.terminal?.close()
         exitWatcher?.cancel()
         exitWatcher = null
-        mutableState.value = AssistanceState()
+        // The starting panel stays through the terminal start, the slow part of a launch.
+        mutableState.update { AssistanceState(starting = it.starting) }
     }
 }

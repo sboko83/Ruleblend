@@ -143,7 +143,12 @@ class AssistanceSessionsTest {
 
     @Test fun `starting panel appears on the click and the session replaces it`() = runBlocking {
         val terminals = mutableListOf<FakeTerminal>()
-        val sessions = AssistanceSessions { FakeTerminal().also(terminals::add) }
+        var startedUnder: AssistanceStarting? = null
+        lateinit var sessions: AssistanceSessions
+        sessions = AssistanceSessions {
+            startedUnder = sessions.state.value.starting
+            FakeTerminal().also(terminals::add)
+        }
         try {
             val initial = launch()
             val starting = assertIs<AssistanceStarting>(sessions.begin(initial.target))
@@ -157,6 +162,8 @@ class AssistanceSessionsTest {
             assertEquals(initial.assistant, handedOff)
             assertSame(starting, sessions.state.value.starting)
             sessions.open(initial)
+            // The panel covers the terminal start itself, not only the assistant refresh before it.
+            assertSame(starting, startedUnder)
             assertNull(sessions.state.value.starting)
             assertSame(terminals.single(), sessions.state.value.session?.terminal)
         } finally { sessions.shutdown() }
