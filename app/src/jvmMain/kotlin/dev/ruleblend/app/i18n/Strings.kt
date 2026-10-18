@@ -917,6 +917,24 @@ interface Strings {
     val setLibraryDataHint: String
     val setImportNote: String
     val setAgentSummary: (Int, Int, Int, Int) -> String
+    val setAssistantsHint: String
+    val setColAssistance: String
+    val setVisibilityHint: String
+    val setAssistanceHint: String
+    val setMcpHint: String
+    val setAgentAll: String
+    val setAgentDetected: String
+    val setAgentAttention: String
+    val setAgentPrevious: String
+    val setAgentNext: String
+    val setAgentDetails: String
+    val setAgentCollapse: String
+    val setAgentManual: String
+    val setAgentLaunch: String
+    val setAgentConflict: String
+    val setAgentRange: (Int, Int, Int) -> String
+    val setAssistanceCount: (Int) -> String
+    val setAgentPage: (Int, Int) -> String
     val setColAgent: String
     val setColCanManage: String
     val setColVisible: String
@@ -1875,9 +1893,27 @@ object EnStrings : Strings {
     override val setAgentSummary = { visible: Int, total: Int, connected: Int, mcp: Int ->
         "$visible of $total visible · $connected of $mcp connected to Ruleblend MCP"
     }
+    override val setAssistantsHint = "Choose assistants for AI help and configure their integrations."
+    override val setColAssistance = "In AI help"
+    override val setVisibilityHint = "Show this assistant in Ruleblend lists. This is independent of AI help and leaves its files untouched."
+    override val setAssistanceHint = "Offer this assistant in the embedded AI help terminal. Availability requires a supported CLI and current Ruleblend MCP and skill."
+    override val setMcpHint = "Combined status of the Ruleblend MCP registration and the bundled ruleblend skill. Either component can need an update or have a conflict; expand Details to inspect them."
+    override val setAgentAll = "All"
+    override val setAgentDetected = "On this machine"
+    override val setAgentAttention = "Needs attention"
+    override val setAgentPrevious = "Previous"
+    override val setAgentNext = "Next"
+    override val setAgentDetails = "Details ›"
+    override val setAgentCollapse = "Collapse ‹"
+    override val setAgentManual = "Other assistant · manual MCP setup"
+    override val setAgentLaunch = "Launch parameters"
+    override val setAgentConflict = "File conflict"
+    override val setAgentRange = { first: Int, last: Int, total: Int -> "Showing $first–$last of $total" }
+    override val setAssistanceCount = { count: Int -> "AI help: $count" }
+    override val setAgentPage = { page: Int, total: Int -> "Page $page of $total" }
     override val setColAgent = "AI assistant"
     override val setColCanManage = "Can manage"
-    override val setColVisible = "Visible"
+    override val setColVisible = "In lists"
     override val setColMcp = "Ruleblend MCP"
     override val setColCli = "CLI"
     override val setCliArgumentsHint = "Extra arguments"
@@ -1893,7 +1929,7 @@ object EnStrings : Strings {
     override val setCapabilityUnavailable = "not supported"
     override val setAgentVisible = "Visible"
     override val setAgentHidden = "Hidden"
-    override val setConnManual = "manual — see below"
+    override val setConnManual = "Manual setup"
     override val connectAction = "Connect"
     override val connectActionUpdate = "Update"
     override val disconnectAction = "Disconnect"
@@ -2877,9 +2913,27 @@ object RuStrings : Strings {
     override val setAgentSummary = { visible: Int, total: Int, connected: Int, mcp: Int ->
         "$visible из $total видимы · $connected из $mcp подключены к Ruleblend MCP"
     }
+    override val setAssistantsHint = "Выберите ассистентов для AI-помощи и настройте их интеграции."
+    override val setColAssistance = "В AI-помощи"
+    override val setVisibilityHint = "Показывать ассистента в списках Ruleblend. Настройка независима от AI-помощи и не меняет его файлы."
+    override val setAssistanceHint = "Добавить ассистента в выбор во встроенном терминале AI-помощи. Требуются поддерживаемый CLI и актуальные Ruleblend MCP и skill."
+    override val setMcpHint = "Общий статус регистрации Ruleblend MCP и встроенного skill ruleblend. Обновление или конфликт может относиться к любому компоненту; подробности — в деталях."
+    override val setAgentAll = "Все"
+    override val setAgentDetected = "На этой машине"
+    override val setAgentAttention = "Требуют внимания"
+    override val setAgentPrevious = "Назад"
+    override val setAgentNext = "Далее"
+    override val setAgentDetails = "Детали ›"
+    override val setAgentCollapse = "Свернуть ‹"
+    override val setAgentManual = "Другой ассистент · ручная настройка MCP"
+    override val setAgentLaunch = "Параметры запуска"
+    override val setAgentConflict = "Конфликт файлов"
+    override val setAgentRange = { first: Int, last: Int, total: Int -> "Показано $first–$last из $total" }
+    override val setAssistanceCount = { count: Int -> "AI-помощь: $count" }
+    override val setAgentPage = { page: Int, total: Int -> "Страница $page из $total" }
     override val setColAgent = "AI-ассистент"
     override val setColCanManage = "Управляет"
-    override val setColVisible = "Видимость"
+    override val setColVisible = "В списках"
     override val setColMcp = "Ruleblend MCP"
     override val setColCli = "CLI"
     override val setCliArgumentsHint = "Дополнительные аргументы"
@@ -2895,7 +2949,7 @@ object RuStrings : Strings {
     override val setCapabilityUnavailable = "не поддерживается"
     override val setAgentVisible = "Виден"
     override val setAgentHidden = "Скрыт"
-    override val setConnManual = "вручную — см. ниже"
+    override val setConnManual = "Ручная настройка"
     override val connectAction = "Подключить"
     override val connectActionUpdate = "Обновить"
     override val disconnectAction = "Отключить"

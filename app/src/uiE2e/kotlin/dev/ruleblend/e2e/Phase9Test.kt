@@ -19,6 +19,7 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -397,12 +398,15 @@ class Phase9Test {
         foreign.writeText("---\nname: ruleblend\ndescription: My own skill\n---\nForeign body\n")
         start()
         section("agents")
+        compose.onNodeWithTag("settings-details-claude-code").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-details-codex").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-details-pi").performScrollTo().performClick()
         val codexConfig = home.resolve(".codex/config.toml")
         val codexSkill = home.resolve(".codex/skills/ruleblend/SKILL.md")
         val piConfig = home.resolve(".pi/agent/mcp.json")
         val piSkill = home.resolve(".pi/agent/skills/ruleblend/SKILL.md")
         if (stage == "first") {
-            compose.onNodeWithText(EnStrings.connectStatusSkillForeign).assertIsDisplayed()
+            compose.onNodeWithText(EnStrings.connectStatusSkillForeign).performScrollTo().assertIsDisplayed()
             compose.onNodeWithTag("settings-connect-codex").performScrollTo().assertIsDisplayed().performClick()
             compose.waitUntil(15_000) {
                 Files.exists(codexConfig) && codexConfig.readText().contains("RULEBLEND_ENTRY") &&
@@ -452,22 +456,24 @@ class Phase9Test {
         if (stage == "first") foreign.writeText(foreignBody)
         start()
         section("agents")
+        compose.onNodeWithTag("settings-details-claude-code").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-details-codex").performScrollTo().performClick()
         val codexConfig = home.resolve(".codex/config.toml")
         if (stage == "first") {
-            compose.onNodeWithText(EnStrings.connectStatusMcpForeign).assertIsDisplayed()
+            compose.onNodeWithText(EnStrings.connectStatusMcpForeign).performScrollTo().assertIsDisplayed()
             compose.onNodeWithTag("settings-connect-claude-code").assertDoesNotExist()
             compose.onNodeWithTag("settings-disconnect-claude-code").assertDoesNotExist()
             assertEquals(foreignBody, foreign.readText())
-            compose.onNodeWithTag("settings-connect-codex").performClick()
+            compose.onNodeWithTag("settings-connect-codex").performScrollTo().performClick()
             compose.waitUntil(15_000) { Files.exists(codexConfig) && codexConfig.readText().contains("RULEBLEND_ENTRY") }
             val original = codexConfig.readText()
             // External fixture edit: the entry keeps its ownership stamp but points at an old app.
             codexConfig.writeText(original.replace("ruleblend-mcp", "old-ruleblend-mcp"))
             assertTrue(codexConfig.readText().contains("old-ruleblend-mcp"))
         } else if (stage == "restart") {
-            compose.onNodeWithText(EnStrings.connectStatusStale).assertIsDisplayed()
+            compose.onAllNodesWithText(EnStrings.connectStatusStale).onFirst().performScrollTo().assertIsDisplayed()
             present("settings-connect-codex")
-            compose.onNodeWithTag("settings-connect-codex").performClick()
+            compose.onNodeWithTag("settings-connect-codex").performScrollTo().performClick()
             compose.waitUntil(15_000) { !codexConfig.readText().contains("old-ruleblend-mcp") }
             assertTrue(codexConfig.readText().contains("RULEBLEND_ENTRY"))
             assertEquals(foreignBody, foreign.readText())
@@ -497,6 +503,7 @@ class Phase9Test {
         ports.nextEditor = terminal
         compose.onNodeWithTag("settings-terminal-choose").performClick()
         section("agents")
+        compose.onNodeWithTag("settings-details-codex").performScrollTo().performClick()
         compose.onNodeWithTag("settings-cli-codex").performTextReplacement("--synthetic")
         installRuleInProject("launch-rule")
         val installed = project.resolve("AGENTS.md")

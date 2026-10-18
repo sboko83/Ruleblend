@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
@@ -721,9 +722,10 @@ class Phase2Test {
         route("settings")
         compose.onNodeWithTag("settings-nav-agents").performClick()
         compose.waitUntil(15_000) {
-            compose.onAllNodesWithTag("settings-connect-claude-code").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag("settings-details-claude-code").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithTag("settings-connect-claude-code").performClick()
+        compose.onNodeWithTag("settings-details-claude-code").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-connect-claude-code").performScrollTo().performClick()
         compose.waitUntil(15_000) {
             Files.exists(home.resolve(".claude/skills/ruleblend/SKILL.md"))
         }

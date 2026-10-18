@@ -1148,8 +1148,10 @@ a nested flow entered from Home or Coverage. The screens use these routes:
   time: *General* (appearance, language, file editor, workspace state), *Library* (path, repository
   statistics, name format, external Git synchronization, import/export), *Agents*, *Shortcuts* (read-only) and
   *About* (version, diagnostics, paths). Every control writes on change; there is no Apply. One agent
-  table replaces the former visibility matrix and *Connect to MCP* list: capability (Rules / MCP /
-  Skills / Subagents), visibility and connection state live in the same row. The configured library path is
+  catalog puts detected assistants first, with search, filters and eight rows per page. Visibility and
+  AI help stay independent; unavailable AI help switches are disabled. Capabilities, CLI arguments and
+  connection actions expand in each row. The Ruleblend MCP status covers both MCP and the bundled skill.
+  The configured library path is
   compared against the one this process opened — they differ only until a restart, so the row says so
   and offers to take the change back.
 

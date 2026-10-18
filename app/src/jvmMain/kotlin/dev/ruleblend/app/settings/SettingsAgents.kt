@@ -4,20 +4,24 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +29,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -33,12 +40,10 @@ import dev.ruleblend.app.i18n.Strings
 import dev.ruleblend.app.theme.CompactOutlinedButton
 import dev.ruleblend.app.theme.MiniSwitch
 import dev.ruleblend.app.theme.MonoFontFamily
-import dev.ruleblend.app.theme.Pill
 import dev.ruleblend.app.theme.RuleblendFieldContentPadding
 import dev.ruleblend.app.theme.RuleblendOutlinedTextField
-import dev.ruleblend.app.theme.RuleblendTooltip
 import dev.ruleblend.app.theme.RuleblendTheme
-import dev.ruleblend.app.theme.SectionHeaderStyle
+import dev.ruleblend.app.theme.RuleblendTooltip
 import dev.ruleblend.app.theme.StatusDot
 import dev.ruleblend.app.theme.ruleblendFieldColors
 import dev.ruleblend.app.util.abbreviateHome
@@ -51,52 +56,45 @@ import dev.ruleblend.core.integration.capabilities
 import dev.ruleblend.mcp.McpConnector
 import dev.ruleblend.mcp.McpRegistration
 import dev.ruleblend.mcp.McpServingBuild
+import dev.ruleblend.mcp.skill.SkillStatus
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.nio.file.Path
 
-/**
- * One table instead of the two sections the old screen had: an agent, what Ruleblend can manage for
- * it, whether it is visible, and how it is connected to the Ruleblend MCP server — all in one row.
- */
+private val VisibilityWidth = 88.dp
+private val AssistanceWidth = 108.dp
+private val IntegrationWidth = 150.dp
+private val DetailsWidth = 78.dp
+
+/** Presentation state never changes which assistants are selected or which integrations are installed. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AgentsSection(model: SettingsModel) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
-    val visible = model.agents.count { it.id !in model.hiddenAgents }
-    val connected = model.connectStates.count { it.value == ConnectState.CONNECTED }
-    val summary = strings.setAgentSummary(visible, model.agents.size, connected, model.connectStates.size)
-    SettingsSectionBlock(SettingsSection.AGENTS, strings.setSectionAgents, summary) {
-        AgentHeader()
-        model.agents.forEach { agent ->
-            RowDivider()
-            AgentRow(model, agent)
+    var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf(AgentCatalogFilter.ALL) }
+    var page by remember { mutableStateOf(1) }
+    var expanded by remember { mutableStateOf(emptySet<String>()) }
+    var manual by remember { mutableStateOf(false) }
+    val attention = model.integrationStates.filter { it.blocked || it.outdated || it.incomplete }.map { it.agentId }.toSet()
+    val catalog = agentCatalogPage(model.agents, model.detectedAgentIds, attention, query, filter, page)
+    val ready = model.readyAssistanceAssistants.map { it.id }.toSet()
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Note(strings.setAssistantsHint)
+        CompactOutlinedButton(onClick = { manual = !manual }, modifier = Modifier.testTag("settings-manual-toggle")) {
+            ButtonLabel("${if (manual) "▾" else "▸"} ${strings.setAgentManual}")
         }
-        // One click for the whole machine: after an app update every connected assistant is
-        // behind by the same release, and repairing them one row at a time is busywork.
-        if (model.outdatedAgentIds.isNotEmpty()) {
-            RowDivider()
-            ControlRow(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                Note(strings.setUpdateAllHint(model.outdatedAgentIds.size), RuleblendTheme.extraColors.warning)
-                CompactOutlinedButton(
-                    onClick = { scope.launch { model.updateAllIntegrations() } },
-                    modifier = Modifier.testTag("settings-update-all"),
-                ) {
-                    ButtonLabel(strings.setUpdateAll)
-                }
-            }
-        }
-        RowDivider()
-        model.launch?.let { launch ->
-            val command = launch.shellCommand()
-            ControlRow(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+        if (manual) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            model.launch?.let { launch ->
                 Note(strings.connectManualHint)
-                PathChip(command)
-                FlashButton(strings.setCopy, strings.setCopied, onClick = { copyToClipboard(command) })
+                PathChip(launch.shellCommand())
+                FlashButton(strings.setCopy, strings.setCopied, onClick = { copyToClipboard(launch.shellCommand()) })
             }
         }
         model.mcpServing?.let { serving ->
-            ControlRow(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            ControlRow {
                 val source = Path.of(serving.source).abbreviateHome()
                 Note(
                     if (serving.build == McpServingBuild.INSTALLED) strings.mcpServingInstalled(source)
@@ -107,121 +105,250 @@ internal fun AgentsSection(model: SettingsModel) {
                 if (!serving.thisBuild) CompactOutlinedButton(
                     onClick = { scope.launch { model.serveAgentsFromThisBuild() } },
                     modifier = Modifier.testTag("settings-mcp-serve-here"),
-                ) {
-                    ButtonLabel(strings.mcpServeFromThisBuild)
-                }
+                ) { ButtonLabel(strings.mcpServeFromThisBuild) }
             }
         }
         model.launchFailure?.let {
-            Note(it, MaterialTheme.colorScheme.error,
-                Modifier.padding(horizontal = 14.dp, vertical = 4.dp).testTag("settings-launch-error"))
+            Note(it, MaterialTheme.colorScheme.error, Modifier.testTag("settings-launch-error"))
         }
-        model.connectFailure?.let {
-            Note(it, MaterialTheme.colorScheme.error, Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
+        model.connectFailure?.let { Note(it, MaterialTheme.colorScheme.error) }
+        ControlRow {
+            Note(strings.setAgentRange(catalog.first, catalog.last, catalog.total), modifier = Modifier.testTag("settings-agents-count"))
+            Note(strings.setAssistanceCount(model.assistanceAssistants.size))
         }
-        RowDivider()
-        Foot(strings.setAgentsFoot)
-    }
-    SettingsSectionBlock(SettingsSection.AGENTS, strings.assistanceSettingsTitle, null, tag = "settings-panel-assistance") {
-        Text(strings.assistanceSettingsHint, style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(14.dp))
-        model.agents.filter { it.id == "claude-code" }.forEach { agent ->
-            val ready = model.readyAssistanceAssistants.any { it.id == agent.id }
-            ControlRow(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                Text(agent.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                if (!ready) Text(strings.assistanceUnavailable, style = MaterialTheme.typography.bodySmall,
-                    color = RuleblendTheme.extraColors.faint)
-                MiniSwitch(
-                    checked = agent.id in model.assistanceAssistants,
-                    onCheckedChange = { model.setAssistanceAssistant(agent.id, it) },
-                    enabled = ready || agent.id in model.assistanceAssistants,
-                    modifier = Modifier.testTag("settings-assistance-${agent.id}"),
-                )
+        RuleblendOutlinedTextField(
+            value = query,
+            onValueChange = { query = it; page = 1 },
+            placeholder = { Text(strings.placeAssistantsSearch, style = MaterialTheme.typography.bodyMedium) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium,
+            colors = ruleblendFieldColors(),
+            contentPadding = RuleblendFieldContentPadding,
+            modifier = Modifier.fillMaxWidth().testTag("settings-agents-search"),
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            AgentCatalogFilter.entries.forEach { choice ->
+                val label = when (choice) {
+                    AgentCatalogFilter.ALL -> strings.setAgentAll
+                    AgentCatalogFilter.DETECTED -> strings.setAgentDetected
+                    AgentCatalogFilter.ATTENTION -> strings.setAgentAttention
+                }
+                val count = when (choice) {
+                    AgentCatalogFilter.ALL -> model.agents.size
+                    AgentCatalogFilter.DETECTED -> model.detectedAgentIds.size
+                    AgentCatalogFilter.ATTENTION -> attention.count { it in model.detectedAgentIds }
+                }
+                CompactOutlinedButton(
+                    onClick = { filter = choice; page = 1 },
+                    contentColor = if (choice == filter) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("settings-agents-filter-${choice.name.lowercase()}")
+                        .semantics { selected = choice == filter },
+                ) { ButtonLabel("$label · $count") }
             }
         }
+        if (model.outdatedAgentIds.isNotEmpty()) ControlRow {
+            Note(strings.setUpdateAllHint(model.outdatedAgentIds.size), RuleblendTheme.extraColors.warning)
+            CompactOutlinedButton(
+                onClick = { scope.launch { model.updateAllIntegrations() } },
+                modifier = Modifier.testTag("settings-update-all"),
+            ) { ButtonLabel(strings.setUpdateAll) }
+        }
+        SettingsSectionBlock(SettingsSection.AGENTS, strings.setSectionAgents, null) {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val narrow = maxWidth < 700.dp
+                Column {
+                    if (!narrow) { AgentHeader(); RowDivider() }
+                    catalog.agents.forEachIndexed { index, agent ->
+                        if (index > 0) RowDivider()
+                        AgentRow(model, agent, narrow, agent.id in ready, agent.id in expanded, scope) {
+                            expanded = if (agent.id in expanded) expanded - agent.id else expanded + agent.id
+                        }
+                    }
+                    if (catalog.total == 0) Column(
+                        Modifier.fillMaxWidth().padding(20.dp).testTag("settings-agents-empty"),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Note(strings.placeAssistantsNoMatch)
+                        CompactOutlinedButton(onClick = { query = ""; filter = AgentCatalogFilter.ALL; page = 1 }) {
+                            ButtonLabel(strings.libResetFilters)
+                        }
+                    }
+                }
+            }
+        }
+        if (catalog.pages > 1) ControlRow(Modifier.testTag("settings-agents-pagination")) {
+            Note(strings.setAgentPage(catalog.page, catalog.pages))
+            CompactOutlinedButton(
+                onClick = { page = catalog.page - 1 }, enabled = catalog.page > 1,
+                modifier = Modifier.testTag("settings-agents-previous"),
+            ) { ButtonLabel(strings.setAgentPrevious) }
+            (1..catalog.pages).forEach { number ->
+                CompactOutlinedButton(
+                    onClick = { page = number },
+                    contentColor = if (number == catalog.page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("settings-agents-page-$number").semantics { selected = number == catalog.page },
+                ) { ButtonLabel(number.toString()) }
+            }
+            CompactOutlinedButton(
+                onClick = { page = catalog.page + 1 }, enabled = catalog.page < catalog.pages,
+                modifier = Modifier.testTag("settings-agents-next"),
+            ) { ButtonLabel(strings.setAgentNext) }
+        }
+        Note(strings.setAgentsFoot)
     }
 }
-
-/**
- * Column weights shared by the header and every row, so the table stays a table. Can-manage carries
- * three chips and gets the room for them; the agent's own column can afford it, its second line is a
- * path that ellipsizes anyway.
- */
-private const val AgentColumn = 0.24f
-private const val ManageColumn = 0.24f
-private const val VisibleColumn = 0.08f
-private const val CliColumn = 0.20f
-private const val ConnectColumn = 0.24f
 
 @Composable
 private fun AgentHeader() {
     val strings = LocalStrings.current
-    Row(
-        Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(strings.setColAgent.uppercase(), style = SectionHeaderStyle, modifier = Modifier.weight(AgentColumn))
-        Text(strings.setColCanManage.uppercase(), style = SectionHeaderStyle, modifier = Modifier.weight(ManageColumn))
-        Text(strings.setColVisible.uppercase(), style = SectionHeaderStyle, modifier = Modifier.weight(VisibleColumn))
-        Text(strings.setColCli.uppercase(), style = SectionHeaderStyle, modifier = Modifier.weight(CliColumn))
-        Text(strings.setColMcp.uppercase(), style = SectionHeaderStyle, modifier = Modifier.weight(ConnectColumn))
+    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(strings.setColAgent, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        HeaderHint(strings.setColVisible, strings.setVisibilityHint, Modifier.width(VisibilityWidth))
+        HeaderHint(strings.setColAssistance, strings.setAssistanceHint, Modifier.width(AssistanceWidth))
+        HeaderHint(strings.setColMcp, strings.setMcpHint, Modifier.width(IntegrationWidth))
+        Box(Modifier.width(DetailsWidth))
+    }
+}
+
+@Composable
+private fun HeaderHint(label: String, hint: String, modifier: Modifier) {
+    RuleblendTooltip(hint, modifier.semantics { contentDescription = "$label. $hint" }) {
+        Text("$label ⓘ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AgentRow(model: SettingsModel, agent: AgentAdapter) {
+private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean, ready: Boolean, expanded: Boolean, operationScope: CoroutineScope, onExpand: () -> Unit) {
     val strings = LocalStrings.current
-    val hidden = agent.id in model.hiddenAgents
-    Row(
-        Modifier.padding(horizontal = 12.dp, vertical = 9.dp).testTag("settings-agent-${agent.id}"),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(AgentColumn), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    agent.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (hidden) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                )
-                // An agent that is not on this machine still has a row: its file is where it would go.
-                if (!agent.isAvailable()) {
-                    Pill(
-                        strings.setAgentNotDetected,
-                        MaterialTheme.colorScheme.background,
-                        RuleblendTheme.extraColors.faint,
-                    )
+    Column(Modifier.fillMaxWidth().testTag("settings-agent-${agent.id}")) {
+        if (narrow) Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AgentIdentity(model, agent)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AgentVisibility(model, agent, showLabel = true)
+                AgentAssistance(model, agent, ready, showLabel = true)
+            }
+            ControlRow {
+                IntegrationSummary(model, agent, Modifier.weight(1f))
+                AgentDisclosure(agent.id, expanded, onExpand)
+            }
+        } else Row(
+            Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AgentIdentity(model, agent, Modifier.weight(1f))
+            AgentVisibility(model, agent, modifier = Modifier.width(VisibilityWidth))
+            AgentAssistance(model, agent, ready, modifier = Modifier.width(AssistanceWidth))
+            IntegrationSummary(model, agent, Modifier.width(IntegrationWidth))
+            AgentDisclosure(agent.id, expanded, onExpand, Modifier.width(DetailsWidth))
+        }
+        if (expanded) {
+            RowDivider()
+            Column(
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(16.dp)
+                    .testTag("settings-agent-details-${agent.id}"),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(strings.setColCanManage, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val capabilities = agent.capabilities()
+                    Capability(strings.setAgentRulesCapability, capabilities.rules, "rules")
+                    Capability(strings.setAgentMcpCapability, capabilities.mcp, "mcp")
+                    Capability(strings.setAgentSkillsCapability, capabilities.skills, "skills")
+                    Capability(strings.setAgentSubagentsCapability, capabilities.subagents, "subagents")
+                }
+                Text(strings.setColMcp, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                ControlRow { Connection(model, agent, operationScope) }
+                if (agent.cli != null) {
+                    Text(strings.setAgentLaunch, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Note(strings.setCliArgumentsHint)
+                    CliArguments(model, agent)
                 }
             }
-            Text(
-                agent.globalFile().abbreviateHome(),
-                style = MaterialTheme.typography.labelMedium.copy(fontFamily = MonoFontFamily),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
-        // FlowRow, not Row: at a narrow window the three chips wrap instead of being clipped.
-        FlowRow(
-            Modifier.weight(ManageColumn),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            val capabilities = agent.capabilities()
-            Capability(strings.setAgentRulesCapability, capabilities.rules, "rules")
-            Capability(strings.setAgentMcpCapability, capabilities.mcp, "mcp")
-            Capability(strings.setAgentSkillsCapability, capabilities.skills, "skills")
-            Capability(strings.setAgentSubagentsCapability, capabilities.subagents, "subagents")
-        }
-        Row(Modifier.weight(VisibleColumn)) {
+    }
+}
+
+@Composable
+private fun AgentIdentity(model: SettingsModel, agent: AgentAdapter, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(agent.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        if (agent.id in model.detectedAgentIds) Text(
+            agent.globalFile().abbreviateHome(), style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        ) else Note(LocalStrings.current.setAgentNotDetected)
+    }
+}
+
+@Composable
+private fun AgentVisibility(model: SettingsModel, agent: AgentAdapter, showLabel: Boolean = false, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    RuleblendTooltip(strings.setVisibilityHint, modifier) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (showLabel) Note(strings.setColVisible)
             MiniSwitch(
-                checked = !hidden,
-                onCheckedChange = { shown -> model.setAgentHidden(agent, !shown) },
-                modifier = Modifier.testTag("settings-visible-${agent.id}"),
+                checked = agent.id !in model.hiddenAgents,
+                onCheckedChange = { model.setAgentHidden(agent, !it) },
+                modifier = Modifier.testTag("settings-visible-${agent.id}").semantics { contentDescription = "${agent.name}: ${strings.setColVisible}" },
             )
         }
-        Box(Modifier.weight(CliColumn)) { CliArguments(model, agent) }
-        ControlRow(Modifier.weight(ConnectColumn)) { Connection(model, agent) }
+    }
+}
+
+@Composable
+private fun AgentAssistance(model: SettingsModel, agent: AgentAdapter, ready: Boolean, showLabel: Boolean = false, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    RuleblendTooltip(strings.setAssistanceHint, modifier) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (showLabel) Note(strings.setColAssistance)
+            MiniSwitch(
+                checked = agent.id in model.assistanceAssistants,
+                onCheckedChange = { model.setAssistanceAssistant(agent.id, it) },
+                enabled = ready,
+                modifier = Modifier.testTag("settings-assistance-${agent.id}").semantics { contentDescription = "${agent.name}: ${strings.setColAssistance}" },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AgentDisclosure(id: String, expanded: Boolean, onExpand: () -> Unit, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    CompactOutlinedButton(onClick = onExpand, modifier = modifier.testTag("settings-details-$id")) {
+        Text(if (expanded) strings.setAgentCollapse else strings.setAgentDetails, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+private fun integrationStatus(model: SettingsModel, id: String): ConnectState? = model.connectStates[id] ?: when (model.skillStates[id]) {
+    SkillStatus.INSTALLED -> ConnectState.CONNECTED
+    SkillStatus.OUTDATED -> ConnectState.SKILL_OUTDATED
+    SkillStatus.FOREIGN -> ConnectState.SKILL_FOREIGN
+    SkillStatus.NOT_INSTALLED -> ConnectState.NOT_CONNECTED
+    null -> null
+}
+
+@Composable
+private fun IntegrationSummary(model: SettingsModel, agent: AgentAdapter, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    val state = integrationStatus(model, agent.id)
+    val color = when (state) {
+        ConnectState.CONNECTED -> RuleblendTheme.extraColors.success
+        ConnectState.SKILL_FOREIGN, ConnectState.MCP_FOREIGN -> RuleblendTheme.extraColors.danger
+        ConnectState.STALE, ConnectState.SKILL_OUTDATED, ConnectState.MCP_OUTDATED -> RuleblendTheme.extraColors.warning
+        else -> RuleblendTheme.extraColors.faint
+    }
+    val textColor = when (state) {
+        ConnectState.SKILL_FOREIGN, ConnectState.MCP_FOREIGN, ConnectState.STALE,
+        ConnectState.SKILL_OUTDATED, ConnectState.MCP_OUTDATED -> color
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val fullLabel = state?.label(strings) ?: strings.setConnManual
+    val label = if (state == ConnectState.SKILL_FOREIGN || state == ConnectState.MCP_FOREIGN) strings.setAgentConflict else fullLabel
+    RuleblendTooltip(fullLabel, modifier) {
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+            StatusDot(color)
+            Text(label, style = MaterialTheme.typography.bodySmall, color = textColor)
+        }
     }
 }
 
@@ -242,6 +369,12 @@ private fun CliArguments(model: SettingsModel, agent: AgentAdapter) {
     }
     val saved = model.agentCliArguments[agent.id].orEmpty()
     var text by remember(agent.id, saved) { mutableStateOf(saved) }
+    val currentText by rememberUpdatedState(text)
+    DisposableEffect(model, agent.id) {
+        onDispose {
+            if (currentText != model.agentCliArguments[agent.id].orEmpty()) model.changeAgentCliArguments(agent.id, currentText)
+        }
+    }
     RuleblendTooltip(cliHint(cli.executable)) {
         RuleblendOutlinedTextField(
             value = text,
@@ -272,16 +405,15 @@ private fun cliHint(executable: String): String = "${LocalStrings.current.setCli
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Connection(model: SettingsModel, agent: AgentAdapter) {
+private fun Connection(model: SettingsModel, agent: AgentAdapter, operationScope: CoroutineScope) {
     val strings = LocalStrings.current
     val extra = RuleblendTheme.extraColors
-    val state = model.connectStates[agent.id]
+    val state = integrationStatus(model, agent.id)
     // No connector on this machine: the agent is wired by hand with the command below the table.
     if (state == null) {
         Note(strings.setConnManual)
         return
     }
-    val connector = model.connectors.find { it.agentId == agent.id } ?: return
     StatusDot(
         when (state) {
             ConnectState.CONNECTED -> extra.success
@@ -305,7 +437,7 @@ private fun Connection(model: SettingsModel, agent: AgentAdapter) {
         },
     )
     Versions(model, agent.id)
-    ConnectActions(model, connector, state)
+    model.connectors.find { it.agentId == agent.id }?.let { ConnectActions(model, it, state, operationScope) }
 }
 
 /**
@@ -331,10 +463,9 @@ private fun Versions(model: SettingsModel, agentId: String) {
 }
 
 @Composable
-private fun ConnectActions(model: SettingsModel, connector: McpConnector, state: ConnectState) {
+private fun ConnectActions(model: SettingsModel, connector: McpConnector, state: ConnectState, scope: CoroutineScope) {
     val strings = LocalStrings.current
-    // Registering an agent writes its config and probes its CLI: not work for the click's own frame.
-    val scope = rememberCoroutineScope()
+    // The catalog owns this scope: closing details must not cancel registration or its state refresh.
     // A foreign skill is the user's own file: Connect would only fail, so only Disconnect is offered.
     val outdated = state == ConnectState.SKILL_OUTDATED || state == ConnectState.MCP_OUTDATED
     if (state != ConnectState.CONNECTED && state != ConnectState.SKILL_FOREIGN && state != ConnectState.MCP_FOREIGN) {

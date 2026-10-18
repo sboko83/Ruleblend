@@ -686,13 +686,19 @@ fun SegmentedControl(
 /** The design's `.sw`: a 30 × 18 dp switch, accent when on, faint when off. */
 @Composable
 fun MiniSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    val track = if (checked) MaterialTheme.colorScheme.primary else RuleblendTheme.extraColors.faint
+    val track = when {
+        !enabled -> MaterialTheme.colorScheme.surfaceVariant
+        checked -> MaterialTheme.colorScheme.primary
+        else -> RuleblendTheme.extraColors.faint
+    }
+    val thumb = if (enabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
     val thumbOffset by animateDpAsState(if (checked) 14.dp else 2.dp)
     Box(
         modifier
             .size(width = 30.dp, height = 18.dp)
             .clip(RoundedCornerShape(50))
             .background(track)
+            .then(if (enabled) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(50)))
             .toggleable(value = checked, role = Role.Switch, enabled = enabled, onValueChange = onCheckedChange),
     ) {
         Box(
@@ -700,7 +706,7 @@ fun MiniSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: M
                 .padding(start = thumbOffset, top = 2.dp)
                 .size(14.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color.White),
+                .background(thumb),
         )
     }
 }

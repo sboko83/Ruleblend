@@ -22,7 +22,10 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.printToString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
@@ -111,8 +114,17 @@ class AssistanceUiTest {
     } }
     @get:Rule val rules: RuleChain = RuleChain.outerRule(environment).around(compose)
 
-    private fun present(tag: String) = compose.waitUntil(15_000) {
-        compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+    private fun present(tag: String) {
+        try {
+            compose.waitUntil(15_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+        } catch (failure: Throwable) {
+            runCatching {
+                Files.writeString(artifacts.resolve("timeout-$tag.txt"),
+                    "launches=${launches.size}\n" + compose.onAllNodes(isRoot()).onFirst().printToString(maxDepth = 12))
+                screenshot("timeout-$tag")
+            }
+            throw failure
+        }
     }
     private fun select(id: String) {
         compose.onNodeWithTag("nav-library").performClick()
@@ -165,7 +177,8 @@ class AssistanceUiTest {
         select("assistance-one")
         if (restart) {
             assertEquals(listOf("claude-code"), config.load().assistanceAssistants)
-            compose.onNodeWithTag("assistance-open").performClick()
+            // History loads can move the inspector action between coordinate lookup and dispatch.
+            compose.onNodeWithTag("assistance-open").performSemanticsAction(SemanticsActions.OnClick) { it() }
             present("assistance-terminal")
             assertEquals(1, launches.size)
             children.single().finish()
@@ -176,10 +189,12 @@ class AssistanceUiTest {
         }
         compose.onNodeWithTag("assistance-open").performClick()
         present("settings-panel-agents")
+        screenshot("assistant-settings")
         val toggle = compose.onNodeWithTag("settings-assistance-claude-code")
         toggle.performScrollTo()
         toggle.assertIsNotEnabled()
         assertTrue(config.load().assistanceAssistants.isEmpty())
+        compose.onNodeWithTag("settings-details-claude-code").performScrollTo().performClick()
         compose.onNodeWithTag("settings-connect-claude-code").performScrollTo().performClick()
         compose.waitUntil(15_000) {
             runCatching { toggle.assertIsNotEnabled() }.isFailure

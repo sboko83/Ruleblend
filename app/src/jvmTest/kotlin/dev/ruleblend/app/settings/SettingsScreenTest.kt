@@ -2,12 +2,15 @@ package dev.ruleblend.app.settings
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
@@ -20,9 +23,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.ruleblend.app.home.HomeModel
+import dev.ruleblend.app.i18n.LocalStrings
+import dev.ruleblend.app.i18n.RuStrings
+import dev.ruleblend.app.i18n.Strings
 import dev.ruleblend.app.i18n.EnStrings
 import dev.ruleblend.app.library.LibraryModel
 import dev.ruleblend.app.library.LibraryUsageSource
@@ -34,6 +41,7 @@ import dev.ruleblend.core.config.SourceCheckMode
 import dev.ruleblend.core.config.ThemeMode
 import dev.ruleblend.core.exchange.LibraryArchive
 import dev.ruleblend.core.integration.AgentAdapter
+import dev.ruleblend.core.integration.AgentCli
 import dev.ruleblend.core.integration.PiAdapter
 import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.BlockType
@@ -384,9 +392,11 @@ class SettingsScreenTest {
         val model = show()
         goTo(SettingsSection.AGENTS)
         compose.onNodeWithTag("settings-agent-claude-code").assertIsDisplayed()
+        compose.onNodeWithTag("settings-capability-rules").assertDoesNotExist()
+        compose.onNodeWithTag("settings-details-claude-code").performClick()
         compose.onNodeWithTag("settings-capability-rules").assertIsDisplayed()
         compose.onNodeWithTag("settings-capability-subagents").assertIsDisplayed()
-        compose.onNodeWithText(strings.connectStatusNotConnected).assertIsDisplayed()
+        compose.onAllNodesWithText(strings.connectStatusNotConnected).onLast().assertIsDisplayed()
         compose.onNodeWithTag("settings-connect-claude-code").performClick()
         compose.runOnIdle { assertEquals(ConnectState.CONNECTED, model.connectStates["claude-code"]) }
         compose.onNodeWithTag("settings-visible-claude-code").performClick()
@@ -396,11 +406,29 @@ class SettingsScreenTest {
         }
     }
 
+    @Test fun `closing details does not cancel an in-progress connection refresh`() {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        connector = FakeConnector("claude-code", McpRegistration.NOT_REGISTERED, entered, release)
+        val model = show(initialSection = SettingsSection.AGENTS)
+        compose.onNodeWithTag("settings-details-claude-code").performClick()
+        compose.onNodeWithTag("settings-connect-claude-code").performClick()
+        try {
+            compose.waitUntil(5_000) { entered.count == 0L }
+            compose.onNodeWithTag("settings-details-claude-code").performClick()
+        } finally {
+            release.countDown()
+        }
+        compose.waitUntil(5_000) { model.connectStates["claude-code"] == ConnectState.CONNECTED }
+        compose.onNodeWithTag("settings-agent-details-claude-code").assertDoesNotExist()
+    }
+
     @Test fun `a foreign same-name MCP entry has no connect or disconnect action`() {
         connector = FakeConnector("claude-code", McpRegistration.FOREIGN)
         val model = show()
         goTo(SettingsSection.AGENTS)
 
+        compose.onNodeWithTag("settings-details-claude-code").performClick()
         compose.onNodeWithText(strings.connectStatusMcpForeign).assertIsDisplayed()
         compose.onNodeWithTag("settings-connect-claude-code").assertDoesNotExist()
         compose.onNodeWithTag("settings-disconnect-claude-code").assertDoesNotExist()
@@ -426,6 +454,7 @@ class SettingsScreenTest {
         goTo(SettingsSection.AGENTS)
         compose.onNodeWithTag("settings-agent-pi").assertIsDisplayed()
         compose.onNodeWithText(strings.setConnManual).assertIsDisplayed()
+        compose.onNodeWithTag("settings-manual-toggle").performClick()
         compose.onNodeWithText(strings.connectManualHint).assertIsDisplayed()
     }
 
@@ -438,7 +467,8 @@ class SettingsScreenTest {
         )
         goTo(SettingsSection.AGENTS)
 
-        compose.onNodeWithTag("settings-connect-pi").performClick()
+        compose.onNodeWithTag("settings-details-pi").performClick()
+        compose.onNodeWithTag("settings-connect-pi").performScrollTo().performClick()
         compose.waitUntil(timeoutMillis = 10_000) { model.connectStates["pi"] == ConnectState.CONNECTED }
         compose.runOnIdle {
             assertEquals(ConnectState.CONNECTED, model.connectStates["pi"])
@@ -454,6 +484,7 @@ class SettingsScreenTest {
         val model = show(skillInstallers = listOf(ClaudeCodeSkillInstaller(root)))
         goTo(SettingsSection.AGENTS)
 
+        compose.onNodeWithTag("settings-details-claude-code").performClick()
         compose.onNodeWithText(strings.connectStatusSkillForeign).assertIsDisplayed()
         compose.onNodeWithTag("settings-connect-claude-code").assertDoesNotExist()
         assertEquals(ConnectState.SKILL_FOREIGN, model.connectStates["claude-code"])
@@ -467,6 +498,7 @@ class SettingsScreenTest {
         val model = show(skillInstallers = listOf(ClaudeCodeSkillInstaller(root)))
         goTo(SettingsSection.AGENTS)
 
+        compose.onNodeWithTag("settings-details-claude-code").performClick()
         compose.onNodeWithTag("settings-versions-claude-code")
             .assertTextEquals(strings.setSkillVersion(0, BundledSkill.version))
 
@@ -475,6 +507,95 @@ class SettingsScreenTest {
         compose.runOnIdle {
             assertEquals(SkillStatus.INSTALLED, model.skillStates["claude-code"])
             assertEquals(emptyList(), model.outdatedAgentIds)
+        }
+    }
+
+    @Test fun `assistant catalog puts detected agents first and pages without changing preferences`() {
+        val agents = (1..20).map { FakeAgent("agent-$it", "Assistant $it", root, available = it > 12) }
+        val model = show(agents = agents, connectors = emptyList(), initialSection = SettingsSection.AGENTS)
+        compose.onNodeWithTag("settings-agent-agent-13").assertExists()
+        compose.onNodeWithTag("settings-agent-agent-1").assertDoesNotExist()
+        compose.onNodeWithTag("settings-agents-count").assertTextEquals(strings.setAgentRange(1, 8, 20))
+        compose.onNodeWithTag("settings-agents-page-2").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-agent-agent-1").assertExists()
+        compose.onNodeWithTag("settings-agent-agent-13").assertDoesNotExist()
+        compose.onNodeWithTag("settings-assistance-agent-1").assertIsNotEnabled()
+        compose.onNodeWithTag("settings-agents-search").performScrollTo().performTextReplacement("Assistant 20")
+        compose.onNodeWithTag("settings-agent-agent-20").assertExists()
+        compose.onNodeWithTag("settings-agents-count").assertTextEquals(strings.setAgentRange(1, 1, 1))
+        compose.onNodeWithTag("settings-agents-pagination").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(emptySet(), model.hiddenAgents)
+            assertEquals(emptySet(), model.assistanceAssistants)
+        }
+    }
+
+    @Test fun `changing pages keeps the latest CLI draft after an earlier save`() {
+        val command = FakeAgent("command", "Command", root, cli = AgentCli("fixture-cli"))
+        val others = (1..8).map { FakeAgent("other-$it", "Other $it", root) }
+        val model = show(agents = listOf(command) + others, connectors = emptyList(), initialSection = SettingsSection.AGENTS)
+        compose.onNodeWithTag("settings-details-command").performClick()
+        compose.onNodeWithTag("settings-cli-command").performScrollTo().performTextReplacement("--first")
+        compose.onNodeWithTag("settings-agents-search").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("--first", model.agentCliArguments["command"]) }
+        compose.onNodeWithTag("settings-cli-command").performScrollTo().performTextReplacement("--latest")
+        compose.onNodeWithTag("settings-agents-page-2").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals("--latest", model.agentCliArguments["command"])
+            assertEquals("--latest", configStore.load().agentCliArguments["command"])
+        }
+        compose.onNodeWithTag("settings-agents-page-1").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-cli-command").assertTextContains("--latest")
+    }
+
+    @Test fun `assistant filters reset paging and explain empty results`() {
+        val agents = (1..12).map { FakeAgent("agent-$it", "Assistant $it", root, available = it > 8) }
+        show(agents = agents, connectors = emptyList(), initialSection = SettingsSection.AGENTS)
+        compose.onNodeWithTag("settings-agents-page-2").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-agents-filter-detected").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-agents-count").assertTextEquals(strings.setAgentRange(1, 4, 4))
+        compose.onNodeWithTag("settings-agents-pagination").assertDoesNotExist()
+        compose.onNodeWithTag("settings-agents-filter-attention").performClick()
+        compose.onNodeWithTag("settings-agents-empty").assertIsDisplayed()
+        compose.onNodeWithText(strings.libResetFilters).performClick()
+        compose.onNodeWithTag("settings-agents-count").assertTextEquals(strings.setAgentRange(1, 8, 12))
+    }
+
+    @Test fun `unavailable AI help is disabled independently of visibility`() {
+        val model = show(initialSection = SettingsSection.AGENTS)
+        compose.onNodeWithTag("settings-assistance-claude-code").assertIsNotEnabled()
+        compose.onNodeWithTag("settings-visible-claude-code").performClick()
+        compose.runOnIdle {
+            assertEquals(setOf("claude-code"), model.hiddenAgents)
+            assertEquals(emptySet(), model.assistanceAssistants)
+        }
+        compose.onNodeWithTag("settings-agent-claude-code").assertIsDisplayed()
+    }
+
+    @Test fun `skill conflicts enter the attention filter even without an MCP connector`() {
+        val file = root.resolve(".claude/skills/ruleblend/SKILL.md")
+        file.parent.createDirectories()
+        file.writeText("My own skill")
+        show(connectors = emptyList(), skillInstallers = listOf(ClaudeCodeSkillInstaller(root)), initialSection = SettingsSection.AGENTS)
+        compose.onNodeWithTag("settings-agents-filter-attention").performClick()
+        compose.onNodeWithTag("settings-agent-claude-code").assertIsDisplayed()
+        compose.onNodeWithText(strings.setAgentConflict).assertIsDisplayed()
+        assertEquals("My own skill", file.readText())
+    }
+
+    @Test fun `a narrow Russian catalog reflows long names and switches at double font scale`() {
+        show(
+            agents = listOf(FakeAgent("long-name", "Очень длинное имя ассистента ".repeat(8), root)),
+            connectors = emptyList(), size = DpSize(560.dp, 1200.dp),
+            initialSection = SettingsSection.AGENTS, uiStrings = RuStrings, fontScale = 2f,
+        )
+        compose.onNodeWithTag("settings-assistance-long-name").performScrollTo().assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithTag("settings-visible-long-name").assertExists()
+        listOf("settings-assistance-long-name", "settings-visible-long-name", "settings-details-long-name").forEach { tag ->
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+            val row = compose.onNodeWithTag("settings-agent-long-name").fetchSemanticsNode().boundsInRoot
+            val bounds = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+            assertTrue(bounds.left >= row.left && bounds.right <= row.right, "$tag overflows $row: $bounds")
         }
     }
 
@@ -545,6 +666,8 @@ class SettingsScreenTest {
         launchFailure: String? = null,
         claimLaunch: (() -> McpLaunch)? = null,
         libraryGit: LibraryGit = LibraryGit(root.resolve("library")),
+        uiStrings: Strings = strings,
+        fontScale: Float = 1f,
     ): SettingsModel {
         val model = SettingsModel(
             configStore = configStore,
@@ -561,7 +684,10 @@ class SettingsScreenTest {
         ).also { m -> runBlocking { m.load() } }
         var theme by mutableStateOf(ThemeMode.LIGHT)
         compose.setContent {
-            RuleblendTheme(theme) { Sized(size) { SettingsScreen(model, library, home = home, initialSection = initialSection) } }
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalStrings provides uiStrings, LocalDensity provides Density(density.density, fontScale)) {
+                RuleblendTheme(theme) { Sized(size) { SettingsScreen(model, library, home = home, initialSection = initialSection) } }
+            }
         }
         listOf(ThemeMode.LIGHT, ThemeMode.DARK).forEach { mode -> compose.runOnIdle { theme = mode } }
         compose.runOnIdle { theme = ThemeMode.LIGHT }
@@ -578,6 +704,7 @@ class SettingsScreenTest {
         override val name: String,
         private val home: Path,
         private val available: Boolean = true,
+        override val cli: AgentCli? = null,
     ) : AgentAdapter {
         override fun isAvailable(): Boolean = available
         override fun globalFile(): Path = home.resolve(".$id").resolve("AGENTS.md")
@@ -587,9 +714,13 @@ class SettingsScreenTest {
     private class FakeConnector(
         override val agentId: String,
         private var registration: McpRegistration,
+        private val entered: CountDownLatch? = null,
+        private val release: CountDownLatch? = null,
     ) : McpConnector {
         override fun isAvailable(): Boolean = true
         override fun register(binary: Path) {
+            entered?.countDown()
+            check(release?.await(5, TimeUnit.SECONDS) != false)
             registration = McpRegistration.REGISTERED
         }
 

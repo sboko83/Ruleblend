@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -408,6 +409,7 @@ class Phase10Test {
             route("settings")
             compose.onNodeWithTag("settings-nav-agents").performClick()
             compose.onNodeWithText(EnStrings.connectStatusStale).assertIsDisplayed()
+            compose.onNodeWithTag("settings-details-codex").performScrollTo().performClick()
             compose.onNodeWithTag("settings-connect-codex").performClick()
             val codex = home.resolve(".codex/config.toml")
             compose.waitUntil(15_000) {

@@ -215,6 +215,10 @@ class SettingsModel(
     var translationStatus by mutableStateOf<TranslationStatus?>(null)
         private set
 
+    /** Availability snapshot read off the UI thread for catalog sorting and filtering. */
+    var detectedAgentIds by mutableStateOf(emptySet<String>())
+        private set
+
     /** What Ruleblend installed into every available assistant, and whether it is still current. */
     var integrationStates by mutableStateOf(emptyList<AgentIntegrationState>())
         private set
@@ -259,6 +263,7 @@ class SettingsModel(
         val history: LibraryHistory?,
         val sync: RemoteSyncResult?,
         val integrationStates: List<AgentIntegrationState>,
+        val detectedAgentIds: Set<String>,
     )
 
     /**
@@ -273,6 +278,7 @@ class SettingsModel(
                 history = runCatching { libraryGit.history() }.getOrNull(),
                 sync = libraryGit.lastRemoteSync,
                 integrationStates = integration.states(),
+                detectedAgentIds = agents.filter { it.isAvailable() }.map { it.id }.toSet(),
             )
         }
         val config = loaded.config
@@ -300,6 +306,7 @@ class SettingsModel(
         agentCliArguments = config.agentCliArguments
         translation = config.translation
         libraryHistory = loaded.history
+        detectedAgentIds = loaded.detectedAgentIds
         integrationStates = loaded.integrationStates
         readyAssistanceAssistants = discoverAssistanceAssistants(agents, { integrationStates })
     }
@@ -555,7 +562,11 @@ class SettingsModel(
         skillInstallers.find { it.agentId == agentId && it.isAvailable() }
 
     private suspend fun refreshConnectStates() {
-        integrationStates = withContext(Dispatchers.IO) { integration.states() }
+        val (states, detected) = withContext(Dispatchers.IO) {
+            integration.states() to agents.filter { it.isAvailable() }.map { it.id }.toSet()
+        }
+        detectedAgentIds = detected
+        integrationStates = states
         readyAssistanceAssistants = discoverAssistanceAssistants(agents, { integrationStates })
     }
 
