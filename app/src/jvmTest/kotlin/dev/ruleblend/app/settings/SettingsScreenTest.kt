@@ -648,7 +648,7 @@ class SettingsScreenTest {
         compose.onNodeWithTag("settings-panel-general").assertIsDisplayed()
     }
 
-    @Test fun `manual setup shows the MCP server build and switches it to this one`() {
+    @Test fun `manual setup shows the launcher command without app paths and can switch builds`() {
         val shared = root.resolve("bin/ruleblend-mcp")
         val dev = McpLaunch(shared, fromDevBuild = false,
             serving = McpServing(McpServingBuild.DEV, root.resolve("work").toString(), thisBuild = false))
@@ -659,13 +659,15 @@ class SettingsScreenTest {
 
         compose.onNodeWithTag("settings-mcp-serving").assertDoesNotExist()
         compose.onNodeWithTag("settings-manual-toggle").performScrollTo().performClick()
-        compose.onNodeWithTag("settings-mcp-serving").performScrollTo()
-            .assertTextContains("development build", substring = true)
+        compose.onNodeWithText(dev.shellCommand()).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(dev.serving!!.source, substring = true).assertDoesNotExist()
+        compose.onNodeWithTag("settings-mcp-serving").assertDoesNotExist()
         compose.onNodeWithTag("settings-mcp-serve-here").performScrollTo().performClick()
         compose.waitUntil(5_000) { model.mcpServing == claimed.serving }
 
         assertEquals(1, claims)
-        compose.onNodeWithTag("settings-mcp-serving").assertTextContains("Ruleblend MCP server:", substring = true)
+        compose.onNodeWithText(claimed.serving!!.source, substring = true).assertDoesNotExist()
+        compose.onNodeWithText(dev.shellCommand()).performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithTag("settings-mcp-serve-here").assertCountEquals(0)
     }
 

@@ -60,11 +60,9 @@ import dev.ruleblend.core.integration.CapabilityState
 import dev.ruleblend.core.integration.capabilities
 import dev.ruleblend.mcp.McpConnector
 import dev.ruleblend.mcp.McpRegistration
-import dev.ruleblend.mcp.McpServingBuild
 import dev.ruleblend.mcp.skill.SkillStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.nio.file.Path
 
 private val VisibilityWidth = 88.dp
 private val AssistanceWidth = 108.dp
@@ -197,21 +195,10 @@ internal fun AgentsSection(model: SettingsModel) {
                 PathChip(launch.shellCommand())
                 FlashButton(strings.setCopy, strings.setCopied, onClick = { copyToClipboard(launch.shellCommand()) })
             }
-            model.mcpServing?.let { serving ->
-                ControlRow {
-                    val source = Path.of(serving.source).abbreviateHome()
-                    Note(
-                        if (serving.build == McpServingBuild.INSTALLED) strings.mcpServingInstalled(source)
-                        else strings.mcpServingDev(source),
-                        if (serving.thisBuild) RuleblendTheme.extraColors.faint else RuleblendTheme.extraColors.warning,
-                        Modifier.weight(1f).testTag("settings-mcp-serving"),
-                    )
-                    if (!serving.thisBuild) CompactOutlinedButton(
-                        onClick = { scope.launch { model.serveAgentsFromThisBuild() } },
-                        modifier = Modifier.testTag("settings-mcp-serve-here"),
-                    ) { ButtonLabel(strings.mcpServeFromThisBuild) }
-                }
-            }
+            if (model.mcpServing?.thisBuild == false) CompactOutlinedButton(
+                onClick = { scope.launch { model.serveAgentsFromThisBuild() } },
+                modifier = Modifier.testTag("settings-mcp-serve-here"),
+            ) { ButtonLabel(strings.mcpServeFromThisBuild) }
         }
     }
 }
