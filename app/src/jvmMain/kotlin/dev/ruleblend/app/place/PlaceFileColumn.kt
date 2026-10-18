@@ -385,6 +385,9 @@ fun PlaceFileColumn(
                                         val foldKey = "${file.key}:${row.id}"
                                         BlockRow(
                                             row = row,
+                                            favorite = file.kind == PlaceFileKind.RULES && model.blocks.any {
+                                                it.id == row.id && it.type == BlockType.RULE && it.favorite
+                                            },
                                             kind = file.kind.objectKind(),
                                             fileKey = file.key,
                                             strings = strings,

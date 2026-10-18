@@ -1,6 +1,7 @@
 package dev.ruleblend.app.place
 
 import dev.ruleblend.app.library.KindMark
+import dev.ruleblend.app.library.FavoriteMark
 import dev.ruleblend.app.library.versionLabel
 import dev.ruleblend.app.library.BlockContextMenu
 import androidx.compose.foundation.clickable
@@ -200,6 +201,7 @@ internal fun BlockRow(
     onEditFile: (() -> Unit)? = null,
     /** Stops managing this copy and leaves it on disk as a foreign entry; absent where that has no meaning. */
     onRelease: (() -> Unit)? = null,
+    favorite: Boolean = false,
 ) {
     val drift = row.status == InstallStatus.MODIFIED && !settled
     val apart = if (drift) copies else emptyList()
@@ -241,6 +243,7 @@ internal fun BlockRow(
                         )
                     }
                     KindMark(kind)
+                    if (favorite) FavoriteMark()
                     Text(
                         row.name,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),

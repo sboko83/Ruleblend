@@ -24,6 +24,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   switching the grouping moved into one picker next to it.
 - app: An empty Library list names the filter that emptied it and offers to lift it in one click
   ("Without the “Local” filter — 7 objects", Remove).
+- app: Favorite rules show the same star in the Projects file preview as in the Library.
 
 ### Changed
 - ZCode MCP servers use native user and workspace configs in `.zcode`; existing unchanged
