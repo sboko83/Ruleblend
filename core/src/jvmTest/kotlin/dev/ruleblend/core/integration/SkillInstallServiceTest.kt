@@ -194,7 +194,26 @@ class SkillInstallServiceTest {
         assertTrue(project.resolve(".codex/skills/review/SKILL.md").exists())
         assertTrue(project.resolve(".pi/skills/review/references/checklist.md").exists())
         assertEquals(emptyList(), service.unsupportedAgents(projectTarget))
-        assertTrue(service.installedEverywhere(projectTarget, skill))
+        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(projectTarget, skill))
+    }
+
+    @Test
+    fun `an assistant connected after the install leaves the existing copies synced`() {
+        service.install(ProjectTarget(project, listOf(ClaudeCodeAdapter(home))), skill)
+        val target = ProjectTarget(project, listOf(ClaudeCodeAdapter(home), ZCodeAdapter(home)))
+
+        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false, listOf("zcode")), service.status(target, skill))
+        assertEquals(
+            listOf(InstallStatus.SYNCED, null),
+            service.destinationStatuses(target, skill).map { it.status },
+        )
+        snapshots["review"] = snapshot("# Review twice\n", version = "2")
+        assertEquals(SkillInstallStatus(InstallStatus.UPDATE_AVAILABLE, false, listOf("zcode")), service.status(target, skill))
+
+        service.install(target, skill)
+
+        assertEquals(SkillInstallStatus(InstallStatus.SYNCED, false), service.status(target, skill))
+        assertTrue(project.resolve(".zcode/skills/review/SKILL.md").exists())
     }
 
     @Test

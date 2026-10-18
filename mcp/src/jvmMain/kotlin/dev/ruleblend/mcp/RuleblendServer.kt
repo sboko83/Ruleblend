@@ -593,8 +593,8 @@ fun runRuleblendServer(version: String, libraryOverride: Path? = null) {
         tool(
             name = "target_status",
             description = "List Ruleblend rules, MCP server configs, subagents and skills installed in a target and " +
-                "their status: synced, update-available, or modified. Rows other than rules carry a kind; a subagent " +
-                "row lists missing_agents when an assistant of the target has no copy yet.",
+                "their status: synced, update-available, or modified. Rows other than rules carry a kind; a subagent or " +
+                "skill row lists missing_agents when an assistant of the target has no copy yet.",
             schema = schema { string("target", TARGET_ARG) },
             handler = tools::targetStatus,
         )

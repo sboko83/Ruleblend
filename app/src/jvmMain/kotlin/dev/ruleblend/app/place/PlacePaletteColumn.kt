@@ -380,8 +380,11 @@ private fun ObjectRow(row: PaletteRow, strings: Strings, model: IntegrationModel
     val scope = rememberCoroutineScope()
     val supported = model.placeSupports(row.key)
     // An assistant connected after the install has no copy yet: that is not drift of the others.
-    val missingHere = row.key.kind == LibraryObjectKind.SUBAGENT &&
-        model.subagentStatuses[row.key.id]?.missingAgents.orEmpty().isNotEmpty()
+    val missingHere = when (row.key.kind) {
+        LibraryObjectKind.SUBAGENT -> model.subagentStatuses[row.key.id]?.missingAgents.orEmpty().isNotEmpty()
+        LibraryObjectKind.SKILL -> model.skillStatuses[row.key.id]?.missingAgents.orEmpty().isNotEmpty()
+        else -> false
+    }
     val actions = paletteActions(
         kind = row.key.kind,
         status = row.status,

@@ -9,6 +9,7 @@ import dev.ruleblend.core.integration.McpFileEntry
 import dev.ruleblend.core.integration.PlaceEntry
 import dev.ruleblend.core.integration.PlaceEntryOrigin
 import dev.ruleblend.core.integration.Redirect
+import dev.ruleblend.core.integration.SkillDestinationStatus
 import dev.ruleblend.core.integration.SkillDirEntry
 import dev.ruleblend.core.integration.SubagentDestinationStatus
 import dev.ruleblend.core.integration.SubagentFileEntry
@@ -399,6 +400,20 @@ fun skillEntriesIn(
 ): List<PlaceEntry<SkillDirEntry, String>> {
     val root = directory.normalize()
     return entries.filter { it.value.path.parent?.normalize() == root }
+}
+
+/**
+ * The state of each library skill's copy in skills root [directory]. Like a subagent directory, every
+ * root is its own tab and reports its own tree; a skill this root lacks has no row here.
+ */
+fun skillStatusesIn(
+    destinations: Map<String, List<SkillDestinationStatus>>,
+    directory: Path,
+): Map<String, InstallStatus> {
+    val root = directory.normalize()
+    return destinations.mapNotNull { (id, trees) ->
+        trees.firstOrNull { it.directory.parent?.normalize() == root }?.status?.let { id to it }
+    }.toMap()
 }
 
 /**

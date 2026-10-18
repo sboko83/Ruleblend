@@ -841,8 +841,11 @@ bytes. Pi has no destination or record in this flow.
 Status is per file. The aggregate a place reports is the worst state among the files that exist; a
 destination with no file — an assistant connected after the install — is listed apart as missing
 rather than counted as drift of the copies that are there. Place shows each directory its own copy,
-and the palette offers the install that completes a subagent missing somewhere. Rules and skills
-still report a missing copy as an available update.
+and the palette offers the install that completes a subagent missing somewhere. Skills follow the
+same rule per skill directory. Rules keep reporting a missing region as an available update: every
+agent of a target shares its one instruction file (`AGENTS.md` in a project, the agent's own file
+globally), so connecting an assistant adds no rule destination, and a region absent from one of a
+target's files is an unfinished write rather than a newly connected assistant.
 
 ### Subagent Library UI
 

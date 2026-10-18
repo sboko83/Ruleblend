@@ -13,7 +13,7 @@ plugins {
 // Single source of truth for the displayed version. These feed both the native distribution
 // below and the generated BuildInfo.kt consumed at runtime (e.g. the Settings tab footer).
 val appVersion = "0.5.0"
-val appBuild = "293"
+val appBuild = "294"
 
 // MSI compares only three numeric fields. Keep builds increasing across patch releases.
 val windowsVersion = appVersion.split('.').take(2).plus(appBuild).joinToString(".")

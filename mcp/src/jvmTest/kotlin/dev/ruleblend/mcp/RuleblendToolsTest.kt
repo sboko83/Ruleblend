@@ -761,6 +761,21 @@ class RuleblendToolsTest {
     }
 
     @Test
+    fun `a skill copy missing for one assistant is listed apart from its status`() {
+        val skill = repository.createSkill(Skill("review", "review", content = "# Review\n"))
+        tools.install(args("target" to project.toString(), "skill_id" to skill.id))
+        val zcodeCopy = project.resolve(".zcode/skills/review")
+        assertTrue(zcodeCopy.exists())
+        zcodeCopy.toFile().deleteRecursively()
+
+        val status = (tools.targetStatus(args("target" to project.toString())) as JsonArray)
+            .single { it.jsonObject["kind"]?.jsonPrimitive?.content == "skill" }.jsonObject
+
+        assertEquals("synced", status["status"]?.jsonPrimitive?.content)
+        assertEquals(listOf("zcode"), status["missing_agents"]!!.jsonArray.map { it.jsonPrimitive.content })
+    }
+
+    @Test
     fun `install and uninstall a subagent id use native definition files`() {
         repository.saveBlock(subagent)
 

@@ -97,8 +97,9 @@ class LibraryUsageScanner(
         return rules.mapNotNull { block ->
             val statuses = perFile.mapNotNull { regions -> regions[block.id]?.let { statusOf(it, block) } }
             if (statuses.isEmpty()) return@mapNotNull null
-            // Present in some files only: the missing ones still have to be written, which is what
-            // "update available" means everywhere else in the app.
+            // Present in some files only: the missing ones still have to be written. Unlike a skill or
+            // subagent copy, no file goes missing because an assistant was connected later — every
+            // agent of a target shares its one instruction file — so this stays an update.
             val status = if (statuses.size < files.size) {
                 InstallStatus.UPDATE_AVAILABLE
             } else {

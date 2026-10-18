@@ -115,6 +115,17 @@ class PlaceWriteTest {
         )
     }
 
+    @Test fun `a skill missing for one assistant is offered the install that completes it`() {
+        assertEquals(
+            listOf(PlaceAction.INSTALL, PlaceAction.REMOVE),
+            paletteActions(LibraryObjectKind.SKILL, InstallStatus.SYNCED, missingHere = true),
+        )
+        assertEquals(
+            listOf(PlaceAction.REMOVE),
+            paletteActions(LibraryObjectKind.SKILL, InstallStatus.MODIFIED, missingHere = true),
+        )
+    }
+
     @Test fun `the palette never offers to install over a hand edit`() {
         assertEquals(listOf(PlaceAction.REMOVE), paletteActions(LibraryObjectKind.RULE, InstallStatus.MODIFIED))
     }

@@ -66,7 +66,7 @@ internal fun placePreviewParts(
             val rows = placeEntries(
                 managedRows = installedRows(
                     items = model.skills.map { Triple(it.id, it.name, it.version) },
-                    statuses = model.skillStatuses.mapValues { it.value.status },
+                    statuses = skillStatusesIn(model.skillDestinations, file.path),
                 ),
                 entries = skillEntriesIn(model.skillEntries, file.path),
             )

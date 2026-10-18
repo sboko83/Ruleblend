@@ -795,26 +795,29 @@ class RuleblendTools(
             }
             repository.listBlocks().filter { it.type == BlockType.SUBAGENT }.forEach { block ->
                 val status = subagentService?.status(target, block) ?: return@forEach
-                val row = nativeStatusJson(block.id, "subagent", JsonPrimitive(block.version), status.status)
-                add(
-                    if (status.missingAgents.isEmpty()) row
-                    else JsonObject(row + ("missing_agents" to JsonArray(status.missingAgents.map(::JsonPrimitive)))),
-                )
+                add(nativeStatusJson(block.id, "subagent", JsonPrimitive(block.version), status.status, status.missingAgents))
             }
             repository.listSkills().forEach { skill ->
                 val status = skillService?.status(target, skill) ?: return@forEach
-                add(nativeStatusJson(skill.id, "skill", JsonPrimitive(skill.version), status.status))
+                add(nativeStatusJson(skill.id, "skill", JsonPrimitive(skill.version), status.status, status.missingAgents))
             }
         }
     }
 
     /** One `target_status` row for an item that lives in a native config or directory, not a managed region. */
-    private fun nativeStatusJson(id: String, kind: String, libraryVersion: JsonPrimitive, status: InstallStatus): JsonObject =
+    private fun nativeStatusJson(
+        id: String,
+        kind: String,
+        libraryVersion: JsonPrimitive,
+        status: InstallStatus,
+        missingAgents: List<String> = emptyList(),
+    ): JsonObject =
         buildJsonObject {
             put("id", id)
             put("kind", kind)
             put("library_version", libraryVersion)
             put("status", status.name.lowercase().replace('_', '-'))
+            if (missingAgents.isNotEmpty()) put("missing_agents", JsonArray(missingAgents.map(::JsonPrimitive)))
         }
 
     /**

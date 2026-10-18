@@ -22,8 +22,35 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
 import kotlin.io.path.readBytes
 
-/** Aggregated state of one library skill across every supported agent in a target. */
-data class SkillInstallStatus(val status: InstallStatus, val conflict: Boolean)
+/**
+ * Aggregated state of one library skill across every supported agent in a target. [status] is the
+ * worst state among the trees that exist; a tree an agent still lacks is not drift of the others, so
+ * it is reported apart, in [missingAgents].
+ */
+data class SkillInstallStatus(
+    val status: InstallStatus,
+    val conflict: Boolean,
+    val missingAgents: List<String> = emptyList(),
+)
+
+/** One skill directory an agent of a target reads; [status] is null while the directory is absent. */
+data class SkillDestinationStatus(
+    val agentId: String,
+    val directory: Path,
+    val status: InstallStatus?,
+    val conflict: Boolean,
+)
+
+/** The aggregate of [destinations], or null when none of them holds a tree. */
+fun skillInstallStatus(destinations: List<SkillDestinationStatus>): SkillInstallStatus? {
+    val present = destinations.filter { it.status != null }
+    if (present.isEmpty()) return null
+    return SkillInstallStatus(
+        status = present.mapNotNull { it.status }.maxBy { it.severity() },
+        conflict = present.any { it.conflict },
+        missingAgents = destinations.filter { it.status == null }.map { it.agentId },
+    )
+}
 
 /** One skill directory discovered at an agent root Ruleblend manages. */
 data class SkillDirEntry(
@@ -183,31 +210,25 @@ class SkillInstallService(
         deleteTree(current.path)
     }
 
-    /** Worst status across supported agents, or `null` when the skill is installed nowhere. */
-    fun status(target: Target, skill: Skill): SkillInstallStatus? {
-        val snapshot = snapshotResolver(skill.id) ?: return null
+    /** Worst status across the trees that exist, or `null` when the skill is installed nowhere. */
+    fun status(target: Target, skill: Skill): SkillInstallStatus? =
+        skillInstallStatus(destinationStatuses(target, skill))
+
+    /** The state of each skill directory the agents of [target] read, in agent order. */
+    fun destinationStatuses(target: Target, skill: Skill): List<SkillDestinationStatus> {
+        val snapshot = snapshotResolver(skill.id) ?: return emptyList()
         val libraryFingerprint = skillTreeFingerprint(snapshot.files)
-        val destinations = destinations(target, skill.id)
-        if (destinations.isEmpty()) return null
         val key = skillTargetKey(target)
-        val states = destinations.map { destination ->
+        return destinations(target, skill.id).map { destination ->
             val record = state.find(key, destination.agent.id, skill.id)
             val executableFiles = recordedExecutableFiles(target, destination.path) ?: snapshot.files.filter { it.executable }.map { it.path }
-            skillFileStatus(
+            val tree = skillFileStatus(
                 installed = directoryFingerprint(destination.path, executableFiles),
                 recorded = record,
                 libraryFingerprint = libraryFingerprint,
             )
+            SkillDestinationStatus(destination.agent.id, destination.path, tree.status, tree.conflict)
         }
-        val present = states.mapNotNull { it.status }
-        if (present.isEmpty()) return null
-        val status = if (present.size < destinations.size) InstallStatus.UPDATE_AVAILABLE else present.maxBy { it.severity() }
-        return SkillInstallStatus(status, conflict = states.any { it.conflict })
-    }
-
-    fun installedEverywhere(target: Target, skill: Skill): Boolean {
-        val destinations = destinations(target, skill.id)
-        return destinations.isNotEmpty() && destinations.all { directoryFingerprint(it.path) != null }
     }
 
     /** Captures an owned tree (including an orphan) without losing modes on a non-POSIX host. */

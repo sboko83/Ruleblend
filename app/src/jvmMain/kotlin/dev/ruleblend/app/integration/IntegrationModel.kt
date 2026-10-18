@@ -60,7 +60,9 @@ import dev.ruleblend.core.integration.ProjectTarget
 import dev.ruleblend.core.integration.SectionAction
 import dev.ruleblend.core.integration.SectionCandidate
 import dev.ruleblend.core.integration.SkillInstallService
+import dev.ruleblend.core.integration.SkillDestinationStatus
 import dev.ruleblend.core.integration.SkillInstallStatus
+import dev.ruleblend.core.integration.skillInstallStatus
 import dev.ruleblend.core.integration.SkillDirEntry
 import dev.ruleblend.core.integration.SubagentInstallService
 import dev.ruleblend.core.integration.SubagentDestinationStatus
@@ -242,6 +244,10 @@ class IntegrationModel(
         private set
 
     var skillStatuses by mutableStateOf(emptyMap<String, SkillInstallStatus>())
+        private set
+
+    /** Per skill directory, so each skills root of the place reports its own copy. */
+    var skillDestinations by mutableStateOf(emptyMap<String, List<SkillDestinationStatus>>())
         private set
 
     /** Every skill directory found under this place's known roots, classified from its sidecar. */
@@ -809,9 +815,7 @@ class IntegrationModel(
         return rules.all { installed[it.id]?.group == group.id } &&
             relevantMcp.all { mcpStatuses[it.id]?.conflict == false } &&
             relevantSubagents.all { subagentStatuses[it.id]?.let { !it.conflict && it.missingAgents.isEmpty() } == true } &&
-            relevantSkills.all { skill ->
-                skillStatuses[skill.id]?.conflict == false && skillService.installedEverywhere(target, skill)
-            }
+            relevantSkills.all { skillStatuses[it.id]?.let { !it.conflict && it.missingAgents.isEmpty() } == true }
     }
 
     fun groupInstallable(group: Group): Boolean {
@@ -1537,7 +1541,7 @@ class IntegrationModel(
         val mcpEntries: List<PlaceEntry<McpFileEntry, String>> = emptyList(),
         val mcpInstalledText: Map<String, String> = emptyMap(),
         val mcpInstalledCopies: Map<String, List<McpCopy>> = emptyMap(),
-        val skillStatuses: Map<String, SkillInstallStatus> = emptyMap(),
+        val skillDestinations: Map<String, List<SkillDestinationStatus>> = emptyMap(),
         val skillEntries: List<PlaceEntry<SkillDirEntry, String>> = emptyList(),
         val subagentDestinations: Map<String, List<SubagentDestinationStatus>> = emptyMap(),
         val subagentEntries: List<PlaceEntry<SubagentFileEntry, String>> = emptyList(),
@@ -1638,8 +1642,8 @@ class IntegrationModel(
             mcpInstalledCopies =
                 if (mcpApplies) mcpBlocks.associate { block -> block.id to copiesOf(target, block) }.filterValues { it.isNotEmpty() }
                 else emptyMap(),
-            skillStatuses =
-                if (skillApplies) librarySkills.mapNotNull { skill -> skillService.status(target, skill)?.let { skill.id to it } }.toMap()
+            skillDestinations =
+                if (skillApplies) librarySkills.associate { skill -> skill.id to skillService.destinationStatuses(target, skill) }
                 else emptyMap(),
             skillEntries =
                 if (skillApplies) {
@@ -1703,7 +1707,10 @@ class IntegrationModel(
         mcpEntries = state.mcpEntries
         mcpInstalledText = state.mcpInstalledText
         mcpInstalledCopies = state.mcpInstalledCopies
-        skillStatuses = state.skillStatuses
+        skillDestinations = state.skillDestinations
+        skillStatuses = state.skillDestinations.mapNotNull { (id, trees) ->
+            skillInstallStatus(trees)?.let { id to it }
+        }.toMap()
         skillEntries = state.skillEntries
         subagentDestinations = state.subagentDestinations
         subagentStatuses = state.subagentDestinations.mapNotNull { (id, files) ->
