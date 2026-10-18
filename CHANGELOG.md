@@ -33,6 +33,10 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - app: Favorite rules show the same star in the Projects file preview as in the Library.
 
 ### Changed
+- app: The subagent editor's per-assistant settings list only the assistants you tuned or installed
+  the subagent into, each with a summary of its values, and edit one assistant at a time; others are
+  added from a menu, Reset returns one to its own defaults, and each field is labelled with its
+  name and offers its known values.
 - app: Assistant settings use a searchable list with detected assistants first, eight rows per page,
   independent visibility and AI help switches, and expandable capabilities, launch options and MCP/skill details.
   Manual setup sits below the list without internal application paths; details buttons keep their labels on one line.

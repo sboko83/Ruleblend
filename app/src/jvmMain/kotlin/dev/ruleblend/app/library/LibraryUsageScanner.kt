@@ -12,6 +12,7 @@ import dev.ruleblend.core.integration.SkillInstallService
 import dev.ruleblend.core.integration.SubagentInstallService
 import dev.ruleblend.core.integration.Target
 import dev.ruleblend.core.integration.statusOf
+import dev.ruleblend.core.integration.subagentInstallStatus
 import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.BlockType
 import dev.ruleblend.core.model.Skill
@@ -123,8 +124,11 @@ class LibraryUsageScanner(
 
     private fun subagentInstalls(target: Target, subagents: List<Block>): Map<LibraryObjectKey, LibraryInstall> =
         subagents.mapNotNull { subagent ->
-            val status = runCatching { subagentService?.status(target, subagent) }.getOrNull() ?: return@mapNotNull null
-            LibraryObjectKey(LibraryObjectKind.SUBAGENT, subagent.id) to LibraryInstall(status.status, status.conflict)
+            val destinations = runCatching { subagentService?.destinationStatuses(target, subagent) }.getOrNull()
+                ?: return@mapNotNull null
+            val status = subagentInstallStatus(destinations) ?: return@mapNotNull null
+            val agents = destinations.filter { it.status != null }.mapTo(mutableSetOf()) { it.agentId }
+            LibraryObjectKey(LibraryObjectKind.SUBAGENT, subagent.id) to LibraryInstall(status.status, status.conflict, agents)
         }.toMap()
 }
 

@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
@@ -202,6 +203,8 @@ class Phase1Test {
                 else -> compose.onNodeWithTag("library-editor-block-content").performTextInput(body)
             }
             if (kind == "subagent" && variant != null) {
+                compose.onNodeWithTag("subagent-agent-add").performScrollTo().performClick()
+                compose.onNodeWithTag("subagent-agent-add-claude-code").performClick()
                 compose.onNodeWithTag("subagent-field-claude-code-model").performTextInput(variant)
             }
         }

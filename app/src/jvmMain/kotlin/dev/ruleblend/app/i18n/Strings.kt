@@ -369,6 +369,15 @@ interface Strings {
     val libSubagentFieldToolsHint: String
     val libSubagentFieldColor: String
     fun libSubagentFieldCustom(key: String): String
+    val libSubagentFieldUnset: String
+    val libSubagentTuned: String
+    val libSubagentInstalledDefaults: String
+    val libSubagentAgentDefaults: String
+    val libSubagentAgentInstalled: String
+    fun libSubagentAddAgent(more: Int): String
+    val libSubagentReset: String
+    fun libSubagentNothingSet(agent: String): String
+    val libSubagentPickAgent: String
     val libVersion: String
     val libVersionHint: (Int) -> String
     val libInstruction: String
@@ -1371,11 +1380,21 @@ object EnStrings : Strings {
     override val libSubagentModel = "Model preference"
     override val libSubagentModelHint = "Any model name, for example gpt-5.6-terra"
     override val libSubagentVariants = "Per-assistant settings"
-    override val libSubagentVariantsHint = "Left empty, the assistant is installed without that field"
+    override val libSubagentVariantsHint = "Not set: the field is not written and the assistant uses its own default"
     override val libSubagentFieldTools = "Tools"
     override val libSubagentFieldToolsHint = "Comma-separated, for example Bash, Read, Grep"
     override val libSubagentFieldColor = "Color"
     override fun libSubagentFieldCustom(key: String) = key
+    override val libSubagentFieldUnset = "Not set"
+    override val libSubagentTuned = "Tuned"
+    override val libSubagentInstalledDefaults = "Installed, defaults"
+    override val libSubagentAgentDefaults = "assistant defaults"
+    override val libSubagentAgentInstalled = "installed"
+    override fun libSubagentAddAgent(more: Int) = "+ Assistant · $more more"
+    override val libSubagentReset = "Reset"
+    override fun libSubagentNothingSet(agent: String) =
+        "Nothing set: $agent gets the subagent without these fields and uses its own defaults."
+    override val libSubagentPickAgent = "Add an assistant to tune this subagent for it."
     override val libVersion = "Version"
     override val libVersionHint = { v: Int -> "v$v · auto-increments on save" }
     override val libInstruction = "Instruction (markdown)"
@@ -2377,11 +2396,21 @@ object RuStrings : Strings {
     override val libSubagentModel = "Предпочтение модели"
     override val libSubagentModelHint = "Любое имя модели, например gpt-5.6-terra"
     override val libSubagentVariants = "Настройки по ассистентам"
-    override val libSubagentVariantsHint = "Пустое поле — ассистент получит определение без него"
+    override val libSubagentVariantsHint = "Не задано — поле не пишется, ассистент берёт своё умолчание"
     override val libSubagentFieldTools = "Инструменты"
     override val libSubagentFieldToolsHint = "Через запятую, например Bash, Read, Grep"
     override val libSubagentFieldColor = "Цвет"
     override fun libSubagentFieldCustom(key: String) = key
+    override val libSubagentFieldUnset = "Не задано"
+    override val libSubagentTuned = "Настроены"
+    override val libSubagentInstalledDefaults = "Установлены, по умолчанию"
+    override val libSubagentAgentDefaults = "умолчания ассистента"
+    override val libSubagentAgentInstalled = "установлен"
+    override fun libSubagentAddAgent(more: Int) = "+ Ассистент · ещё $more"
+    override val libSubagentReset = "Сбросить"
+    override fun libSubagentNothingSet(agent: String) =
+        "Ничего не задано — $agent получит субагента без этих полей и возьмёт свои умолчания."
+    override val libSubagentPickAgent = "Добавьте ассистента, чтобы настроить субагента под него."
     override val libVersion = "Версия"
     override val libVersionHint = { v: Int -> "v$v · увеличивается автоматически при сохранении" }
     override val libInstruction = "Инструкция (markdown)"

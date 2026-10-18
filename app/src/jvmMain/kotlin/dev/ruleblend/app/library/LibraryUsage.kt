@@ -11,8 +11,15 @@ import java.nio.file.Path
 
 enum class LibraryPlaceKind { AGENT, PROJECT }
 
-/** One installed copy of a library object: its status plus the "two agents disagree" marker. */
-data class LibraryInstall(val status: InstallStatus, val conflict: Boolean = false)
+/**
+ * One installed copy of a library object: its status plus the "two agents disagree" marker.
+ * [agents] names the assistants whose own file holds a subagent's copy; empty for every other kind.
+ */
+data class LibraryInstall(
+    val status: InstallStatus,
+    val conflict: Boolean = false,
+    val agents: Set<String> = emptySet(),
+)
 
 /**
  * State of one instruction file of a place, as the cross-place scan read it. [unmanagedLines] counts
@@ -79,6 +86,9 @@ class LibraryUsageIndex private constructor(
     fun installCount(key: LibraryObjectKey): Int = sitesOf(key).size
 
     fun isInstalled(key: LibraryObjectKey): Boolean = sites.containsKey(key)
+
+    /** Assistants holding a copy of [key] in any place; only subagents record them. */
+    fun agentsOf(key: LibraryObjectKey): Set<String> = sitesOf(key).flatMapTo(mutableSetOf()) { it.install.agents }
 
     /** Per-status totals of one object, for badges and the aggregate bar. */
     fun statusCounts(key: LibraryObjectKey): Map<InstallStatus, Int> =

@@ -55,12 +55,6 @@ import dev.ruleblend.app.theme.VersionPill
 import dev.ruleblend.app.theme.RuleblendFieldContentPadding
 import dev.ruleblend.app.theme.ruleblendFieldColors
 import dev.ruleblend.core.model.Block
-import dev.ruleblend.core.model.withVariant
-import dev.ruleblend.core.model.variant
-import dev.ruleblend.core.model.SUBAGENT_FIELD_TOOLS
-import dev.ruleblend.core.model.SUBAGENT_FIELD_MODEL
-import dev.ruleblend.core.integration.SubagentFieldSpec
-import dev.ruleblend.core.integration.SubagentFieldKind
 import dev.ruleblend.core.model.BlockType
 import dev.ruleblend.core.model.Group
 import dev.ruleblend.core.model.Profile
@@ -461,70 +455,6 @@ private fun BlockEditor(
 }
 
 /** Same shape as [BlockEditor], for a group: its fields, its membership, then the action row. */
-/**
- * Per-assistant fields of one subagent. The definition itself stays portable; only these values are
- * asked for separately, because a model name or a tool list valid in one assistant rarely is in
- * another. An assistant left blank is installed without those fields rather than with a guess.
- */
-@Composable
-private fun SubagentVariantsForm(model: LibraryModel, draft: Block, modifier: Modifier = Modifier) {
-    val strings = LocalStrings.current
-    if (model.subagentAgents.isEmpty()) return
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column {
-            FieldLabel(strings.libSubagentVariants)
-            Text(
-                strings.libSubagentVariantsHint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        model.subagentAgents.forEach { agent ->
-            val variant = draft.variant(agent.agentId)
-            val declared = agent.fields.map { it.id }.toSet()
-            // A field the assistant's file carried but Ruleblend does not model stays editable
-            // under its own name, so adopting a foreign definition never hides part of it.
-            val specs = agent.fields + variant.fields.keys.filter { it !in declared }.map { SubagentFieldSpec(it) }
-            Column(verticalArrangement = Arrangement.spacedBy(EditorFieldGap)) {
-                Text(
-                    agent.agentName,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                specs.forEach { spec ->
-                    RuleblendOutlinedTextField(
-                        value = variant[spec.id].orEmpty(),
-                        readOnly = draft.source != null,
-                        enabled = draft.source == null,
-                        onValueChange = { value ->
-                            model.editDraft { block ->
-                                block.withVariant(agent.agentId, block.variant(agent.agentId).with(spec.id, value))
-                            }
-                        },
-                        placeholder = { Text(spec.placeholder(strings)) },
-                        singleLine = true,
-                        colors = ruleblendFieldColors(),
-                        contentPadding = RuleblendFieldContentPadding,
-                        modifier = Modifier.fillMaxWidth().testTag(subagentFieldTag(agent.agentId, spec.id)),
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Test tag of one per-assistant field: which assistant it tunes and which of its fields. */
-internal fun subagentFieldTag(agentId: String, fieldId: String): String = "subagent-field-$agentId-$fieldId"
-
-/** The field's own prompt: its name plus the shape its agent expects, since there is no label slot. */
-private fun SubagentFieldSpec.placeholder(strings: Strings): String = when {
-    id == SUBAGENT_FIELD_MODEL -> "${strings.libSubagentModel} — ${strings.libSubagentModelHint}"
-    id == SUBAGENT_FIELD_TOOLS -> "${strings.libSubagentFieldTools} — ${strings.libSubagentFieldToolsHint}"
-    id == "color" -> strings.libSubagentFieldColor
-    kind == SubagentFieldKind.LIST -> "${strings.libSubagentFieldCustom(id)} — ${strings.libSubagentFieldToolsHint}"
-    else -> strings.libSubagentFieldCustom(id)
-}
-
 @Composable
 private fun GroupEditor(
     model: LibraryModel,

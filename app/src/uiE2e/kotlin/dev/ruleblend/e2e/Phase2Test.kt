@@ -373,6 +373,8 @@ class Phase2Test {
         edit("SUBAGENT", "edit-agent")
         compose.onNodeWithTag("library-editor-block-description").performTextReplacement("Описание агента")
         compose.onNodeWithTag("library-editor-block-content").performTextReplacement("Do **work** Ω")
+        compose.onNodeWithTag("subagent-agent-add").performScrollTo().performClick()
+        compose.onNodeWithTag("subagent-agent-add-claude-code").performClick()
         compose.onNodeWithTag("subagent-field-claude-code-model").performTextInput("sonnet")
         saveEditor()
         compose.waitUntil(15_000) { file("SUBAGENT", "edit-agent").readText().contains("Do **work** Ω") }
