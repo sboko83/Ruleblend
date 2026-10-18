@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -28,11 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import dev.ruleblend.app.i18n.LocalStrings
@@ -64,7 +69,20 @@ import java.nio.file.Path
 private val VisibilityWidth = 88.dp
 private val AssistanceWidth = 108.dp
 private val IntegrationWidth = 150.dp
-private val DetailsWidth = 78.dp
+private val DetailsPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+
+@Composable
+private fun agentDetailsWidth(): Dp {
+    val strings = LocalStrings.current
+    val measurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.bodySmall
+    val textWidth = listOf(strings.setAgentDetails, strings.setAgentCollapse).maxOf {
+        measurer.measure(it, style, softWrap = false).size.width
+    }
+    return with(LocalDensity.current) {
+        maxOf(78.dp, textWidth.toDp() + 22.dp)
+    }
+}
 
 /** Presentation state never changes which assistants are selected or which integrations are installed. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -80,34 +98,9 @@ internal fun AgentsSection(model: SettingsModel) {
     val attention = model.integrationStates.filter { it.blocked || it.outdated || it.incomplete }.map { it.agentId }.toSet()
     val catalog = agentCatalogPage(model.agents, model.detectedAgentIds, attention, query, filter, page)
     val ready = model.readyAssistanceAssistants.map { it.id }.toSet()
+    val detailsWidth = agentDetailsWidth()
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Note(strings.setAssistantsHint)
-        CompactOutlinedButton(onClick = { manual = !manual }, modifier = Modifier.testTag("settings-manual-toggle")) {
-            ButtonLabel("${if (manual) "▾" else "▸"} ${strings.setAgentManual}")
-        }
-        if (manual) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            model.launch?.let { launch ->
-                Note(strings.connectManualHint)
-                PathChip(launch.shellCommand())
-                FlashButton(strings.setCopy, strings.setCopied, onClick = { copyToClipboard(launch.shellCommand()) })
-            }
-        }
-        model.mcpServing?.let { serving ->
-            ControlRow {
-                val source = Path.of(serving.source).abbreviateHome()
-                Note(
-                    if (serving.build == McpServingBuild.INSTALLED) strings.mcpServingInstalled(source)
-                    else strings.mcpServingDev(source),
-                    if (serving.thisBuild) RuleblendTheme.extraColors.faint else RuleblendTheme.extraColors.warning,
-                    Modifier.weight(1f).testTag("settings-mcp-serving"),
-                )
-                if (!serving.thisBuild) CompactOutlinedButton(
-                    onClick = { scope.launch { model.serveAgentsFromThisBuild() } },
-                    modifier = Modifier.testTag("settings-mcp-serve-here"),
-                ) { ButtonLabel(strings.mcpServeFromThisBuild) }
-            }
-        }
         model.launchFailure?.let {
             Note(it, MaterialTheme.colorScheme.error, Modifier.testTag("settings-launch-error"))
         }
@@ -157,10 +150,10 @@ internal fun AgentsSection(model: SettingsModel) {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val narrow = maxWidth < 700.dp
                 Column {
-                    if (!narrow) { AgentHeader(); RowDivider() }
+                    if (!narrow) { AgentHeader(detailsWidth); RowDivider() }
                     catalog.agents.forEachIndexed { index, agent ->
                         if (index > 0) RowDivider()
-                        AgentRow(model, agent, narrow, agent.id in ready, agent.id in expanded, scope) {
+                        AgentRow(model, agent, narrow, agent.id in ready, agent.id in expanded, scope, detailsWidth) {
                             expanded = if (agent.id in expanded) expanded - agent.id else expanded + agent.id
                         }
                     }
@@ -195,18 +188,43 @@ internal fun AgentsSection(model: SettingsModel) {
             ) { ButtonLabel(strings.setAgentNext) }
         }
         Note(strings.setAgentsFoot)
+        CompactOutlinedButton(onClick = { manual = !manual }, modifier = Modifier.testTag("settings-manual-toggle")) {
+            ButtonLabel("${if (manual) "▾" else "▸"} ${strings.setAgentManual}")
+        }
+        if (manual) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            model.launch?.let { launch ->
+                Note(strings.connectManualHint)
+                PathChip(launch.shellCommand())
+                FlashButton(strings.setCopy, strings.setCopied, onClick = { copyToClipboard(launch.shellCommand()) })
+            }
+            model.mcpServing?.let { serving ->
+                ControlRow {
+                    val source = Path.of(serving.source).abbreviateHome()
+                    Note(
+                        if (serving.build == McpServingBuild.INSTALLED) strings.mcpServingInstalled(source)
+                        else strings.mcpServingDev(source),
+                        if (serving.thisBuild) RuleblendTheme.extraColors.faint else RuleblendTheme.extraColors.warning,
+                        Modifier.weight(1f).testTag("settings-mcp-serving"),
+                    )
+                    if (!serving.thisBuild) CompactOutlinedButton(
+                        onClick = { scope.launch { model.serveAgentsFromThisBuild() } },
+                        modifier = Modifier.testTag("settings-mcp-serve-here"),
+                    ) { ButtonLabel(strings.mcpServeFromThisBuild) }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun AgentHeader() {
+private fun AgentHeader(detailsWidth: Dp) {
     val strings = LocalStrings.current
     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(strings.setColAgent, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
         HeaderHint(strings.setColVisible, strings.setVisibilityHint, Modifier.width(VisibilityWidth))
         HeaderHint(strings.setColAssistance, strings.setAssistanceHint, Modifier.width(AssistanceWidth))
         HeaderHint(strings.setColMcp, strings.setMcpHint, Modifier.width(IntegrationWidth))
-        Box(Modifier.width(DetailsWidth))
+        Box(Modifier.width(detailsWidth))
     }
 }
 
@@ -219,7 +237,7 @@ private fun HeaderHint(label: String, hint: String, modifier: Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean, ready: Boolean, expanded: Boolean, operationScope: CoroutineScope, onExpand: () -> Unit) {
+private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean, ready: Boolean, expanded: Boolean, operationScope: CoroutineScope, detailsWidth: Dp, onExpand: () -> Unit) {
     val strings = LocalStrings.current
     Column(Modifier.fillMaxWidth().testTag("settings-agent-${agent.id}")) {
         if (narrow) Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -230,7 +248,7 @@ private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean,
             }
             ControlRow {
                 IntegrationSummary(model, agent, Modifier.weight(1f))
-                AgentDisclosure(agent.id, expanded, onExpand)
+                AgentDisclosure(agent.id, expanded, onExpand, Modifier.width(detailsWidth))
             }
         } else Row(
             Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 14.dp, vertical = 12.dp),
@@ -240,7 +258,7 @@ private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean,
             AgentVisibility(model, agent, modifier = Modifier.width(VisibilityWidth))
             AgentAssistance(model, agent, ready, modifier = Modifier.width(AssistanceWidth))
             IntegrationSummary(model, agent, Modifier.width(IntegrationWidth))
-            AgentDisclosure(agent.id, expanded, onExpand, Modifier.width(DetailsWidth))
+            AgentDisclosure(agent.id, expanded, onExpand, Modifier.width(detailsWidth))
         }
         if (expanded) {
             RowDivider()
@@ -314,8 +332,12 @@ private fun AgentAssistance(model: SettingsModel, agent: AgentAdapter, ready: Bo
 @Composable
 private fun AgentDisclosure(id: String, expanded: Boolean, onExpand: () -> Unit, modifier: Modifier = Modifier) {
     val strings = LocalStrings.current
-    CompactOutlinedButton(onClick = onExpand, modifier = modifier.testTag("settings-details-$id")) {
-        Text(if (expanded) strings.setAgentCollapse else strings.setAgentDetails, style = MaterialTheme.typography.bodySmall)
+    CompactOutlinedButton(onClick = onExpand, modifier = modifier.testTag("settings-details-$id"), contentPadding = DetailsPadding) {
+        Text(
+            if (expanded) strings.setAgentCollapse else strings.setAgentDetails,
+            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodySmall, maxLines = 1, softWrap = false,
+        )
     }
 }
 

@@ -29,6 +29,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ### Changed
 - app: Assistant settings use a searchable list with detected assistants first, eight rows per page,
   independent visibility and AI help switches, and expandable capabilities, launch options and MCP/skill details.
+  Manual setup and server diagnostics sit below the list; details buttons keep their labels on one line.
 - ZCode MCP servers use native user and workspace configs in `.zcode`; existing unchanged
   Ruleblend-managed entries move there on launch without overwriting other settings.
 - app: Library facet counts answer for the filters and search already in play, and a combination

@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
@@ -20,6 +22,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
@@ -454,8 +457,11 @@ class SettingsScreenTest {
         goTo(SettingsSection.AGENTS)
         compose.onNodeWithTag("settings-agent-pi").assertIsDisplayed()
         compose.onNodeWithText(strings.setConnManual).assertIsDisplayed()
-        compose.onNodeWithTag("settings-manual-toggle").performClick()
-        compose.onNodeWithText(strings.connectManualHint).assertIsDisplayed()
+        val lastRow = compose.onNodeWithTag("settings-agent-pi").fetchSemanticsNode().boundsInRoot
+        val manual = compose.onNodeWithTag("settings-manual-toggle").fetchSemanticsNode().boundsInRoot
+        assertTrue(manual.top >= lastRow.bottom, "Manual setup must follow the assistant list")
+        compose.onNodeWithTag("settings-manual-toggle").performScrollTo().performClick()
+        compose.onNodeWithText(strings.connectManualHint).performScrollTo().assertIsDisplayed()
     }
 
     @Test fun `Pi connects through native MCP without installing packages`() {
@@ -599,6 +605,26 @@ class SettingsScreenTest {
         }
     }
 
+    @Test fun `Russian details labels stay on one line at double font scale`() {
+        show(initialSection = SettingsSection.AGENTS, uiStrings = RuStrings, fontScale = 2f,
+            size = DpSize(1600.dp, 1200.dp))
+        val button = compose.onNodeWithTag("settings-details-claude-code")
+        val collapsedBounds = button.performScrollTo().fetchSemanticsNode().boundsInRoot
+        button.performClick()
+        compose.onNodeWithText(RuStrings.setAgentCollapse).performScrollTo().assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText(RuStrings.setAgentCollapse)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertTrue(layouts.isNotEmpty())
+        assertTrue(layouts.all { it.lineCount == 1 && !it.hasVisualOverflow },
+            layouts.joinToString { "size=${it.size}, lines=${it.lineCount}, width=${it.multiParagraph.width}, right=${it.getLineRight(0)}" })
+        val expandedBounds = button.fetchSemanticsNode().boundsInRoot
+        assertEquals(collapsedBounds.width, expandedBounds.width)
+        assertEquals(collapsedBounds.height, expandedBounds.height)
+        button.performClick()
+        compose.onNodeWithText(RuStrings.setAgentDetails).assertIsDisplayed()
+    }
+
     @Test fun `nothing to update means no update-everywhere button`() {
         show()
         goTo(SettingsSection.AGENTS)
@@ -622,7 +648,7 @@ class SettingsScreenTest {
         compose.onNodeWithTag("settings-panel-general").assertIsDisplayed()
     }
 
-    @Test fun `settings shows which build agents launch and switches it to this one`() {
+    @Test fun `manual setup shows the MCP server build and switches it to this one`() {
         val shared = root.resolve("bin/ruleblend-mcp")
         val dev = McpLaunch(shared, fromDevBuild = false,
             serving = McpServing(McpServingBuild.DEV, root.resolve("work").toString(), thisBuild = false))
@@ -631,12 +657,15 @@ class SettingsScreenTest {
         var claims = 0
         val model = show(launch = dev, claimLaunch = { claims++; claimed }, initialSection = SettingsSection.AGENTS)
 
-        compose.onNodeWithTag("settings-mcp-serving").assertTextContains("dev build", substring = true)
-        compose.onNodeWithTag("settings-mcp-serve-here").performClick()
+        compose.onNodeWithTag("settings-mcp-serving").assertDoesNotExist()
+        compose.onNodeWithTag("settings-manual-toggle").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-mcp-serving").performScrollTo()
+            .assertTextContains("development build", substring = true)
+        compose.onNodeWithTag("settings-mcp-serve-here").performScrollTo().performClick()
         compose.waitUntil(5_000) { model.mcpServing == claimed.serving }
 
         assertEquals(1, claims)
-        compose.onNodeWithTag("settings-mcp-serving").assertTextContains("installed app", substring = true)
+        compose.onNodeWithTag("settings-mcp-serving").assertTextContains("Ruleblend MCP server:", substring = true)
         compose.onAllNodesWithTag("settings-mcp-serve-here").assertCountEquals(0)
     }
 
