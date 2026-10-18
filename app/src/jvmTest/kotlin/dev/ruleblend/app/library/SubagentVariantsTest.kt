@@ -13,6 +13,7 @@ import dev.ruleblend.core.exchange.LibraryArchive
 import dev.ruleblend.core.integration.ClaudeCodeAdapter
 import dev.ruleblend.core.integration.CodexAdapter
 import dev.ruleblend.core.integration.PiAdapter
+import dev.ruleblend.core.integration.ZCodeAdapter
 import dev.ruleblend.core.integration.subagentAgentFields
 import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.BlockType
@@ -63,7 +64,7 @@ class SubagentVariantsTest {
             archive = LibraryArchive(root.resolve("library"), repository),
             configStore = ConfigStore(root.resolve("config.json")),
             usageSource = { _, _ -> emptyList() },
-            subagentAgents = listOf(ClaudeCodeAdapter(home), CodexAdapter(home), PiAdapter(home)).subagentAgentFields(),
+            subagentAgents = listOf(ClaudeCodeAdapter(home), CodexAdapter(home), PiAdapter(home), ZCodeAdapter(home)).subagentAgentFields(),
         ).also { loaded -> runBlocking { loaded.load() } }
         model.selectBlock(subagent.id)
         open()
@@ -100,6 +101,10 @@ class SubagentVariantsTest {
         // Codex has no tool field of its own, and Pi hosts no subagents at all.
         compose.onAllNodesWithTag(subagentFieldTag("codex", "tools")).assertCountEquals(0)
         compose.onAllNodesWithTag(subagentFieldTag("pi", "model")).assertCountEquals(0)
+        // ZCode understands the same Markdown fields as Claude Code, without model alias suggestions.
+        compose.onAllNodesWithTag(subagentFieldTag("zcode", "model")).assertCountEquals(1)
+        compose.onAllNodesWithTag(subagentFieldTag("zcode", "tools")).assertCountEquals(1)
+        compose.onAllNodesWithTag(subagentFieldTag("zcode", "color")).assertCountEquals(1)
     }
 
     @Test

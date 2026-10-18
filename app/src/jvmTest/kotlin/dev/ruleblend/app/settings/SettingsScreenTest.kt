@@ -50,6 +50,7 @@ import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.BlockType
 import dev.ruleblend.core.model.GitSkillSource
 import dev.ruleblend.core.integration.SubagentDraft
+import dev.ruleblend.core.integration.ZCodeAdapter
 import dev.ruleblend.core.storage.GitRepositoryImportPlan
 import dev.ruleblend.core.storage.GitSubagentCandidate
 import dev.ruleblend.core.usecase.ImportLibrary
@@ -407,6 +408,15 @@ class SettingsScreenTest {
             assertEquals(setOf("claude-code"), model.hiddenAgents)
             assertEquals(listOf("claude-code"), configStore.load().hiddenAgents)
         }
+    }
+
+    @Test fun `the ZCode row reports subagents as a supported capability`() {
+        show(agents = listOf(claude, ZCodeAdapter(root)))
+        goTo(SettingsSection.AGENTS)
+
+        compose.onNodeWithTag("settings-agent-zcode").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("settings-details-zcode").performClick()
+        compose.onNodeWithTag("settings-capability-subagents").assertTextContains("✓", substring = true)
     }
 
     @Test fun `closing details does not cancel an in-progress connection refresh`() {

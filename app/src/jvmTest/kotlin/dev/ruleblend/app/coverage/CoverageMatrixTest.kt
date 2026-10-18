@@ -9,11 +9,16 @@ import dev.ruleblend.app.library.LibraryPlaceKind
 import dev.ruleblend.app.library.LibraryPlaceUsage
 import dev.ruleblend.core.config.PlaceBoard
 import dev.ruleblend.core.config.ProjectSet
+import dev.ruleblend.core.integration.AgentGlobalTarget
 import dev.ruleblend.core.integration.InstallStatus
+import dev.ruleblend.core.integration.SubagentInstallService
+import dev.ruleblend.core.integration.SubagentInstallStateStore
+import dev.ruleblend.core.integration.ZCodeAdapter
 import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.BlockType
 import dev.ruleblend.core.model.Group
 import dev.ruleblend.core.model.Skill
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -171,6 +176,25 @@ class CoverageMatrixTest {
         assertTrue(snapshot.cell("type:SUBAGENT", "place:agent:pi").outOfScope)
         assertEquals(1, snapshot.cell("type:MCP", "place:agent:codex").members)
         assertEquals(1, snapshot.cell("type:SUBAGENT", "place:agent:codex").members)
+    }
+
+    @Test fun `a ZCode place counts subagents now that its target hosts them`() {
+        // The same applicability LibraryUsageScanner feeds Coverage with in production.
+        val supportsSubagents = SubagentInstallService(SubagentInstallStateStore(Path.of("/tmp/ruleblend-coverage-state")))
+            .appliesTo(AgentGlobalTarget(ZCodeAdapter(Path.of("/tmp/ruleblend-coverage-home"))))
+
+        val snapshot = coverageMatrix(
+            catalog = catalog(subagents = listOf("review")),
+            scanned = listOf(
+                agent("pi", "Pi", supportsSubagents = false),
+                agent("zcode", "ZCode", supportsSubagents = supportsSubagents),
+            ),
+            expansion = CoverageExpansion(columns = setOf("agents")),
+        )
+
+        assertTrue(supportsSubagents, "the ZCode adapter must host subagents for Coverage to count them")
+        assertTrue(snapshot.cell("type:SUBAGENT", "place:agent:pi").outOfScope)
+        assertEquals(1, snapshot.cell("type:SUBAGENT", "place:agent:zcode").members)
     }
 
     @Test fun `rows go from every object to types to the library groups`() {

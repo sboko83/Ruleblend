@@ -150,7 +150,7 @@ Handoff:
 
 ## Phase 3: Acceptance
 
-### [ ] P004.3.1 Acceptance
+### [x] P004.3.1 Acceptance
 Read:
 - app/src/jvmTest/kotlin/dev/ruleblend/app/library/SubagentVariantsTest.kt:L1-115
 - app/src/jvmTest/kotlin/dev/ruleblend/app/settings/SettingsScreenTest.kt:L378-396
@@ -171,3 +171,6 @@ existing agent list in the test model instead of writing a parallel fixture.
 Depends: P004.1.1, P004.2.1
 Model: strong
 Commit: P004.3.1: accept zcode subagent support
+Handoff:
+- Coverage agent columns only expand when the group holds more than one place — the ZCode coverage test keeps Pi beside it for the out-of-scope contrast
+- Unverified: nothing — all four Goal claims covered by tests and the full gate (core, mcp, app) ran green

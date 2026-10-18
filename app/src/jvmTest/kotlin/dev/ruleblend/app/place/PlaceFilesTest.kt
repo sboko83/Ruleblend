@@ -11,7 +11,10 @@ import dev.ruleblend.core.integration.PlaceEntry
 import dev.ruleblend.core.integration.PlaceEntryOrigin
 import dev.ruleblend.core.integration.ProjectTarget
 import dev.ruleblend.core.integration.SkillDirEntry
+import dev.ruleblend.core.integration.SubagentInstallService
+import dev.ruleblend.core.integration.SubagentInstallStateStore
 import dev.ruleblend.core.integration.TargetOwnershipMode
+import dev.ruleblend.core.integration.ZCodeAdapter
 import dev.ruleblend.core.integration.hashContent
 import dev.ruleblend.core.model.SkillFrontmatter
 import java.nio.file.Path
@@ -68,6 +71,25 @@ class PlaceFilesTest {
 
         assertEquals("~${File.separator}.zcode${File.separator}skills",
             displayPath(home.resolve(".codex"), home.resolve(".zcode/skills")))
+    }
+
+    @Test fun `a project target enabled for ZCode lists its agents directory as a subagent destination`() {
+        val zcode = ZCodeAdapter(Path.of("/home"))
+        val target = ProjectTarget(project, listOf(zcode))
+        val directories = SubagentInstallService(SubagentInstallStateStore(Path.of("/tmp/ruleblend-place-state")))
+            .directories(target)
+
+        val tabs = placeFileTabs(
+            target = target,
+            ownership = { TargetOwnershipMode.PARTIAL },
+            exists = { true },
+            subagentDirectories = directories,
+        )
+
+        assertEquals(
+            listOf(".zcode${File.separator}agents${File.separator}"),
+            tabs.filter { it.kind == PlaceFileKind.SUBAGENTS }.map { it.title },
+        )
     }
 
     @Test fun `a project shows its rules file, pointer, mcp config and skills directory as one row of tabs`() {
