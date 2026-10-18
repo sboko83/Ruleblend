@@ -752,7 +752,7 @@ ZCode использует значения таблиц; его [native-ски�
 | Агент | Конфигурация / MCP | Скиллы | Субагенты |
 |---|---|---|---|
 | Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml`, `<project>/.codex/agents/*.toml`; формат TOML, не Markdown. |
-| Pi | [Встроенный MCP в 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` и `<project>/.pi/mcp.json`; требуется доверие к проекту. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Нет субагентов. |
+| Pi 1.3.0 (2026-10-18) | [Встроенный MCP в 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` и `<project>/.pi/mcp.json`; требуется доверие к проекту. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Через семейство расширений pi-subagents: `~/.pi/agent/agents/*.md` и `<project>/.pi/agents/*.md`, Markdown frontmatter; без установленного расширения файлы инертны. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json`, иначе `~/.kimi-code/mcp.json`; `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Последующие файлы переопределяют предыдущие. | `<KIMI_CODE_HOME>/skills/`, `<project>/.kimi-code/skills/`; общий `.agents/skills/` тоже читается. | `<KIMI_CODE_HOME>/agents/*.md`, `<project>/.kimi-code/agents/*.md`; определение в Markdown frontmatter. |
 | ZCode 3.10.1 (2026-10-18) | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | `~/.zcode/agents/*.md`, `<workspace>/.zcode/agents/*.md`; Markdown frontmatter. `~/.zcode/cli/agents/` хранит runtime-сессии и не используется для определений. |
 
@@ -798,6 +798,13 @@ Claude Code, но значение модели — `providerId/modelId`, поэ
 цикл parse→render под native-ключами через описанный выше механизм extra-fields
 ([P004](../archive/P004-zcode-subagents.md)).
 
+Pi читает тот же Markdown-формат из `~/.pi/agent/agents/<id>.md` и `<project>/.pi/agents/<id>.md`,
+но только через пакеты-расширения субагентов вроде pi-subagents: формат объявляет `model`, `tools`
+и `thinking` (уровни CLI самого Pi), а специфичные для пакетов поля (`color`, `excludeTools`,
+`aliases`) остаются unmodelled extra-fields. Без установленного расширения файлы инертны;
+Ruleblend пишет их независимо от этого, поэтому поддержка безусловна и не зависит от
+установленного пакета.
+
 <a id="capability-matrix"></a>
 ### Матрица возможностей
 
@@ -812,7 +819,7 @@ Claude Code, но значение модели — `providerId/modelId`, поэ
 |---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
 | Codex | ✓ | ✓ | ✓ | ✓ |
-| Pi | ✓ | ✓ | ✓ | ✗ — функции нет |
+| Pi | ✓ | ✓ | ✓ | ✓ |
 | Kimi Code | ✓ | ✓ | ✓ | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✓ |
 
@@ -832,7 +839,6 @@ Adopt записывает текущие байты обычного файла
 изменение render библиотеки даёт update, как и принятое изначально отличавшееся определение.
 Любое последующее изменение байтов — `MODIFIED`. Проверки состояния сравнивают байты.
 Без записи даже совпадающий файл чужой: владение задаёт sidecar, не случайное совпадение.
-Pi в этом процессе не имеет ни пути, ни записи.
 
 Статус считается по каждому файлу. Сводный статус места — худшее состояние среди существующих
 файлов; место установки без файла (ассистент, подключённый после установки) перечисляется
@@ -858,8 +864,6 @@ Pi в этом процессе не имеет ни пути, ни записи
 Library bulk, Place, usage, history и Coverage используют `InstallItem.Subagent`
 и тот же `SubagentInstallService`, что status scan. Он единственный writer:
 UI сам не render-ит, fingerprint-ит, принимает или удаляет native-определения.
-Неподдерживаемый агент не даёт destination; Pi виден как неподдерживаемый,
-а не получает угаданный формат.
 
 Разобранное чужое определение становится Library `SUBAGENT` и принимается без перезаписи.
 Sidecar хранит принятый fingerprint и физическое имя, если занятый Library id отличается
@@ -1292,7 +1296,7 @@ Save редактируемой стороны использует обычно
   Git-импорты неизменяемы. Удаление скилла/субагента убирает членство групп/профилей,
   оставляя установленные копии до явного uninstall.
   Install/remove используют общий `SubagentInstallService`, byte ownership и drift checks.
-  Result отдельно называет written, modified, unsupported; Pi без fallback-пути.
+  Result отдельно называет written, modified, unsupported.
   `RuleblendTools` — чистые handlers поверх `core`, без SDK types, тестируются без транспорта.
 - **Цели:** `target` — `agent:<agentId>` для globals или абсолютный project path,
   те же два вида GUI через общий `Target`, без отдельной install logic сервера.

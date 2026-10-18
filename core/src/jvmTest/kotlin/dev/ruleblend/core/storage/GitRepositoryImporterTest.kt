@@ -50,11 +50,12 @@ class GitRepositoryImporterTest {
         val upstream = repository(mapOf("categories/review/reviewer.md" to markdown("modelPreference: kimi-test\ncustom: retained\n")))
         val candidate = GitRepositoryImporter().fetch(upstream.toString()).subagents.single()
         assertTrue(candidate.requiresAssistantSelection)
-        assertEquals(setOf("claude-code", "kimi-code", "zcode"), candidate.drafts.keys)
+        assertEquals(setOf("claude-code", "kimi-code", "zcode", "pi"), candidate.drafts.keys)
         assertEquals("kimi-test", candidate.draftFor("kimi-code").model)
         assertEquals("kimi-test", candidate.draftFor("claude-code").fields["modelPreference"])
         assertEquals("retained", candidate.draftFor("kimi-code").fields["custom"])
         assertEquals("retained", candidate.draftFor("zcode").fields["custom"])
+        assertEquals("retained", candidate.draftFor("pi").fields["custom"])
         assertFailsWith<IllegalStateException> { candidate.draftFor("codex") }
     }
 
@@ -67,11 +68,12 @@ class GitRepositoryImporterTest {
             ".claude/agents/reviewer.md" to markdown("model: haiku\n"),
             ".kimi-code/agents/reviewer.md" to markdown("modelPreference: kimi-test\n"),
             ".zcode/agents/reviewer.md" to markdown("model: zai/glm-5.3\n"),
+            ".pi/agents/reviewer.md" to markdown("thinking: high\n"),
         ))
         val plan = GitSkillImporter().fetch(upstream.toString())
         assertEquals(plan.revision, plan.skills.single().skill.source?.revision)
         assertEquals(setOf("SKILL.md", "references/check.md"), plan.skills.single().files.map { it.path }.toSet())
-        assertEquals(setOf("codex", "claude-code", "kimi-code", "zcode"), plan.subagents.map { it.sourceAssistant }.toSet())
+        assertEquals(setOf("codex", "claude-code", "kimi-code", "zcode", "pi"), plan.subagents.map { it.sourceAssistant }.toSet())
         assertTrue(plan.subagents.none { it.requiresAssistantSelection })
         assertTrue(plan.errors.isEmpty())
     }

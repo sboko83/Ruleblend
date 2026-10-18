@@ -7,6 +7,7 @@ import com.charleskorn.kaml.YamlScalar
 import dev.ruleblend.core.integration.ClaudeCodeSubagentFormat
 import dev.ruleblend.core.integration.CodexSubagentFormat
 import dev.ruleblend.core.integration.KimiCodeSubagentFormat
+import dev.ruleblend.core.integration.PiSubagentFormat
 import dev.ruleblend.core.integration.SubagentDraft
 import dev.ruleblend.core.integration.ZCodeSubagentFormat
 import dev.ruleblend.core.integration.parseSubagentToml
@@ -55,6 +56,7 @@ internal fun discoverGitSubagents(
         GitAgentRoot(".claude/agents", "claude-code"),
         GitAgentRoot(".kimi-code/agents", "kimi-code"),
         GitAgentRoot(".zcode/agents", "zcode"),
+        GitAgentRoot(".pi/agents", "pi"),
         GitAgentRoot("agents", null),
         GitAgentRoot("subagents", null),
         GitAgentRoot("categories", null),
@@ -137,5 +139,6 @@ private val MARKDOWN_FORMATS = linkedMapOf(
     "claude-code" to ClaudeCodeSubagentFormat,
     "kimi-code" to KimiCodeSubagentFormat,
     "zcode" to ZCodeSubagentFormat,
+    "pi" to PiSubagentFormat,
 )
 private val DOCUMENT_NAMES = setOf("README", "SKILL", "AGENTS", "CLAUDE", "CONTRIBUTING", "CHANGELOG", "LICENSE")

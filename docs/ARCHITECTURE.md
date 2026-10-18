@@ -752,7 +752,7 @@ adapter, skill, subagent and MCP sections below; no adapter changes follow from 
 | Agent | Configuration / MCP | Skills | Subagents |
 |---|---|---|---|
 | Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml`, `<project>/.codex/agents/*.toml`; the format is TOML, not Markdown. |
-| Pi | [Built-in MCP in 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` and `<project>/.pi/mcp.json`; project trust is required. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | No subagents. |
+| Pi 1.3.0 (2026-10-18) | [Built-in MCP in 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` and `<project>/.pi/mcp.json`; project trust is required. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Through the pi-subagents extension family: `~/.pi/agent/agents/*.md` and `<project>/.pi/agents/*.md`, Markdown frontmatter; the files stay inert until the user installs one of the extensions. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json` (fall back to `~/.kimi-code/mcp.json`); `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Later files override earlier ones. | `<KIMI_CODE_HOME>/skills/` and `<project>/.kimi-code/skills/`; `.agents/skills/` is also read for shared skills. | `<KIMI_CODE_HOME>/agents/*.md` and `<project>/.kimi-code/agents/*.md`; Markdown frontmatter carries the definition. |
 | ZCode 3.10.1 (2026-10-18) | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | `~/.zcode/agents/*.md` and `<workspace>/.zcode/agents/*.md`, Markdown frontmatter. `~/.zcode/cli/agents/` holds runtime sessions and is never a definition destination. |
 
@@ -801,6 +801,13 @@ empty. Fields ZCode adds beyond the declared set (`thoughtLevel` and the rest) a
 survive a parse→render round trip under their native keys through the extra-fields mechanism above
 ([P004](archive/P004-zcode-subagents.md)).
 
+Pi reads the same Markdown shape from `~/.pi/agent/agents/<id>.md` and
+`<project>/.pi/agents/<id>.md`, but only through subagents extension packages such as
+pi-subagents: its format declares `model`, `tools` and `thinking` (the levels Pi's own CLI uses),
+while package-specific extras (`color`, `excludeTools`, `aliases`) stay unmodelled extra fields.
+The definition files are inert until the user installs one of the extensions; Ruleblend writes
+them either way, so support is unconditional instead of gating on the installed package.
+
 ### Capability matrix
 
 The adapter is the sole source of the capability matrix: it derives a destination at global and
@@ -815,7 +822,7 @@ an instruction file.
 |---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
 | Codex | ✓ | ✓ | ✓ | ✓ |
-| Pi | ✓ | ✓ | ✓ | ✗ — no subagent feature |
+| Pi | ✓ | ✓ | ✓ | ✓ |
 | Kimi Code | ✓ | ✓ | ✓ | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✓ |
 
@@ -836,7 +843,7 @@ for. While both fingerprints hold the file is `SYNCED`; once the library render 
 available update, as is an adopted file that differed in meaning from the start. Any later byte
 change is `MODIFIED`. Status checks themselves stay byte comparisons. A file with no record is
 foreign even when it matches the current render: ownership is the record, never a coincidence of
-bytes. Pi has no destination or record in this flow.
+bytes.
 
 Status is per file. The aggregate a place reports is the worst state among the files that exist; a
 destination with no file — an assistant connected after the install — is listed apart as missing
@@ -861,9 +868,7 @@ read onto the three assistants that could have consumed it back then and stops w
 migration list is frozen, so a newer assistant never inherits a value chosen before it existed.
 Library bulk actions, Place actions, usage, history and Coverage use `InstallItem.Subagent` and the
 same `SubagentInstallService` instance as status scanning. The service is the only file writer: UI
-code never renders, fingerprints, adopts or deletes assistant-owned definition files itself. An
-unsupported agent contributes no destination, so Pi remains visible as unsupported rather than
-receiving a guessed file format.
+code never renders, fingerprints, adopts or deletes assistant-owned definition files itself.
 
 A parsed foreign definition can become a Library `SUBAGENT` and then be adopted without rewriting
 its file. Its sidecar records the accepted current fingerprint and, when a taken Library id differs
@@ -1394,8 +1399,7 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
   installed target copies to be explicitly uninstalled.
   install and remove delegate to the same `SubagentInstallService` as Library and Place, preserving
   rendered-byte ownership and drift checks. Its result names written, modified and unsupported
-  subagents separately; Pi stays unsupported rather than gaining a fallback definition
-  path. Handlers are pure functions over `core` (`RuleblendTools`) with no SDK types, unit-tested
+  subagents separately. Handlers are pure functions over `core` (`RuleblendTools`) with no SDK types, unit-tested
   without a transport.
 - **Targets:** `target` is `agent:<agentId>` for an agent's global file or an absolute project path
   — the same two kinds the GUI sidebar shows, resolved through the same `Target` interface, so the

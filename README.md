@@ -27,8 +27,9 @@ Pi 1.0+ supports MCP natively; no extension is required.
   plugin Git repository, including scripts, references and assets. Git-backed skills update in place;
   editing starts from a separate `changed` copy.
 - **Subagent** — instructions with per-assistant fields, created locally or imported from Git as
-  Codex TOML or Claude Code/Kimi Code Markdown. Git imports offer a preview and source-assistant
-  choice; updates preserve identity, while editing starts from a separate changed copy.
+  Codex TOML or Markdown (Claude Code, Kimi Code, ZCode, Pi). Git imports offer a preview and
+  source-assistant choice; updates preserve identity, while editing starts from a separate
+  changed copy.
 - **Group** — named set of rules, MCP servers, subagents and skills (e.g. "iOS projects").
 - **Profile** — portable project mode containing objects and flat groups; attach it to a project
   and enable or disable it there. Local project bindings are separate from the portable definition.

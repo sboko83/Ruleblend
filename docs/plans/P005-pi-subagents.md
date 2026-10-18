@@ -134,7 +134,7 @@ Handoff:
 
 ## Phase 2: Import, docs and version
 
-### [ ] P005.2.1 Git import, architecture docs, version
+### [x] P005.2.1 Git import, architecture docs, version
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/storage/GitSubagentDiscovery.kt:L45-140
 - core/src/jvmTest/kotlin/dev/ruleblend/core/storage/GitRepositoryImporterTest.kt:L55-80
@@ -173,6 +173,10 @@ assistant report the skill as out of date; find the MCP facade paragraph by its 
 definition path" claim, not by line number, in the Russian file.
 Model: fast
 Commit: P005.2.1: document pi subagent format
+Handoff:
+- The extension requirement is documented in five doc spots and the bundled SKILL.md: snapshot table row, Subagent formats closing paragraph, capability matrix, the dropped 'no destination' sentences in ownership/Library-UI/MCP-facade — both language versions
+- SKILL.md marker is now v14 with its digest repinned in BundledSkillTest; appBuild raised to 295
+- A Markdown file in a hint-less Git directory (categories/, agents/, subagents/) now also parses as Pi: the importer and preview assistant lists include pi
 
 ## Phase 3: Acceptance
 

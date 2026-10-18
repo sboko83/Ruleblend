@@ -74,6 +74,6 @@ class BundledSkillTest {
     }
 
     private companion object {
-        const val EXPECTED_DIGEST = "7444fdbddc7f2cb1dffa99a4e08ef8a44ae9eb3a7ee0a462a5cf30ba7f2adf67"
+        const val EXPECTED_DIGEST = "769c1c4e0dfe0b8b909403048b4859914985c264854adf6922c2617ec40a98dc"
     }
 }
