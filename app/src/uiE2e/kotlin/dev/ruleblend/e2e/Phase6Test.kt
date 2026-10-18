@@ -236,13 +236,18 @@ class Phase6Test {
         return zip
     }
 
-    private fun importGit(vararg selectedPaths: String) {
+    /** Opens Git import from the New menu; a click lost while the catalog settles is retried. */
+    private fun openGitImport() {
         catalog()
         compose.waitUntil(15_000) {
             compose.onAllNodesWithTag("library-import-git").fetchSemanticsNodes().isNotEmpty() ||
                 run { compose.onNodeWithTag("library-new").performClick(); false }
         }
         compose.onNodeWithTag("library-import-git").performClick()
+    }
+
+    private fun importGit(vararg selectedPaths: String) {
+        openGitImport()
         compose.onNodeWithTag("library-import-repository").performTextInput(root.resolve("upstream").toString())
         compose.onNodeWithTag("dialog-confirm").performClick()
         compose.waitUntil(15_000) {
@@ -505,9 +510,7 @@ class Phase6Test {
         start()
         importGit("skills/first-skill", "skills/second-skill")
         val imported = library.resolve("skills/first-skill/files/SKILL.md").readText()
-        catalog()
-        compose.onNodeWithTag("library-new").performClick()
-        compose.onNodeWithTag("library-import-git").performClick()
+        openGitImport()
         compose.onNodeWithTag("library-import-repository").performTextInput(root.resolve("upstream").toString())
         compose.onNodeWithTag("dialog-confirm").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithText(EnStrings.libSkillImportSelected).fetchSemanticsNodes().isNotEmpty() }
@@ -645,9 +648,7 @@ class Phase6Test {
         start()
         if (stage == "first") {
             step = "mixed Git import"
-            catalog()
-            compose.onNodeWithTag("library-new").performClick()
-            compose.onNodeWithTag("library-import-git").performClick()
+            openGitImport()
             compose.onNodeWithTag("library-import-repository").performTextInput(upstream.toString())
             compose.onNodeWithTag("dialog-confirm").performClick()
             compose.waitUntil(15_000) {

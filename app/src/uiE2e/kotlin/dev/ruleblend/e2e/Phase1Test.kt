@@ -1,6 +1,9 @@
 package dev.ruleblend.e2e
 
 import dev.ruleblend.core.config.projectKey
+import dev.ruleblend.core.integration.ProjectTarget
+import dev.ruleblend.core.integration.shippedAgentAdapters
+import dev.ruleblend.mcp.install.shippedMcpInstallers
 
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.test.assertIsDisplayed
@@ -317,6 +320,10 @@ class Phase1Test {
         assertTrue(Files.exists(project.resolve(".pi/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".kimi-code/agents/e2e-agent.md")))
         assertTrue(Files.exists(project.resolve(".codex/agents/e2e-agent.toml")))
+        for (adapter in shippedAgentAdapters()) {
+            val file = adapter.projectSubagentFile(project, "e2e-agent") ?: continue
+            assertTrue(Files.exists(file), "${adapter.name} subagent missing: $file")
+        }
         assertTrue(project.resolve(".codex/config.toml").readText().contains("e2e-server"))
         assertTrue(project.resolve(".kimi-code/mcp.json").readText().contains("e2e-server"))
         assertTrue(project.resolve(".pi/mcp.json").readText().contains("e2e-server"))
@@ -442,7 +449,11 @@ class Phase1Test {
         start()
         if (stage == "first") fourIntoProject() else select(project)
         assertProjectFiles()
-        for ((tab, count) in listOf("rules" to "1", "skills" to "5/0", "subagents" to "3/0", "mcp" to "4/0")) {
+        // One managed copy per agent with a project destination, so a newly integrated agent moves these.
+        val skills = shippedAgentAdapters().count { it.projectSkillsDirectory(project) != null }
+        val subagents = shippedAgentAdapters().count { it.projectSubagentFile(project, "e2e-agent") != null }
+        val mcp = shippedMcpInstallers().count { it.configFile(ProjectTarget(project, shippedAgentAdapters())) != null }
+        for ((tab, count) in listOf("rules" to "1", "skills" to "$skills/0", "subagents" to "$subagents/0", "mcp" to "$mcp/0")) {
             compose.onNodeWithTag("place-tab-$tab").assertIsDisplayed().performClick()
             compose.onNodeWithTag("place-tab-$tab").assertTextContains(count, substring = true)
         }
@@ -573,14 +584,19 @@ class Phase1Test {
 
     @Test fun P12_globalTargetsAndUnsupportedActions() {
         start(); add(project); createFour()
-        val agents = listOf("claude-code", "codex", "pi", "kimi-code", "zcode")
-        for (agent in agents) {
+        val adapters = shippedAgentAdapters()
+        val agents = adapters.map { it.id }
+        val withSubagents = adapters.filter { it.globalSubagentFile("e2e-agent") != null }.map { it.id }
+        for (adapter in adapters) {
+            val agent = adapter.id
             chooseGlobal(agent)
             install("RULE", "e2e-rule", "agent:$agent")
             install("SKILL", "e2e-skill", "agent:$agent")
             install("MCP", "e2e-server", "agent:$agent")
-            if (agent in listOf("claude-code", "codex", "kimi-code")) {
+            val subagent = adapter.globalSubagentFile("e2e-agent")
+            if (subagent != null) {
                 install("SUBAGENT", "e2e-agent", "agent:$agent")
+                assertTrue(Files.exists(subagent), "$agent subagent missing: $subagent")
             } else {
                 compose.onNodeWithTag("place-palette-search").performTextReplacement("e2e-agent")
                 compose.onNodeWithTag(uiTarget("palette", "SUBAGENT:e2e-agent", "agent:$agent", "install")).assertDoesNotExist()
@@ -615,7 +631,7 @@ class Phase1Test {
             val (kind, id) = objectKey.split(':')
             editExisting(kind, id, field, value)
             for (agent in agents) {
-                if (kind == "SUBAGENT" && agent in listOf("zcode", "pi")) continue
+                if (kind == "SUBAGENT" && agent !in withSubagents) continue
                 chooseGlobal(agent)
                 changePlaceCopy(kind, id, "agent:$agent", "update", "remove")
             }
@@ -625,7 +641,7 @@ class Phase1Test {
         for (agent in agents) {
             chooseGlobal(agent)
             for ((kind, id) in listOf("RULE" to "e2e-rule", "SKILL" to "e2e-skill", "SUBAGENT" to "e2e-agent", "MCP" to "e2e-server")) {
-                if (kind == "SUBAGENT" && agent in listOf("zcode", "pi")) continue
+                if (kind == "SUBAGENT" && agent !in withSubagents) continue
                 changePlaceCopy(kind, id, "agent:$agent", "remove", "install")
             }
         }
@@ -639,6 +655,7 @@ class Phase1Test {
                 ".codex/agents/e2e-agent.toml", ".kimi/agents/e2e-agent.md")) {
             assertFalse(Files.exists(home.resolve(copy)), copy)
         }
+        for (file in adapters.mapNotNull { it.globalSubagentFile("e2e-agent") }) assertFalse(Files.exists(file), file.toString())
         for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".zcode/cli/config.json", ".pi/agent/mcp.json")) {
             assertFalse(Files.exists(home.resolve(file)) && home.resolve(file).readText().contains("e2e-server"), file)
         }

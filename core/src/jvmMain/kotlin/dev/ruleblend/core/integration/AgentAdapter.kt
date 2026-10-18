@@ -243,3 +243,7 @@ class PiAdapter(
 
     override fun projectSubagentDirectory(projectDir: Path): Path = projectDir.resolve(".pi").resolve("agents")
 }
+
+/** Every agent Ruleblend ships an integration for, in the order the UI lists them. */
+fun shippedAgentAdapters(): List<AgentAdapter> =
+    listOf(ClaudeCodeAdapter(), CodexAdapter(), PiAdapter(), KimiCodeAdapter(), ZCodeAdapter())

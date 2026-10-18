@@ -114,7 +114,7 @@ class AgentCliTest {
     }
 
     @Test fun `every shipped adapter that can be launched names an executable`() {
-        val adapters = listOf(ClaudeCodeAdapter(), CodexAdapter(), PiAdapter(), KimiCodeAdapter(), ZCodeAdapter())
+        val adapters = shippedAgentAdapters()
 
         adapters.forEach { adapter ->
             val cli = adapter.cli

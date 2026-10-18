@@ -5,12 +5,8 @@ import dev.ruleblend.core.exchange.LibraryArchive
 import dev.ruleblend.core.storage.GitRepositoryImporter
 import dev.ruleblend.core.usecase.ImportLibrary
 import dev.ruleblend.core.usecase.SourcesStateStore
-import dev.ruleblend.core.integration.ClaudeCodeAdapter
-import dev.ruleblend.core.integration.CodexAdapter
-import dev.ruleblend.core.integration.KimiCodeAdapter
-import dev.ruleblend.core.integration.PiAdapter
-import dev.ruleblend.core.integration.ZCodeAdapter
 import dev.ruleblend.core.integration.IntegrationService
+import dev.ruleblend.core.integration.shippedAgentAdapters
 import dev.ruleblend.core.integration.SkillInstallService
 import dev.ruleblend.core.integration.SkillInstallStateStore
 import dev.ruleblend.core.integration.SubagentInstallService
@@ -20,14 +16,10 @@ import dev.ruleblend.core.storage.InterProcessLock
 import dev.ruleblend.core.storage.TargetMutationCoordinator
 import dev.ruleblend.core.storage.LibraryGit
 import dev.ruleblend.core.storage.LibraryRepository
-import dev.ruleblend.mcp.install.ClaudeCodeMcpInstaller
-import dev.ruleblend.mcp.install.CodexMcpInstaller
-import dev.ruleblend.mcp.install.KimiCodeMcpInstaller
+import dev.ruleblend.mcp.install.shippedMcpInstallers
 import dev.ruleblend.mcp.install.McpInstallService
 import dev.ruleblend.mcp.install.McpStateStore
-import dev.ruleblend.mcp.install.PiMcpInstaller
 import dev.ruleblend.mcp.install.ZCodeMcpMigration
-import dev.ruleblend.mcp.install.ZCodeMcpInstaller
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
@@ -96,7 +88,7 @@ fun runRuleblendServer(version: String, libraryOverride: Path? = null) {
         lineEnding = { configStore.load().lineEnding })
     val repository = LibraryRepository(libraryPath, libraryGit)
     repository.init()
-    val agents = listOf(ClaudeCodeAdapter(), CodexAdapter(), PiAdapter(), KimiCodeAdapter(), ZCodeAdapter())
+    val agents = shippedAgentAdapters()
     val tools = RuleblendTools(
         repository,
         configStore,
@@ -108,7 +100,7 @@ fun runRuleblendServer(version: String, libraryOverride: Path? = null) {
             lineEnding = { configStore.load().lineEnding },
         ),
         McpInstallService(
-            installers = listOf(ClaudeCodeMcpInstaller(), CodexMcpInstaller(), KimiCodeMcpInstaller(), ZCodeMcpInstaller(), PiMcpInstaller()),
+            installers = shippedMcpInstallers(),
             state = McpStateStore(home, targetCoordinator),
             coordinator = targetCoordinator,
         ),

@@ -43,6 +43,15 @@ interface McpAgentInstaller {
     fun installed(target: Target, name: String): McpServerConfig?
 }
 
+/** Every agent Ruleblend writes MCP entries for, all sharing [coordinator]. */
+fun shippedMcpInstallers(coordinator: TargetMutationCoordinator = TargetMutationCoordinator()): List<McpAgentInstaller> = listOf(
+    ClaudeCodeMcpInstaller(coordinator = coordinator),
+    CodexMcpInstaller(coordinator = coordinator),
+    KimiCodeMcpInstaller(coordinator = coordinator),
+    ZCodeMcpInstaller(coordinator = coordinator),
+    PiMcpInstaller(coordinator = coordinator),
+)
+
 /** Global `~/.claude.json`, project `.mcp.json` — both hold a top-level `mcpServers` object. */
 class ClaudeCodeMcpInstaller(
     home: Path? = null,

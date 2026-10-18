@@ -92,18 +92,14 @@ import dev.ruleblend.core.config.ConfigStore
 import dev.ruleblend.core.config.ThemeMode
 import dev.ruleblend.core.config.WindowGeometry
 import dev.ruleblend.core.exchange.LibraryArchive
-import dev.ruleblend.core.integration.ClaudeCodeAdapter
 import dev.ruleblend.core.integration.subagentAgentFields
-import dev.ruleblend.core.integration.CodexAdapter
-import dev.ruleblend.core.integration.KimiCodeAdapter
-import dev.ruleblend.core.integration.PiAdapter
 import dev.ruleblend.core.integration.IntegrationService
+import dev.ruleblend.core.integration.shippedAgentAdapters
 import dev.ruleblend.core.integration.SkillInstallService
 import dev.ruleblend.core.integration.SkillInstallStateStore
 import dev.ruleblend.core.integration.SubagentInstallService
 import dev.ruleblend.core.integration.SubagentInstallStateStore
 import dev.ruleblend.core.integration.TargetIndex
-import dev.ruleblend.core.integration.ZCodeAdapter
 import dev.ruleblend.app.build.BuildInfo
 import dev.ruleblend.core.storage.BackupService
 import dev.ruleblend.core.storage.GitSkillImporter
@@ -122,13 +118,9 @@ import dev.ruleblend.mcp.CodexConnector
 import dev.ruleblend.mcp.KimiCodeConnector
 import dev.ruleblend.mcp.PiConnector
 import dev.ruleblend.mcp.ZCodeConnector
-import dev.ruleblend.mcp.install.ClaudeCodeMcpInstaller
-import dev.ruleblend.mcp.install.CodexMcpInstaller
-import dev.ruleblend.mcp.install.KimiCodeMcpInstaller
+import dev.ruleblend.mcp.install.shippedMcpInstallers
 import dev.ruleblend.mcp.install.ZCodeMcpMigration
 import dev.ruleblend.mcp.install.McpInstallService
-import dev.ruleblend.mcp.install.PiMcpInstaller
-import dev.ruleblend.mcp.install.ZCodeMcpInstaller
 import dev.ruleblend.mcp.BundledIntegration
 import dev.ruleblend.mcp.McpLauncher
 import dev.ruleblend.mcp.install.McpStateStore
@@ -384,7 +376,7 @@ internal fun App(
     val importedSkills = remember {
         ImportLibrary(repository, archive, configStore, gitSkillImporter)
     }
-    val agents = remember { listOf(ClaudeCodeAdapter(), CodexAdapter(), PiAdapter(), KimiCodeAdapter(), ZCodeAdapter()) }
+    val agents = remember { shippedAgentAdapters() }
     val connectors = remember {
         listOf(
             ClaudeCodeConnector(coordinator = targetCoordinator),
@@ -422,13 +414,7 @@ internal fun App(
     }
     val mcpService = remember {
         McpInstallService(
-            installers = listOf(
-                ClaudeCodeMcpInstaller(coordinator = targetCoordinator),
-                CodexMcpInstaller(coordinator = targetCoordinator),
-                KimiCodeMcpInstaller(coordinator = targetCoordinator),
-                ZCodeMcpInstaller(coordinator = targetCoordinator),
-                PiMcpInstaller(coordinator = targetCoordinator),
-            ),
+            installers = shippedMcpInstallers(targetCoordinator),
             state = McpStateStore(coordinator = targetCoordinator),
             coordinator = targetCoordinator,
         )
