@@ -2,7 +2,7 @@
 id: P004
 title: ZCode subagent support
 type: feature
-status: draft
+status: active
 created: 2026-10-18
 gate: ./gradlew :core:jvmTest :mcp:jvmTest :app:jvmTest
 ---
@@ -81,7 +81,7 @@ both scopes cannot shadow itself.
 
 ## Phase 1: Core support
 
-### [ ] P004.1.1 ZCode adapter, format and tests
+### [x] P004.1.1 ZCode adapter, format and tests
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/SubagentFormat.kt:L60-120
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/AgentAdapter.kt:L100-185
@@ -109,6 +109,10 @@ Traps: do not reuse `MODEL_SUGGESTIONS` for the ZCode model spec — ZCode ignor
 values; the fake home in `RuleblendToolsTest` already contains `.zcode`, so the new install
 path writes there for real.
 Commit: P004.1.1: add zcode subagent support
+Handoff:
+- The MCP install response always carries skipped_unsupported_subagents as an empty array — the plan's "no key" expectation cannot hold; assert emptiness instead
+- createSubagent's model shortcut now also writes a zcode variant — two RuleblendToolsTest variant-map assertions gained a zcode line, beyond the tests named in Do:
+- Unverified: app UI surfaces for ZCode subagents (Settings, Coverage, Place) — covered by units 2.1 and 3.1; only :app:jvmTest ran green here
 
 ## Phase 2: Import, docs and version
 

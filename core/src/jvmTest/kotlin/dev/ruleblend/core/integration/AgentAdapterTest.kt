@@ -8,7 +8,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AgentAdapterTest {
@@ -110,8 +109,9 @@ class AgentAdapterTest {
         assertEquals(project.resolve(".kimi-code/skills"), KimiCodeAdapter(home).projectSkillsDirectory(project))
         assertEquals(home.resolve(".zcode").resolve("AGENTS.md"), ZCodeAdapter(home).globalFile())
         assertEquals(project.resolve("AGENTS.md"), ZCodeAdapter(home).projectFile(project))
-        assertEquals(SubagentSupport.UNSUPPORTED, ZCodeAdapter(home).subagentSupport)
-        assertNull(ZCodeAdapter(home).globalSubagentFile("review"))
+        assertEquals(SubagentSupport.SUPPORTED, ZCodeAdapter(home).subagentSupport)
+        assertEquals(home.resolve(".zcode/agents/review.md"), ZCodeAdapter(home).globalSubagentFile("review"))
+        assertEquals(project.resolve(".zcode/agents/review.md"), ZCodeAdapter(home).projectSubagentFile(project, "review"))
         assertEquals(home.resolve(".zcode/skills"), ZCodeAdapter(home).globalSkillsDirectory())
         assertEquals(project.resolve(".zcode/skills"), ZCodeAdapter(home).projectSkillsDirectory(project))
     }
@@ -184,7 +184,7 @@ class AgentAdapterTest {
             PiAdapter(home).capabilities().mcp,
         )
         assertEquals(
-            AgentCapability(CapabilityState.UNSUPPORTED, CapabilityLimit.NOT_SUPPORTED),
+            AgentCapability(CapabilityState.SUPPORTED),
             ZCodeAdapter(home).capabilities().subagents,
         )
         assertEquals(CapabilityState.SUPPORTED, KimiCodeAdapter(home).capabilities().skills.state)

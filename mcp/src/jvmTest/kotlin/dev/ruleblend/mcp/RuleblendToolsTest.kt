@@ -450,6 +450,7 @@ class RuleblendToolsTest {
                 "claude-code" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
                 "codex" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
                 "kimi-code" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
+                "zcode" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
             ),
             repository.loadBlock(id)?.variants,
         )
@@ -549,6 +550,7 @@ class RuleblendToolsTest {
                 "claude-code" to SubagentVariant(mapOf("model" to "haiku", "tools" to "Bash, Read")),
                 "codex" to SubagentVariant(mapOf("model" to "sonnet")),
                 "kimi-code" to SubagentVariant(mapOf("model" to "sonnet")),
+                "zcode" to SubagentVariant(mapOf("model" to "sonnet")),
             ),
             repository.loadBlock(id)?.variants,
         )
@@ -833,19 +835,9 @@ class RuleblendToolsTest {
     }
 
     @Test
-    fun `ZCode and Pi remain unsupported subagent targets`() {
+    fun `Pi remains an unsupported subagent target`() {
         repository.saveBlock(subagent)
 
-        val zcode = tools.install(args("target" to "agent:zcode", "subagent_id" to subagent.id)) as JsonObject
-        assertEquals(
-            listOf(subagent.id),
-            (zcode["skipped_unsupported_subagents"] as JsonArray).map { it.jsonPrimitive.content },
-        )
-        val removed = tools.uninstall(args("target" to "agent:zcode", "subagent_id" to subagent.id)) as JsonObject
-        assertEquals(
-            listOf(subagent.id),
-            (removed["skipped_unsupported_subagents"] as JsonArray).map { it.jsonPrimitive.content },
-        )
         // Pi absent from this home is a missing target, not an unsupported one.
         assertFailsWith<ToolError> { tools.install(args("target" to "agent:pi", "subagent_id" to subagent.id)) }
 
@@ -856,6 +848,17 @@ class RuleblendToolsTest {
             (pi["skipped_unsupported_subagents"] as JsonArray).map { it.jsonPrimitive.content },
         )
         assertTrue(tools.targetStatus(args("target" to "agent:pi")).jsonArray.isEmpty())
+    }
+
+    @Test
+    fun `ZCode installs a subagent into its own agents directory`() {
+        repository.saveBlock(subagent)
+
+        val zcode = tools.install(args("target" to "agent:zcode", "subagent_id" to subagent.id)) as JsonObject
+
+        assertEquals(listOf(subagent.id), (zcode["installed_subagents"] as JsonArray).map { it.jsonPrimitive.content })
+        assertEquals(emptyList(), (zcode["skipped_unsupported_subagents"] as JsonArray).map { it.jsonPrimitive.content })
+        assertTrue(home.resolve(".zcode/agents/reviewer.md").exists())
     }
 
     @Test

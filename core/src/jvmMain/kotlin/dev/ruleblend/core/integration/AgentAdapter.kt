@@ -182,6 +182,13 @@ class ZCodeAdapter(
     override fun globalSkillsDirectory(): Path = home.resolve(".zcode").resolve("skills")
 
     override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".zcode").resolve("skills")
+
+    override val subagentSupport = SubagentSupport.SUPPORTED
+    override val subagentFormat = ZCodeSubagentFormat
+
+    override fun globalSubagentDirectory(): Path = home.resolve(".zcode").resolve("agents")
+
+    override fun projectSubagentDirectory(projectDir: Path): Path = projectDir.resolve(".zcode").resolve("agents")
 }
 
 /**

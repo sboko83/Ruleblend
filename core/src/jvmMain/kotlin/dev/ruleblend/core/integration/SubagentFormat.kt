@@ -63,21 +63,33 @@ interface SubagentFormat {
 /** Model names every current assistant accepts as an alias rather than a full model id. */
 private val MODEL_SUGGESTIONS = listOf("inherit", "haiku", "sonnet", "opus")
 
+/** Marker colors Claude Code and ZCode both offer for an agent. */
+private val COLOR_SUGGESTIONS = listOf("red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan")
+
 /** Claude Code reads Markdown agents with `model`, `tools` and `color` in their frontmatter. */
 object ClaudeCodeSubagentFormat : SubagentFormat by MarkdownSubagentFormat(
     listOf(
         SubagentFieldSpec(SUBAGENT_FIELD_MODEL, suggestions = MODEL_SUGGESTIONS),
         SubagentFieldSpec(SUBAGENT_FIELD_TOOLS, kind = SubagentFieldKind.LIST),
-        SubagentFieldSpec(
-            "color",
-            suggestions = listOf("red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"),
-        ),
+        SubagentFieldSpec("color", suggestions = COLOR_SUGGESTIONS),
     ),
 )
 
 /** Kimi Code reads Markdown agents; its model preference is `modelPreference`. */
 object KimiCodeSubagentFormat : SubagentFormat by MarkdownSubagentFormat(
     listOf(SubagentFieldSpec(SUBAGENT_FIELD_MODEL, nativeKey = "modelPreference", suggestions = MODEL_SUGGESTIONS)),
+)
+
+/**
+ * ZCode reads Markdown agents with the same native keys as Claude Code, but its model value is
+ * `providerId/modelId`, so the alias suggestions do not apply and stay empty.
+ */
+object ZCodeSubagentFormat : SubagentFormat by MarkdownSubagentFormat(
+    listOf(
+        SubagentFieldSpec(SUBAGENT_FIELD_MODEL),
+        SubagentFieldSpec(SUBAGENT_FIELD_TOOLS, kind = SubagentFieldKind.LIST),
+        SubagentFieldSpec("color", suggestions = COLOR_SUGGESTIONS),
+    ),
 )
 
 /** Codex reads TOML agents; their Markdown body becomes `developer_instructions`. */

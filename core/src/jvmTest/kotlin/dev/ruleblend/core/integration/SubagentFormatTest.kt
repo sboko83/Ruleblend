@@ -62,6 +62,34 @@ class SubagentFormatTest {
     }
 
     @Test
+    fun `ZCode renders model, tools and color`() {
+        val variant = SubagentVariant(
+            linkedMapOf(
+                "color" to "purple",
+                "tools" to "Bash, Read",
+                "model" to "zai/glm-5.3",
+            ),
+        )
+
+        assertEquals(
+            """
+            ---
+            name: "Code \"reviewer\""
+            description: "Reviews Kotlin\nchanges"
+            model: "zai/glm-5.3"
+            tools: "Bash, Read"
+            color: "purple"
+            ---
+
+            # Review
+
+            Check \ paths.
+            """.trimIndent() + "\n",
+            ZCodeSubagentFormat.render(subagent, variant),
+        )
+    }
+
+    @Test
     fun `Codex renders escaped TOML developer instructions`() {
         assertEquals(
             """
@@ -164,6 +192,24 @@ class SubagentFormatTest {
             mapOf("model" to "haiku", "tools" to "Bash, Read", "disable-model-invocation" to "true"),
             parsed?.fields,
         )
+    }
+
+    @Test
+    fun `ZCode parse keeps an unmodelled thoughtLevel under its native name`() {
+        val parsed = ZCodeSubagentFormat.parse(
+            """
+            ---
+            name: Reviewer
+            description: Reviews changes
+            model: zai/glm-5.3
+            thoughtLevel: high
+            ---
+
+            body
+            """.trimIndent() + "\n",
+        )
+
+        assertEquals(mapOf("model" to "zai/glm-5.3", "thoughtLevel" to "high"), parsed?.fields)
     }
 
     @Test

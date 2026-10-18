@@ -58,15 +58,19 @@ class SubagentInstallServiceTest {
         val claude = ClaudeCodeAdapter(home)
         val codex = CodexAdapter(home)
         val kimi = KimiCodeAdapter(home)
+        val zcode = ZCodeAdapter(home)
 
         service.install(AgentGlobalTarget(claude), subagent)
         service.install(AgentGlobalTarget(codex), subagent)
         service.install(AgentGlobalTarget(kimi), subagent)
+        service.install(AgentGlobalTarget(zcode), subagent)
 
         assertRendered(claude, ClaudeCodeSubagentFormat)
         assertRendered(codex, CodexSubagentFormat)
         assertRendered(kimi, KimiCodeSubagentFormat)
+        assertRendered(zcode, ZCodeSubagentFormat)
         assertEquals(SubagentInstallStatus(InstallStatus.SYNCED, false), service.status(AgentGlobalTarget(codex), subagent))
+        assertEquals(SubagentInstallStatus(InstallStatus.SYNCED, false), service.status(AgentGlobalTarget(zcode), subagent))
     }
 
     @Test
@@ -167,12 +171,11 @@ class SubagentInstallServiceTest {
         assertFailsWith<IllegalArgumentException> { service.install(claudeTarget, subagent) }
         service.install(claudeTarget, subagent, overwrite = true)
 
-        listOf(AgentGlobalTarget(ZCodeAdapter(home)), AgentGlobalTarget(PiAdapter(home))).forEach { target ->
-            assertFalse(service.appliesTo(target))
-            assertNull(service.status(target, subagent))
-            assertEquals(listOf(target.agent.id), service.unsupportedAgents(target))
-            assertFailsWith<IllegalArgumentException> { service.install(target, subagent) }
-        }
+        val pi = AgentGlobalTarget(PiAdapter(home))
+        assertFalse(service.appliesTo(pi))
+        assertNull(service.status(pi, subagent))
+        assertEquals(listOf(pi.agent.id), service.unsupportedAgents(pi))
+        assertFailsWith<IllegalArgumentException> { service.install(pi, subagent) }
     }
 
     @Test
