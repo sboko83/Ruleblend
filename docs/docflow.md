@@ -6,6 +6,7 @@ start_budget: 4000
 ---
 ## Queue
 - P004
+- P005
 
 ## Frozen
 - P002 — building mods into the app is premature (user, 2026-10-16)
