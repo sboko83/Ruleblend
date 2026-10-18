@@ -419,6 +419,15 @@ class SettingsScreenTest {
         compose.onNodeWithTag("settings-capability-subagents").assertTextContains("✓", substring = true)
     }
 
+    @Test fun `the Pi row reports subagents as a supported capability`() {
+        show(agents = listOf(claude, PiAdapter(root)))
+        goTo(SettingsSection.AGENTS)
+
+        compose.onNodeWithTag("settings-agent-pi").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("settings-details-pi").performClick()
+        compose.onNodeWithTag("settings-capability-subagents").assertTextContains("✓", substring = true)
+    }
+
     @Test fun `closing details does not cancel an in-progress connection refresh`() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)

@@ -9,6 +9,7 @@ import dev.ruleblend.core.integration.InstallStatus
 import dev.ruleblend.core.integration.ManagedRegion
 import dev.ruleblend.core.integration.PlaceEntry
 import dev.ruleblend.core.integration.PlaceEntryOrigin
+import dev.ruleblend.core.integration.PiAdapter
 import dev.ruleblend.core.integration.ProjectTarget
 import dev.ruleblend.core.integration.SkillDestinationStatus
 import dev.ruleblend.core.integration.SubagentDestinationStatus
@@ -75,9 +76,10 @@ class PlaceFilesTest {
             displayPath(home.resolve(".codex"), home.resolve(".zcode/skills")))
     }
 
-    @Test fun `a project target enabled for ZCode lists its agents directory as a subagent destination`() {
+    @Test fun `a project target enabled for ZCode and Pi lists their agents directories as subagent destinations`() {
         val zcode = ZCodeAdapter(Path.of("/home"))
-        val target = ProjectTarget(project, listOf(zcode))
+        val pi = PiAdapter(Path.of("/home"))
+        val target = ProjectTarget(project, listOf(zcode, pi))
         val directories = SubagentInstallService(SubagentInstallStateStore(Path.of("/tmp/ruleblend-place-state")))
             .directories(target)
 
@@ -89,7 +91,7 @@ class PlaceFilesTest {
         )
 
         assertEquals(
-            listOf(".zcode${File.separator}agents${File.separator}"),
+            listOf(".zcode${File.separator}agents${File.separator}", ".pi${File.separator}agents${File.separator}"),
             tabs.filter { it.kind == PlaceFileKind.SUBAGENTS }.map { it.title },
         )
     }

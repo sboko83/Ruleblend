@@ -101,6 +101,8 @@ class SubagentVariantsTest {
         // Codex has no tool field of its own; Pi has no variant, so its fields stay empty.
         compose.onAllNodesWithTag(subagentFieldTag("codex", "tools")).assertCountEquals(0)
         compose.onAllNodesWithTag(subagentFieldTag("pi", "model")).assertCountEquals(1)
+        compose.onAllNodesWithTag(subagentFieldTag("pi", "tools")).assertCountEquals(1)
+        compose.onAllNodesWithTag(subagentFieldTag("pi", "thinking")).assertCountEquals(1)
         // ZCode understands the same Markdown fields as Claude Code, without model alias suggestions.
         compose.onAllNodesWithTag(subagentFieldTag("zcode", "model")).assertCountEquals(1)
         compose.onAllNodesWithTag(subagentFieldTag("zcode", "tools")).assertCountEquals(1)

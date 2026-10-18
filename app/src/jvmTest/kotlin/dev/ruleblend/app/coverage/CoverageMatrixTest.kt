@@ -11,6 +11,7 @@ import dev.ruleblend.core.config.PlaceBoard
 import dev.ruleblend.core.config.ProjectSet
 import dev.ruleblend.core.integration.AgentGlobalTarget
 import dev.ruleblend.core.integration.InstallStatus
+import dev.ruleblend.core.integration.PiAdapter
 import dev.ruleblend.core.integration.SubagentInstallService
 import dev.ruleblend.core.integration.SubagentInstallStateStore
 import dev.ruleblend.core.integration.ZCodeAdapter
@@ -195,6 +196,25 @@ class CoverageMatrixTest {
         assertTrue(supportsSubagents, "the ZCode adapter must host subagents for Coverage to count them")
         assertTrue(snapshot.cell("type:SUBAGENT", "place:agent:pi").outOfScope)
         assertEquals(1, snapshot.cell("type:SUBAGENT", "place:agent:zcode").members)
+    }
+
+    @Test fun `a Pi place counts subagents now that its target hosts them`() {
+        // The same applicability LibraryUsageScanner feeds Coverage with in production.
+        val supportsSubagents = SubagentInstallService(SubagentInstallStateStore(Path.of("/tmp/ruleblend-coverage-state")))
+            .appliesTo(AgentGlobalTarget(PiAdapter(Path.of("/tmp/ruleblend-coverage-home"))))
+
+        val snapshot = coverageMatrix(
+            catalog = catalog(subagents = listOf("review")),
+            scanned = listOf(
+                agent("claude-code", "Claude Code", supportsSubagents = false),
+                agent("pi", "Pi", supportsSubagents = supportsSubagents),
+            ),
+            expansion = CoverageExpansion(columns = setOf("agents")),
+        )
+
+        assertTrue(supportsSubagents, "the Pi adapter must host subagents for Coverage to count them")
+        assertTrue(snapshot.cell("type:SUBAGENT", "place:agent:claude-code").outOfScope)
+        assertEquals(1, snapshot.cell("type:SUBAGENT", "place:agent:pi").members)
     }
 
     @Test fun `rows go from every object to types to the library groups`() {

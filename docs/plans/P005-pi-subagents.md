@@ -180,7 +180,7 @@ Handoff:
 
 ## Phase 3: Acceptance
 
-### [ ] P005.3.1 Acceptance
+### [x] P005.3.1 Acceptance
 Read:
 - app/src/jvmTest/kotlin/dev/ruleblend/app/library/SubagentVariantsTest.kt:L1-115
 - app/src/jvmTest/kotlin/dev/ruleblend/app/settings/SettingsScreenTest.kt:L378-396
@@ -202,3 +202,6 @@ existing agent list in the test model instead of writing a parallel fixture.
 Depends: P005.1.1, P005.2.1
 Model: strong
 Commit: P005.3.1: accept pi subagent support
+Handoff:
+- Acceptance closed with no Unverified items: no earlier handoff carried one and this unit's scenarios are all test-covered
+- Place coverage reuses the ZCode test extended with Pi in the same ProjectTarget (titles .zcode/agents/ then .pi/agents/); Coverage has a Pi mirror of the ZCode place test taking supportsSubagents from the real adapter via appliesTo
