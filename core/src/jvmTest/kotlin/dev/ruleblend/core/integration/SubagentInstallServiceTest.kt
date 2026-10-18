@@ -108,6 +108,29 @@ class SubagentInstallServiceTest {
     }
 
     @Test
+    fun `an assistant connected after the install leaves the existing copies synced`() {
+        val claude = ClaudeCodeAdapter(home)
+        val zcode = ZCodeAdapter(home)
+        service.install(ProjectTarget(project, listOf(claude)), subagent)
+        val target = ProjectTarget(project, listOf(claude, zcode))
+
+        assertEquals(SubagentInstallStatus(InstallStatus.SYNCED, false, listOf("zcode")), service.status(target, subagent))
+        assertEquals(
+            listOf(InstallStatus.SYNCED, null),
+            service.destinationStatuses(target, subagent).map { it.status },
+        )
+        assertEquals(
+            SubagentInstallStatus(InstallStatus.UPDATE_AVAILABLE, false, listOf("zcode")),
+            service.status(target, subagent.copy(content = "# Review\n\nCheck it twice.\n")),
+        )
+
+        service.install(target, subagent)
+
+        assertEquals(SubagentInstallStatus(InstallStatus.SYNCED, false), service.status(target, subagent))
+        assertTrue(project.resolve(".zcode/agents/reviewer.md").exists())
+    }
+
+    @Test
     fun `Codex-only project target installs the TOML subagent and removes it`() {
         val target = ProjectTarget(project, listOf(CodexAdapter(home)))
         val file = project.resolve(".codex/agents/reviewer.toml")

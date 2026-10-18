@@ -10,6 +10,7 @@ import dev.ruleblend.core.integration.ManagedRegion
 import dev.ruleblend.core.integration.PlaceEntry
 import dev.ruleblend.core.integration.PlaceEntryOrigin
 import dev.ruleblend.core.integration.ProjectTarget
+import dev.ruleblend.core.integration.SubagentDestinationStatus
 import dev.ruleblend.core.integration.SkillDirEntry
 import dev.ruleblend.core.integration.SubagentInstallService
 import dev.ruleblend.core.integration.SubagentInstallStateStore
@@ -90,6 +91,20 @@ class PlaceFilesTest {
             listOf(".zcode${File.separator}agents${File.separator}"),
             tabs.filter { it.kind == PlaceFileKind.SUBAGENTS }.map { it.title },
         )
+    }
+
+    @Test fun `each subagent directory reports its own copy, not the place aggregate`() {
+        val claudeDir = project.resolve(".claude/agents")
+        val zcodeDir = project.resolve(".zcode/agents")
+        val destinations = mapOf(
+            "reviewer" to listOf(
+                SubagentDestinationStatus("claude-code", claudeDir.resolve("reviewer.md"), InstallStatus.SYNCED, false),
+                SubagentDestinationStatus("zcode", zcodeDir.resolve("reviewer.md"), null, false),
+            ),
+        )
+
+        assertEquals(mapOf("reviewer" to InstallStatus.SYNCED), subagentStatusesIn(destinations, claudeDir))
+        assertEquals(emptyMap(), subagentStatusesIn(destinations, zcodeDir))
     }
 
     @Test fun `a project shows its rules file, pointer, mcp config and skills directory as one row of tabs`() {

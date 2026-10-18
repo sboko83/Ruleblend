@@ -100,6 +100,21 @@ class PlaceWriteTest {
         )
     }
 
+    @Test fun `a subagent missing for one assistant is offered the install that completes it`() {
+        assertEquals(
+            listOf(PlaceAction.INSTALL, PlaceAction.REMOVE),
+            paletteActions(LibraryObjectKind.SUBAGENT, InstallStatus.SYNCED, missingHere = true),
+        )
+        assertEquals(
+            listOf(PlaceAction.INSTALL, PlaceAction.REMOVE),
+            paletteActions(LibraryObjectKind.SUBAGENT, InstallStatus.UPDATE_AVAILABLE, missingHere = true),
+        )
+        assertEquals(
+            listOf(PlaceAction.REMOVE),
+            paletteActions(LibraryObjectKind.SUBAGENT, InstallStatus.MODIFIED, missingHere = true),
+        )
+    }
+
     @Test fun `the palette never offers to install over a hand edit`() {
         assertEquals(listOf(PlaceAction.REMOVE), paletteActions(LibraryObjectKind.RULE, InstallStatus.MODIFIED))
     }

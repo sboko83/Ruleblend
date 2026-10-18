@@ -838,6 +838,12 @@ change is `MODIFIED`. Status checks themselves stay byte comparisons. A file wit
 foreign even when it matches the current render: ownership is the record, never a coincidence of
 bytes. Pi has no destination or record in this flow.
 
+Status is per file. The aggregate a place reports is the worst state among the files that exist; a
+destination with no file — an assistant connected after the install — is listed apart as missing
+rather than counted as drift of the copies that are there. Place shows each directory its own copy,
+and the palette offers the install that completes a subagent missing somewhere. Rules and skills
+still report a missing copy as an available update.
+
 ### Subagent Library UI
 
 The Library catalog indexes a subagent separately from rules, MCP servers, skills and groups, while

@@ -14,8 +14,35 @@ import java.security.MessageDigest
 import kotlin.io.path.exists
 import kotlin.io.path.readBytes
 
-/** Aggregated state of one library subagent across the supported agents in a target. */
-data class SubagentInstallStatus(val status: InstallStatus, val conflict: Boolean)
+/**
+ * Aggregated state of one library subagent across the supported agents in a target. [status] is the
+ * worst state among the files that exist; a file an agent still lacks is not drift of the others, so
+ * it is reported apart, in [missingAgents].
+ */
+data class SubagentInstallStatus(
+    val status: InstallStatus,
+    val conflict: Boolean,
+    val missingAgents: List<String> = emptyList(),
+)
+
+/** One definition file an agent of a target reads; [status] is null while the file is absent. */
+data class SubagentDestinationStatus(
+    val agentId: String,
+    val file: Path,
+    val status: InstallStatus?,
+    val conflict: Boolean,
+)
+
+/** The aggregate of [destinations], or null when none of them holds a file. */
+fun subagentInstallStatus(destinations: List<SubagentDestinationStatus>): SubagentInstallStatus? {
+    val present = destinations.filter { it.status != null }
+    if (present.isEmpty()) return null
+    return SubagentInstallStatus(
+        status = present.mapNotNull { it.status }.maxBy { it.severity() },
+        conflict = present.any { it.conflict },
+        missingAgents = destinations.filter { it.status == null }.map { it.agentId },
+    )
+}
 
 /** One standalone definition file discovered at an agent directory Ruleblend manages. */
 data class SubagentFileEntry(
@@ -197,23 +224,22 @@ class SubagentInstallService(
         }
     }
 
-    /** Worst status across supported agents, or null when no supported agent has the file. */
-    fun status(target: Target, subagent: Block): SubagentInstallStatus? {
+    /** Worst status across the files that exist, or null when no supported agent has the file. */
+    fun status(target: Target, subagent: Block): SubagentInstallStatus? =
+        subagentInstallStatus(destinationStatuses(target, subagent))
+
+    /** The state of each definition file the agents of [target] read, in agent order. */
+    fun destinationStatuses(target: Target, subagent: Block): List<SubagentDestinationStatus> {
         requireSubagent(subagent)
-        val destinations = destinations(target, subagent.id)
-        if (destinations.isEmpty()) return null
         val key = skillTargetKey(target)
-        val states = destinations.map { destination ->
-            subagentFileStatus(
+        return destinations(target, subagent.id).map { destination ->
+            val file = subagentFileStatus(
                 installed = fileFingerprint(destination.file),
                 recorded = state.find(key, destination.agent.id, subagent.id),
                 renderedFingerprint = subagentFingerprint(renderedBytes(destination.agent, subagent)),
             )
+            SubagentDestinationStatus(destination.agent.id, destination.file, file.status, file.conflict)
         }
-        val present = states.mapNotNull { it.status }
-        if (present.isEmpty()) return null
-        val status = if (present.size < destinations.size) InstallStatus.UPDATE_AVAILABLE else present.maxBy { it.severity() }
-        return SubagentInstallStatus(status, conflict = states.any { it.conflict })
     }
 
     /** Definition files the agents of [target] read, in agent order. */

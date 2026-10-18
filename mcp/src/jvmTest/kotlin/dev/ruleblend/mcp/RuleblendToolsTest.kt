@@ -44,6 +44,7 @@ import dev.ruleblend.mcp.install.ZCodeMcpInstaller
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
+import kotlin.io.path.deleteExisting
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -968,6 +969,21 @@ class RuleblendToolsTest {
 
         tools.uninstall(args("target" to "agent:codex", "rule_id" to block.id))
         assertTrue(IntegrationService().regions(CodexAdapter(home).globalFile()).isEmpty())
+    }
+
+    @Test
+    fun `a subagent copy missing for one assistant is listed apart from its status`() {
+        repository.saveBlock(subagent)
+        tools.install(args("target" to project.toString(), "subagent_id" to subagent.id))
+        val zcodeCopy = project.resolve(".zcode/agents/${subagent.id}.md")
+        assertTrue(zcodeCopy.exists())
+        zcodeCopy.deleteExisting()
+
+        val status = (tools.targetStatus(args("target" to project.toString())) as JsonArray)
+            .single { it.jsonObject["id"]?.jsonPrimitive?.content == subagent.id }.jsonObject
+
+        assertEquals("synced", status["status"]?.jsonPrimitive?.content)
+        assertEquals(listOf("zcode"), status["missing_agents"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 
     @Test

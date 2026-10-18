@@ -795,7 +795,11 @@ class RuleblendTools(
             }
             repository.listBlocks().filter { it.type == BlockType.SUBAGENT }.forEach { block ->
                 val status = subagentService?.status(target, block) ?: return@forEach
-                add(nativeStatusJson(block.id, "subagent", JsonPrimitive(block.version), status.status))
+                val row = nativeStatusJson(block.id, "subagent", JsonPrimitive(block.version), status.status)
+                add(
+                    if (status.missingAgents.isEmpty()) row
+                    else JsonObject(row + ("missing_agents" to JsonArray(status.missingAgents.map(::JsonPrimitive)))),
+                )
             }
             repository.listSkills().forEach { skill ->
                 val status = skillService?.status(target, skill) ?: return@forEach

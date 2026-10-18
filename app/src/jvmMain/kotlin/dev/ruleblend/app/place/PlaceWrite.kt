@@ -27,11 +27,15 @@ fun paletteActions(
     status: InstallStatus?,
     installable: Boolean = true,
     groupComplete: Boolean = false,
+    missingHere: Boolean = false,
 ): List<PlaceAction> = when {
     !installable -> emptyList()
     status == null -> listOf(PlaceAction.INSTALL)
     kind == LibraryObjectKind.GROUP ->
         if (groupComplete) listOf(PlaceAction.REMOVE) else listOf(PlaceAction.INSTALL, PlaceAction.REMOVE)
+    // Install writes every copy at once and refuses a hand-edited one, so with drift present the
+    // edit is resolved on its own row first.
+    missingHere && status != InstallStatus.MODIFIED -> listOf(PlaceAction.INSTALL, PlaceAction.REMOVE)
     status == InstallStatus.UPDATE_AVAILABLE -> listOf(PlaceAction.UPDATE, PlaceAction.REMOVE)
     else -> listOf(PlaceAction.REMOVE)
 }

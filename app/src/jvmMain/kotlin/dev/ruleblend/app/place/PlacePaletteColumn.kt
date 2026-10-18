@@ -379,11 +379,15 @@ private fun TypeHeader(title: String, total: Int, open: Boolean, onToggle: () ->
 private fun ObjectRow(row: PaletteRow, strings: Strings, model: IntegrationModel) {
     val scope = rememberCoroutineScope()
     val supported = model.placeSupports(row.key)
+    // An assistant connected after the install has no copy yet: that is not drift of the others.
+    val missingHere = row.key.kind == LibraryObjectKind.SUBAGENT &&
+        model.subagentStatuses[row.key.id]?.missingAgents.orEmpty().isNotEmpty()
     val actions = paletteActions(
         kind = row.key.kind,
         status = row.status,
         installable = supported,
         groupComplete = row.key.kind == LibraryObjectKind.GROUP && model.groupComplete(row.key.id),
+        missingHere = missingHere,
     )
     PaletteCard(
         namePrefixWidth = KindMarkSize + 4.dp,
@@ -403,7 +407,12 @@ private fun ObjectRow(row: PaletteRow, strings: Strings, model: IntegrationModel
             )
         },
         trailing = {
-            StatusPill(row.status, strings)
+            // An update or an edit of the existing copies says more; the install offer stays.
+            if (missingHere && supported && row.status == InstallStatus.SYNCED) {
+                StatusBadge(SyncBadge.UPDATE, strings.libStatusIncomplete)
+            } else {
+                StatusPill(row.status, strings)
+            }
             if (!supported) {
                 Text(
                     strings.paletteUnsupported,

@@ -81,7 +81,7 @@ internal fun placePreviewParts(
             val rows = placeEntries(
                 managedRows = installedRows(
                     items = model.blocks.filter { it.type == BlockType.SUBAGENT }.map { Triple(it.id, it.name, it.version.toString()) },
-                    statuses = model.subagentStatuses.mapValues { it.value.status },
+                    statuses = subagentStatusesIn(model.subagentDestinations, file.path),
                 ),
                 entries = subagentEntriesIn(model.subagentEntries, file.path),
             ) { subagent: SubagentFileEntry ->

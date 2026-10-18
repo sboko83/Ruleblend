@@ -10,6 +10,7 @@ import dev.ruleblend.core.integration.PlaceEntry
 import dev.ruleblend.core.integration.PlaceEntryOrigin
 import dev.ruleblend.core.integration.Redirect
 import dev.ruleblend.core.integration.SkillDirEntry
+import dev.ruleblend.core.integration.SubagentDestinationStatus
 import dev.ruleblend.core.integration.SubagentFileEntry
 import dev.ruleblend.core.integration.Target
 import dev.ruleblend.core.integration.TargetOwnershipMode
@@ -398,6 +399,21 @@ fun skillEntriesIn(
 ): List<PlaceEntry<SkillDirEntry, String>> {
     val root = directory.normalize()
     return entries.filter { it.value.path.parent?.normalize() == root }
+}
+
+/**
+ * The state of each library subagent's copy in [directory]. Every directory is its own tab, so a
+ * copy reports what its own file says, not the aggregate of the place; a subagent whose file this
+ * directory lacks has no row here.
+ */
+fun subagentStatusesIn(
+    destinations: Map<String, List<SubagentDestinationStatus>>,
+    directory: Path,
+): Map<String, InstallStatus> {
+    val root = directory.normalize()
+    return destinations.mapNotNull { (id, files) ->
+        files.firstOrNull { it.file.parent?.normalize() == root }?.status?.let { id to it }
+    }.toMap()
 }
 
 /** The entries physically kept in one subagent definition directory. */

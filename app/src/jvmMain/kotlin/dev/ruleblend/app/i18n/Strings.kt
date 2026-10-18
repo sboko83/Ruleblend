@@ -489,6 +489,7 @@ interface Strings {
     val libUnusedMark: String
     val libStatusSynced: String
     val libStatusUpdate: String
+    val libStatusIncomplete: String
     val libStatusModified: String
     val libPinnedTo: (String) -> String
     val libAutoMaintained: String
@@ -1488,6 +1489,7 @@ object EnStrings : Strings {
     override val libUnusedMark = "unused"
     override val libStatusSynced = "synced"
     override val libStatusUpdate = "update"
+    override val libStatusIncomplete = "not everywhere"
     override val libStatusModified = "modified"
     override val libPinnedTo = { project: String -> "pinned to $project" }
     override val libAutoMaintained = "auto-maintained"
@@ -2494,6 +2496,7 @@ object RuStrings : Strings {
     override val libUnusedMark = "не используется"
     override val libStatusSynced = "синхронизировано"
     override val libStatusUpdate = "обновление"
+    override val libStatusIncomplete = "не везде"
     override val libStatusModified = "изменено"
     override val libPinnedTo = { project: String -> "закреплено за $project" }
     override val libAutoMaintained = "обновляется автоматически"
