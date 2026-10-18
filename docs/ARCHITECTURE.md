@@ -806,7 +806,8 @@ Pi reads the same Markdown shape from `~/.pi/agent/agents/<id>.md` and
 pi-subagents: its format declares `model`, `tools` and `thinking` (the levels Pi's own CLI uses),
 while package-specific extras (`color`, `excludeTools`, `aliases`) stay unmodelled extra fields.
 The definition files are inert until the user installs one of the extensions; Ruleblend writes
-them either way, so support is unconditional instead of gating on the installed package.
+them either way, so support is unconditional instead of gating on the installed package
+([P005](archive/P005-pi-subagents.md)).
 
 ### Capability matrix
 

@@ -803,7 +803,7 @@ Pi читает тот же Markdown-формат из `~/.pi/agent/agents/<id>.
 и `thinking` (уровни CLI самого Pi), а специфичные для пакетов поля (`color`, `excludeTools`,
 `aliases`) остаются unmodelled extra-fields. Без установленного расширения файлы инертны;
 Ruleblend пишет их независимо от этого, поэтому поддержка безусловна и не зависит от
-установленного пакета.
+установленного пакета ([P005](../archive/P005-pi-subagents.md)).
 
 <a id="capability-matrix"></a>
 ### Матрица возможностей
