@@ -219,6 +219,10 @@ class SettingsModel(
     var detectedAgentIds by mutableStateOf(emptySet<String>())
         private set
 
+    /** Agents whose subagent files stay inert until the user installs an extension; read with [detectedAgentIds]. */
+    var missingExtensionAgentIds by mutableStateOf(emptySet<String>())
+        private set
+
     /** What Ruleblend installed into every available assistant, and whether it is still current. */
     var integrationStates by mutableStateOf(emptyList<AgentIntegrationState>())
         private set
@@ -264,6 +268,7 @@ class SettingsModel(
         val sync: RemoteSyncResult?,
         val integrationStates: List<AgentIntegrationState>,
         val detectedAgentIds: Set<String>,
+        val missingExtensionAgentIds: Set<String>,
     )
 
     /**
@@ -279,6 +284,7 @@ class SettingsModel(
                 sync = libraryGit.lastRemoteSync,
                 integrationStates = integration.states(),
                 detectedAgentIds = agents.filter { it.isAvailable() }.map { it.id }.toSet(),
+                missingExtensionAgentIds = missingExtensionAgentIds(),
             )
         }
         val config = loaded.config
@@ -307,6 +313,7 @@ class SettingsModel(
         translation = config.translation
         libraryHistory = loaded.history
         detectedAgentIds = loaded.detectedAgentIds
+        missingExtensionAgentIds = loaded.missingExtensionAgentIds
         integrationStates = loaded.integrationStates
         readyAssistanceAssistants = discoverAssistanceAssistants(agents, { integrationStates })
     }
@@ -558,14 +565,18 @@ class SettingsModel(
         connectFailure = null
     }
 
+    private fun missingExtensionAgentIds(): Set<String> =
+        agents.filter { it.subagentExtension != null && !it.hasSubagentExtension() }.map { it.id }.toSet()
+
     private fun skillInstallerFor(agentId: String): SkillInstaller? =
         skillInstallers.find { it.agentId == agentId && it.isAvailable() }
 
     private suspend fun refreshConnectStates() {
-        val (states, detected) = withContext(Dispatchers.IO) {
-            integration.states() to agents.filter { it.isAvailable() }.map { it.id }.toSet()
+        val (states, detected, missing) = withContext(Dispatchers.IO) {
+            Triple(integration.states(), agents.filter { it.isAvailable() }.map { it.id }.toSet(), missingExtensionAgentIds())
         }
         detectedAgentIds = detected
+        missingExtensionAgentIds = missing
         integrationStates = states
         readyAssistanceAssistants = discoverAssistanceAssistants(agents, { integrationStates })
     }

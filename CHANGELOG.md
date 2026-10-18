@@ -10,8 +10,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ### Added
 - app: Subagents install into Pi as well — `~/.pi/agent/agents` and the project's `.pi/agents`,
   with Pi's own model, tools and thinking fields; Git import recognizes `.pi/agents`. Pi loads
-  the files through a subagents extension installed separately; Settings marks this with a
-  footnote and the `pi install npm:pi-subagents` command.
+  the files through a subagents extension installed separately; until one is installed, Settings
+  marks this with a footnote and a copyable `pi install npm:pi-subagents` command.
 - app: Subagents install into ZCode as well — `~/.zcode/agents` and the project's `.zcode/agents`,
   with ZCode's own model, tools and colour fields; Git import recognizes `.zcode/agents`.
 - app: Saving a found file with several sections to the library can keep it whole as one rule.

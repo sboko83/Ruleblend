@@ -46,6 +46,7 @@ import dev.ruleblend.core.exchange.LibraryArchive
 import dev.ruleblend.core.integration.AgentAdapter
 import dev.ruleblend.core.integration.AgentCli
 import dev.ruleblend.core.integration.PiAdapter
+import dev.ruleblend.app.util.ClipboardEnvironment
 import dev.ruleblend.core.model.Block
 import dev.ruleblend.core.model.BlockType
 import dev.ruleblend.core.model.GitSkillSource
@@ -430,6 +431,29 @@ class SettingsScreenTest {
         compose.onNodeWithTag("settings-capability-subagents").assertTextContains("◐ Subagents*")
         compose.onNodeWithTag("settings-subagent-extension").assertIsDisplayed()
         compose.onNodeWithText("pi install npm:pi-subagents").assertIsDisplayed()
+
+        val previousCopy = ClipboardEnvironment.copy
+        var copied: String? = null
+        ClipboardEnvironment.copy = { copied = it; true }
+        try {
+            compose.onNodeWithTag("settings-copy-extension-command").performClick()
+            assertEquals("pi install npm:pi-subagents", copied)
+        } finally {
+            ClipboardEnvironment.copy = previousCopy
+        }
+    }
+
+    @Test fun `the Pi row drops the extension footnote once a subagents package is declared`() {
+        root.resolve(".pi/agent").createDirectories().resolve("settings.json")
+            .writeText("""{"packages": ["npm:@tintinweb/pi-subagents"]}""")
+        show(agents = listOf(claude, PiAdapter(root)))
+        goTo(SettingsSection.AGENTS)
+
+        compose.onNodeWithTag("settings-agent-pi").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("settings-agent-extension-pi").assertDoesNotExist()
+        compose.onNodeWithTag("settings-details-pi").performClick()
+        compose.onNodeWithTag("settings-capability-subagents").assertTextContains("✓ Subagents")
+        compose.onNodeWithTag("settings-subagent-extension").assertDoesNotExist()
     }
 
     @Test fun `closing details does not cancel an in-progress connection refresh`() {

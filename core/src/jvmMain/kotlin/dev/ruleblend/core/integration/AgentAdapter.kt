@@ -11,7 +11,7 @@ enum class SubagentSupport {
 
 /**
  * A package the agent must have installed before it loads the definitions Ruleblend writes. Support
- * stays unconditional; the requirement is only reported, never probed.
+ * stays unconditional: whether the package is present only decides what Settings tells the user.
  */
 data class AgentExtension(
     val name: String,
@@ -73,6 +73,9 @@ interface AgentAdapter {
 
     /** Extension the agent needs to load its subagent files, or `null` when it reads them natively. */
     val subagentExtension: AgentExtension? get() = null
+
+    /** Whether [subagentExtension] is installed for the user; `true` when none is needed. Reads disk. */
+    fun hasSubagentExtension(): Boolean = true
 
     /** User-level directory of file-backed subagent definitions. */
     fun globalSubagentDirectory(): Path? = null
@@ -232,6 +235,9 @@ class PiAdapter(
     override val subagentFormat = PiSubagentFormat
 
     override val subagentExtension = AgentExtension("pi-subagents", "pi install npm:pi-subagents")
+
+    override fun hasSubagentExtension(): Boolean =
+        PiPackages.declares(paths.pi.resolve("settings.json"), subagentExtension.name)
 
     override fun globalSubagentDirectory(): Path = paths.pi.resolve("agents")
 

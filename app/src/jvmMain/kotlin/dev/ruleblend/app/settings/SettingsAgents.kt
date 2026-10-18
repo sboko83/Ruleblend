@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -262,9 +261,10 @@ private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean,
                     Capability(strings.setAgentRulesCapability, capabilities.rules, "rules")
                     Capability(strings.setAgentMcpCapability, capabilities.mcp, "mcp")
                     Capability(strings.setAgentSkillsCapability, capabilities.skills, "skills")
-                    Capability(strings.setAgentSubagentsCapability, capabilities.subagents, "subagents", footnote = agent.subagentExtension != null)
+                    val extension = agent.subagentExtension?.takeIf { agent.id in model.missingExtensionAgentIds }
+                    Capability(strings.setAgentSubagentsCapability, capabilities.subagents, "subagents", footnote = extension != null)
                 }
-                agent.subagentExtension?.let { ExtensionFootnote(it) }
+                agent.subagentExtension?.takeIf { agent.id in model.missingExtensionAgentIds }?.let { ExtensionFootnote(it) }
                 Text(strings.setColMcp, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 ControlRow { Connection(model, agent, operationScope) }
                 if (agent.cli != null) {
@@ -283,8 +283,9 @@ private fun AgentIdentity(model: SettingsModel, agent: AgentAdapter, modifier: M
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(agent.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            agent.subagentExtension?.let { extension ->
-                RuleblendTooltip(strings.setSubagentExtensionRequired(extension.name)) {
+            agent.subagentExtension?.takeIf { agent.id in model.missingExtensionAgentIds }?.let { extension ->
+                // A non-breaking hyphen keeps the package name on one line in the narrow tooltip.
+                RuleblendTooltip(strings.setSubagentExtensionRequired(extension.name.replace('-', '\u2011'))) {
                     Text(
                         "${strings.setAgentSubagentsCapability}*", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary, modifier = Modifier.testTag("settings-agent-extension-${agent.id}"),
@@ -558,10 +559,12 @@ private fun Capability(label: String, capability: AgentCapability, id: String, f
 /** The footnote behind an asterisked capability: which extension is missing and how to install it. */
 @Composable
 private fun ExtensionFootnote(extension: AgentExtension) {
+    val strings = LocalStrings.current
     Column(Modifier.testTag("settings-subagent-extension"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Note("* ${LocalStrings.current.setSubagentExtensionRequired(extension.name)}")
-        SelectionContainer {
-            Text(extension.installCommand, style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily))
+        Note("* ${strings.setSubagentExtensionRequired(extension.name)}")
+        ControlRow {
+            PathChip(extension.installCommand)
+            FlashButton(strings.setCopy, strings.setCopied, onClick = { copyToClipboard(extension.installCommand) }, tag = "settings-copy-extension-command")
         }
     }
 }
