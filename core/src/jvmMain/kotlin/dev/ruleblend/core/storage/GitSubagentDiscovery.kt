@@ -8,6 +8,7 @@ import dev.ruleblend.core.integration.ClaudeCodeSubagentFormat
 import dev.ruleblend.core.integration.CodexSubagentFormat
 import dev.ruleblend.core.integration.KimiCodeSubagentFormat
 import dev.ruleblend.core.integration.SubagentDraft
+import dev.ruleblend.core.integration.ZCodeSubagentFormat
 import dev.ruleblend.core.integration.parseSubagentToml
 import dev.ruleblend.core.model.splitYamlFrontmatter
 import java.nio.ByteBuffer
@@ -53,6 +54,7 @@ internal fun discoverGitSubagents(
         GitAgentRoot(".codex/agents", "codex"),
         GitAgentRoot(".claude/agents", "claude-code"),
         GitAgentRoot(".kimi-code/agents", "kimi-code"),
+        GitAgentRoot(".zcode/agents", "zcode"),
         GitAgentRoot("agents", null),
         GitAgentRoot("subagents", null),
         GitAgentRoot("categories", null),
@@ -131,5 +133,9 @@ private fun validateMarkdownFields(text: String) {
     }
 }
 
-private val MARKDOWN_FORMATS = linkedMapOf("claude-code" to ClaudeCodeSubagentFormat, "kimi-code" to KimiCodeSubagentFormat)
+private val MARKDOWN_FORMATS = linkedMapOf(
+    "claude-code" to ClaudeCodeSubagentFormat,
+    "kimi-code" to KimiCodeSubagentFormat,
+    "zcode" to ZCodeSubagentFormat,
+)
 private val DOCUMENT_NAMES = setOf("README", "SKILL", "AGENTS", "CLAUDE", "CONTRIBUTING", "CHANGELOG", "LICENSE")

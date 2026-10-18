@@ -8,6 +8,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ## [Unreleased]
 
 ### Added
+- app: Subagents install into ZCode as well — `~/.zcode/agents` and the project's `.zcode/agents`,
+  with ZCode's own model, tools and colour fields; Git import recognizes `.zcode/agents`.
 - app: Saving a found file with several sections to the library can keep it whole as one rule.
 - app: Settings → General → Workspace can hide the Recent section of the project list.
 - app: AI help (the robot button in the Library inspector and editor header) opens Claude Code in a

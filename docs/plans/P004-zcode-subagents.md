@@ -116,7 +116,7 @@ Handoff:
 
 ## Phase 2: Import, docs and version
 
-### [ ] P004.2.1 Git import, architecture docs, version
+### [x] P004.2.1 Git import, architecture docs, version
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/storage/GitSubagentDiscovery.kt:L45-140
 - core/src/jvmTest/kotlin/dev/ruleblend/core/storage/GitRepositoryImporterTest.kt:L55-80
@@ -144,6 +144,9 @@ sentence, do not patch byte offsets; the MCP facade paragraph sits near L1386 in
 file and elsewhere in the Russian one, find it by its "fallback definition path" claim.
 Model: fast
 Commit: P004.2.1: document zcode subagent format
+Handoff:
+- Ambiguous Markdown collections now parse into three drafts (claude-code, kimi-code, zcode) — GitRepositoryImporterTest and GitSourceToolsTest expected-assistant sets were extended with zcode
+- Unverified: nothing — verify and gate ran :core:jvmTest, :mcp:jvmTest and :app:jvmTest green
 
 ## Phase 3: Acceptance
 

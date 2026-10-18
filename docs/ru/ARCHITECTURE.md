@@ -754,7 +754,7 @@ ZCode использует значения таблиц; его [native-ски�
 | Codex 0.153.2 | `~/.codex/config.toml`; `<project>/.codex/config.toml` | Native: `~/.codex/skills/`, `<project>/.codex/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | `~/.codex/agents/*.toml`, `<project>/.codex/agents/*.toml`; формат TOML, не Markdown. |
 | Pi | [Встроенный MCP в 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` и `<project>/.pi/mcp.json`; требуется доверие к проекту. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Нет субагентов. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json`, иначе `~/.kimi-code/mcp.json`; `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Последующие файлы переопределяют предыдущие. | `<KIMI_CODE_HOME>/skills/`, `<project>/.kimi-code/skills/`; общий `.agents/skills/` тоже читается. | `<KIMI_CODE_HOME>/agents/*.md`, `<project>/.kimi-code/agents/*.md`; определение в Markdown frontmatter. |
-| ZCode 3.10.1 | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | Стабильного пользовательского/workspace-формата нет. `~/.zcode/cli/agents/` хранит runtime-сессии и не используется для определений; агенты могут поступать из plugins. |
+| ZCode 3.10.1 (2026-10-18) | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | `~/.zcode/agents/*.md`, `<workspace>/.zcode/agents/*.md`; Markdown frontmatter. `~/.zcode/cli/agents/` хранит runtime-сессии и не используется для определений. |
 
 Цель — globals агента **или** каталог проекта. Проект пишет файлы каждого включённого
 агента; переключатели хранятся в `config.json`, по умолчанию включены все обнаруженные.
@@ -791,11 +791,11 @@ native key — требуемый синтаксис файла.
   в принимаемую этими агентами строку с запятыми.
 - **Variant не переходит к соседям.** Render читает только variant записываемого агента.
 
-У изученного ZCode нет стабильного standalone-формата определений:
-`~/.zcode/cli/agents/` — хранилище сессий, а plugins задают собственных агентов.
-Адаптер возвращает `UNSUPPORTED`, не записывая Markdown в runtime-каталог.
-Матрица получает `NOT_SUPPORTED`, как Pi без функции субагентов.
-Причина хранится в документации, не отдельным модельным значением, которое не создаёт ни один адаптер.
+ZCode читает тот же Markdown-формат из `~/.zcode/agents/<id>.md` и
+`<project>/.zcode/agents/<id>.md`: формат объявляет `model`, `tools` и `color` под native-ключами
+Claude Code, но значение модели — `providerId/modelId`, поэтому подсказки с alias пусты.
+Поля ZCode сверх объявленного набора (`thoughtLevel` и остальные) не моделируются и переживают
+цикл parse→render под native-ключами через описанный выше механизм extra-fields.
 
 <a id="capability-matrix"></a>
 ### Матрица возможностей
@@ -813,7 +813,7 @@ native key — требуемый синтаксис файла.
 | Codex | ✓ | ✓ | ✓ | ✓ |
 | Pi | ✓ | ✓ | ✓ | ✗ — функции нет |
 | Kimi Code | ✓ | ✓ | ✓ | ✓ |
-| ZCode | ✓ | ✓ | ✓ | ✗ — нет стабильного формата |
+| ZCode | ✓ | ✓ | ✓ | ✓ |
 
 <a id="subagent-ownership-and-drift"></a>
 ### Владение субагентами и локальные изменения
@@ -831,7 +831,7 @@ Adopt записывает текущие байты обычного файла
 изменение render библиотеки даёт update, как и принятое изначально отличавшееся определение.
 Любое последующее изменение байтов — `MODIFIED`. Проверки состояния сравнивают байты.
 Без записи даже совпадающий файл чужой: владение задаёт sidecar, не случайное совпадение.
-ZCode/Pi в этом процессе не имеют ни пути, ни записи.
+Pi в этом процессе не имеет ни пути, ни записи.
 
 <a id="subagent-library-ui"></a>
 ### Субагенты в Library
@@ -848,8 +848,8 @@ ZCode/Pi в этом процессе не имеют ни пути, ни зап
 Library bulk, Place, usage, history и Coverage используют `InstallItem.Subagent`
 и тот же `SubagentInstallService`, что status scan. Он единственный writer:
 UI сам не render-ит, fingerprint-ит, принимает или удаляет native-определения.
-Неподдерживаемый агент не даёт destination; ZCode/Pi видны как неподдерживаемые,
-а не получают угаданный формат.
+Неподдерживаемый агент не даёт destination; Pi виден как неподдерживаемый,
+а не получает угаданный формат.
 
 Разобранное чужое определение становится Library `SUBAGENT` и принимается без перезаписи.
 Sidecar хранит принятый fingerprint и физическое имя, если занятый Library id отличается
@@ -1282,7 +1282,7 @@ Save редактируемой стороны использует обычно
   Git-импорты неизменяемы. Удаление скилла/субагента убирает членство групп/профилей,
   оставляя установленные копии до явного uninstall.
   Install/remove используют общий `SubagentInstallService`, byte ownership и drift checks.
-  Result отдельно называет written, modified, unsupported; ZCode/Pi без fallback-пути.
+  Result отдельно называет written, modified, unsupported; Pi без fallback-пути.
   `RuleblendTools` — чистые handlers поверх `core`, без SDK types, тестируются без транспорта.
 - **Цели:** `target` — `agent:<agentId>` для globals или абсолютный project path,
   те же два вида GUI через общий `Target`, без отдельной install logic сервера.

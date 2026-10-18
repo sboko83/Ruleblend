@@ -118,7 +118,7 @@ class GitSourceToolsTest {
         assertEquals(2, preview["subagents"]!!.jsonArray.size)
         val ambiguous = preview["subagents"]!!.jsonArray.map { it.jsonObject }.single { it.text("path") == "agents/ambiguous.md" }
         assertTrue(ambiguous["requires_assistant_selection"]!!.jsonPrimitive.boolean)
-        assertEquals(setOf("claude-code", "kimi-code"), ambiguous["assistants"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet())
+        assertEquals(setOf("claude-code", "kimi-code", "zcode"), ambiguous["assistants"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet())
         val entry = entry(preview, "subagent", agentPath)
         assertTrue(entry.text("source_text").contains("Original instructions"))
         assertEquals("Original instructions", entry["definitions"]!!.jsonObject["codex"]!!.jsonObject.text("content"))
