@@ -795,7 +795,8 @@ ZCode читает тот же Markdown-формат из `~/.zcode/agents/<id>.
 `<project>/.zcode/agents/<id>.md`: формат объявляет `model`, `tools` и `color` под native-ключами
 Claude Code, но значение модели — `providerId/modelId`, поэтому подсказки с alias пусты.
 Поля ZCode сверх объявленного набора (`thoughtLevel` и остальные) не моделируются и переживают
-цикл parse→render под native-ключами через описанный выше механизм extra-fields.
+цикл parse→render под native-ключами через описанный выше механизм extra-fields
+([P004](../archive/P004-zcode-subagents.md)).
 
 <a id="capability-matrix"></a>
 ### Матрица возможностей

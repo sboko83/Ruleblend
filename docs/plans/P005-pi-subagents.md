@@ -39,7 +39,7 @@ Definition files are inert until the user installs one of the extensions
 (`pi install npm:pi-subagents`); Ruleblend writes them either way.
 
 - docs/ARCHITECTURE.md:L744-860
-- docs/plans/P004-zcode-subagents.md
+- docs/archive/P004-zcode-subagents.md
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/SubagentFormat.kt
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/AgentAdapter.kt
 

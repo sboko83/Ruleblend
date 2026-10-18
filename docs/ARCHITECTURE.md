@@ -798,7 +798,8 @@ ZCode reads that Markdown shape from `~/.zcode/agents/<id>.md` and
 `<project>/.zcode/agents/<id>.md`: its format declares `model`, `tools` and `color` under the
 Claude Code native keys, but a model value is `providerId/modelId`, so the alias suggestions stay
 empty. Fields ZCode adds beyond the declared set (`thoughtLevel` and the rest) are not modelled and
-survive a parse→render round trip under their native keys through the extra-fields mechanism above.
+survive a parse→render round trip under their native keys through the extra-fields mechanism above
+([P004](archive/P004-zcode-subagents.md)).
 
 ### Capability matrix
 

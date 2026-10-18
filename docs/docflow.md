@@ -5,7 +5,6 @@ start_read: README.md
 start_budget: 4000
 ---
 ## Queue
-- P004
 - P005
 
 ## Frozen
