@@ -80,6 +80,21 @@ object KimiCodeSubagentFormat : SubagentFormat by MarkdownSubagentFormat(
     listOf(SubagentFieldSpec(SUBAGENT_FIELD_MODEL, nativeKey = "modelPreference", suggestions = MODEL_SUGGESTIONS)),
 )
 
+/** Thinking levels Pi's own `--thinking` flag uses; its subagent packages accept the same names. */
+private val THINKING_SUGGESTIONS = listOf("off", "minimal", "low", "medium", "high", "xhigh", "max")
+
+/**
+ * Pi loads Markdown agents through a subagents extension. `model`, `tools` and `thinking` are the
+ * fields every leading package reads; package-specific extras stay unmodelled extra fields.
+ */
+object PiSubagentFormat : SubagentFormat by MarkdownSubagentFormat(
+    listOf(
+        SubagentFieldSpec(SUBAGENT_FIELD_MODEL, suggestions = MODEL_SUGGESTIONS),
+        SubagentFieldSpec(SUBAGENT_FIELD_TOOLS, kind = SubagentFieldKind.LIST),
+        SubagentFieldSpec("thinking", suggestions = THINKING_SUGGESTIONS),
+    ),
+)
+
 /**
  * ZCode reads Markdown agents with the same native keys as Claude Code, but its model value is
  * `providerId/modelId`, so the alias suggestions do not apply and stay empty.

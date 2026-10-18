@@ -185,7 +185,7 @@ class SubagentInstallServiceTest {
     }
 
     @Test
-    fun `unknown files are never overwritten unless explicit and unsupported agents stay unsupported`() {
+    fun `unknown files are never overwritten unless explicit`() {
         val claudeTarget = AgentGlobalTarget(ClaudeCodeAdapter(home))
         val foreign = requireNotNull(claudeTarget.agent.globalSubagentFile(subagent.id))
         foreign.parent.createDirectories()
@@ -195,10 +195,9 @@ class SubagentInstallServiceTest {
         service.install(claudeTarget, subagent, overwrite = true)
 
         val pi = AgentGlobalTarget(PiAdapter(home))
-        assertFalse(service.appliesTo(pi))
-        assertNull(service.status(pi, subagent))
-        assertEquals(listOf(pi.agent.id), service.unsupportedAgents(pi))
-        assertFailsWith<IllegalArgumentException> { service.install(pi, subagent) }
+        service.install(pi, subagent)
+        assertRendered(pi.agent, PiSubagentFormat)
+        assertEquals(SubagentInstallStatus(InstallStatus.SYNCED, false), service.status(pi, subagent))
     }
 
     @Test

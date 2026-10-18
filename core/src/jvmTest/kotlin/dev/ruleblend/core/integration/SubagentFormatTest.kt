@@ -90,6 +90,34 @@ class SubagentFormatTest {
     }
 
     @Test
+    fun `Pi renders model, tools and thinking`() {
+        val variant = SubagentVariant(
+            linkedMapOf(
+                "thinking" to "high",
+                "tools" to "Bash, Read",
+                "model" to "haiku",
+            ),
+        )
+
+        assertEquals(
+            """
+            ---
+            name: "Code \"reviewer\""
+            description: "Reviews Kotlin\nchanges"
+            model: "haiku"
+            tools: "Bash, Read"
+            thinking: "high"
+            ---
+
+            # Review
+
+            Check \ paths.
+            """.trimIndent() + "\n",
+            PiSubagentFormat.render(subagent, variant),
+        )
+    }
+
+    @Test
     fun `Codex renders escaped TOML developer instructions`() {
         assertEquals(
             """
@@ -210,6 +238,29 @@ class SubagentFormatTest {
         )
 
         assertEquals(mapOf("model" to "zai/glm-5.3", "thoughtLevel" to "high"), parsed?.fields)
+    }
+
+    @Test
+    fun `Pi parse keeps package-specific fields under their native names`() {
+        val parsed = PiSubagentFormat.parse(
+            """
+            ---
+            name: Reviewer
+            description: Reviews changes
+            model: haiku
+            thinking: high
+            color: purple
+            excludeTools: WebFetch
+            ---
+
+            body
+            """.trimIndent() + "\n",
+        )
+
+        assertEquals(
+            mapOf("model" to "haiku", "thinking" to "high", "color" to "purple", "excludeTools" to "WebFetch"),
+            parsed?.fields,
+        )
     }
 
     @Test

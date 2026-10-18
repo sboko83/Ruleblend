@@ -163,7 +163,7 @@ class ProjectToolsTest {
     }
 
     @Test
-    fun `profile writes report scope and unsupported refusals`() {
+    fun `profile writes report scope and installs subagents into enabled agents`() {
         rule("scoped")
         repository.saveBlock(Block("agent", "Agent", type = BlockType.SUBAGENT, content = "Review."))
         repository.saveProfile(Profile("review", "Review", blockIds = listOf("scoped"), subagentIds = listOf("agent")))
@@ -173,7 +173,7 @@ class ProjectToolsTest {
         tools.setProjectAgents(args("agent_ids" to listOf("pi")))
         val result = tools.attachProfile(args("profile_id" to "review")).jsonObject
         assertEquals(listOf("scoped"), result.ids("skipped_out_of_scope"))
-        assertEquals(listOf("agent"), result.ids("skipped_unsupported_subagents"))
+        assertTrue(project.resolve(".pi/agents/agent.md").readText().contains("Review."))
         assertTrue(regions().isEmpty())
     }
 

@@ -452,6 +452,7 @@ class RuleblendToolsTest {
                 "codex" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
                 "kimi-code" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
                 "zcode" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
+                "pi" to SubagentVariant(mapOf("model" to "gpt-5.6-terra")),
             ),
             repository.loadBlock(id)?.variants,
         )
@@ -552,6 +553,7 @@ class RuleblendToolsTest {
                 "codex" to SubagentVariant(mapOf("model" to "sonnet")),
                 "kimi-code" to SubagentVariant(mapOf("model" to "sonnet")),
                 "zcode" to SubagentVariant(mapOf("model" to "sonnet")),
+                "pi" to SubagentVariant(mapOf("model" to "sonnet")),
             ),
             repository.loadBlock(id)?.variants,
         )
@@ -577,14 +579,14 @@ class RuleblendToolsTest {
     }
 
     @Test
-    fun `a variant for an assistant without subagent support is refused`() {
+    fun `a variant for an unknown agent id is refused`() {
         repository.saveBlock(subagent)
 
         assertFailsWith<ToolError> {
             tools.updateSubagent(
                 args(
                     "id" to subagent.id,
-                    "variants" to buildJsonObject { put("pi", buildJsonObject { put("model", "x") }) },
+                    "variants" to buildJsonObject { put("gemini", buildJsonObject { put("model", "x") }) },
                 ),
             )
         }
@@ -851,19 +853,15 @@ class RuleblendToolsTest {
     }
 
     @Test
-    fun `Pi remains an unsupported subagent target`() {
+    fun `Pi installs a subagent into its own agents directory`() {
         repository.saveBlock(subagent)
-
-        // Pi absent from this home is a missing target, not an unsupported one.
-        assertFailsWith<ToolError> { tools.install(args("target" to "agent:pi", "subagent_id" to subagent.id)) }
 
         home.resolve(".pi/agent").createDirectories()
         val pi = tools.install(args("target" to "agent:pi", "subagent_id" to subagent.id)) as JsonObject
-        assertEquals(
-            listOf(subagent.id),
-            (pi["skipped_unsupported_subagents"] as JsonArray).map { it.jsonPrimitive.content },
-        )
-        assertTrue(tools.targetStatus(args("target" to "agent:pi")).jsonArray.isEmpty())
+
+        assertEquals(listOf(subagent.id), (pi["installed_subagents"] as JsonArray).map { it.jsonPrimitive.content })
+        assertEquals(emptyList(), (pi["skipped_unsupported_subagents"] as JsonArray).map { it.jsonPrimitive.content })
+        assertTrue(home.resolve(".pi/agent/agents/reviewer.md").exists())
     }
 
     @Test

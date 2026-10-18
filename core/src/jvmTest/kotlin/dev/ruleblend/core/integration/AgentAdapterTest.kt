@@ -98,6 +98,9 @@ class AgentAdapterTest {
         assertEquals(project.resolve(".codex/skills"), CodexAdapter(home).projectSkillsDirectory(project))
         assertEquals(home.resolve(".pi").resolve("agent").resolve("AGENTS.md"), PiAdapter(home).globalFile())
         assertEquals(project.resolve("AGENTS.md"), PiAdapter(home).projectFile(project))
+        assertEquals(SubagentSupport.SUPPORTED, PiAdapter(home).subagentSupport)
+        assertEquals(home.resolve(".pi/agent/agents/review.md"), PiAdapter(home).globalSubagentFile("review"))
+        assertEquals(project.resolve(".pi/agents/review.md"), PiAdapter(home).projectSubagentFile(project, "review"))
         assertEquals(home.resolve(".pi/agent/skills"), PiAdapter(home).globalSkillsDirectory())
         assertEquals(project.resolve(".pi/skills"), PiAdapter(home).projectSkillsDirectory(project))
         assertEquals(home.resolve(".kimi-code").resolve("AGENTS.md"), KimiCodeAdapter(home).globalFile())
@@ -182,6 +185,10 @@ class AgentAdapterTest {
         assertEquals(
             AgentCapability(CapabilityState.SUPPORTED),
             PiAdapter(home).capabilities().mcp,
+        )
+        assertEquals(
+            AgentCapability(CapabilityState.SUPPORTED),
+            PiAdapter(home).capabilities().subagents,
         )
         assertEquals(
             AgentCapability(CapabilityState.SUPPORTED),

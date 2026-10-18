@@ -213,4 +213,12 @@ class PiAdapter(
     override fun globalSkillsDirectory(): Path = paths.pi.resolve("skills")
 
     override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".pi").resolve("skills")
+
+    override val subagentSupport = SubagentSupport.SUPPORTED
+
+    override val subagentFormat = PiSubagentFormat
+
+    override fun globalSubagentDirectory(): Path = paths.pi.resolve("agents")
+
+    override fun projectSubagentDirectory(projectDir: Path): Path = projectDir.resolve(".pi").resolve("agents")
 }

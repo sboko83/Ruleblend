@@ -2,7 +2,7 @@
 id: P005
 title: Pi subagent support
 type: feature
-status: draft
+status: active
 created: 2026-10-18
 gate: ./gradlew :core:jvmTest :mcp:jvmTest :app:jvmTest
 ---
@@ -85,10 +85,11 @@ Definition files are inert until the user installs one of the extensions
   readers of one directory and the editor must not promise a knob one of them ignores.
 - nicobailon's `pi-subagents` is the reference implementation by adoption (~583k vs ~35k
   downloads/month); the declared fields stay within the intersection so files load under either.
+- Rebased the three collateral tests (RuleblendToolsTest x2, ProjectToolsTest) onto the post-flip reality instead of keeping a synthetic unsupported agent — no real adapter lacks subagent support anymore, so an unknown id is the only honest refusal case left
 
 ## Phase 1: Core support
 
-### [ ] P005.1.1 Pi adapter, format and tests
+### [x] P005.1.1 Pi adapter, format and tests
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/SubagentFormat.kt:L60-120
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/AgentAdapter.kt:L187-209
@@ -126,6 +127,10 @@ the fake home in `RuleblendToolsTest` already contains `.pi/agent`, so the new i
 writes there for real; an extension need not be installed for any of these tests — the adapter
 flip alone is what is under test.
 Commit: P005.1.1: add pi subagent support
+Handoff:
+- After the adapter flip no adapter remains without subagent support: the refusal branch in RuleblendTools.subagentVariants now fires only on an agent id outside the supported list; the old 'assistant without subagent support' test is now 'a variant for an unknown agent id is refused'
+- The createSubagent/updateSubagent 'model' shortcut now also writes a pi variant — both variant-map expectations in RuleblendToolsTest include pi
+- ProjectToolsTest 'profile writes report scope' case: the Pi profile attach now installs the subagent into .pi/agents/agent.md instead of skipping it as unsupported; the case asserts the written file
 
 ## Phase 2: Import, docs and version
 
