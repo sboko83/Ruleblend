@@ -820,8 +820,10 @@ are indexed by their native destination and `subagent-state.json`, because they 
 an instruction file.
 
 An adapter may also name an extension the agent needs before it loads the subagent files Ruleblend
-writes (Pi: `pi-subagents`). Support stays unconditional and the extension is never probed; Settings
-marks the capability `◐ Subagents*`, tags the row, and shows the install command as a footnote.
+writes (Pi: `pi-subagents`). Support stays unconditional; the adapter only reports whether the
+extension is declared (Pi: in its `settings.json` packages). While it is not, Settings marks the
+capability `◐ Subagents*`, tags the row, and shows the install command with a copy button as a
+footnote ([P006](archive/P006-pi-extension-detection.md)).
 
 | Agent | Rules | MCP | Skills | Subagents |
 |---|---|---|---|---|
