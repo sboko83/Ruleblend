@@ -419,13 +419,17 @@ class SettingsScreenTest {
         compose.onNodeWithTag("settings-capability-subagents").assertTextContains("✓", substring = true)
     }
 
-    @Test fun `the Pi row reports subagents as a supported capability`() {
+    @Test fun `the Pi row marks subagents as needing the pi-subagents extension`() {
         show(agents = listOf(claude, PiAdapter(root)))
         goTo(SettingsSection.AGENTS)
 
         compose.onNodeWithTag("settings-agent-pi").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("settings-agent-extension-pi").assertIsDisplayed()
+        compose.onNodeWithTag("settings-agent-extension-claude-code").assertDoesNotExist()
         compose.onNodeWithTag("settings-details-pi").performClick()
-        compose.onNodeWithTag("settings-capability-subagents").assertTextContains("✓", substring = true)
+        compose.onNodeWithTag("settings-capability-subagents").assertTextContains("◐ Subagents*")
+        compose.onNodeWithTag("settings-subagent-extension").assertIsDisplayed()
+        compose.onNodeWithText("pi install npm:pi-subagents").assertIsDisplayed()
     }
 
     @Test fun `closing details does not cancel an in-progress connection refresh`() {

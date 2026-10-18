@@ -951,6 +951,7 @@ interface Strings {
     val setCapabilityGlobalOnly: String
     val setCapabilityProjectOnly: String
     val setCapabilityUnavailable: String
+    fun setSubagentExtensionRequired(name: String): String
     val setAgentVisible: String
     val setAgentHidden: String
     val setConnManual: String
@@ -1925,6 +1926,7 @@ object EnStrings : Strings {
     override val setCapabilityGlobalOnly = "global only"
     override val setCapabilityProjectOnly = "project only"
     override val setCapabilityUnavailable = "not supported"
+    override fun setSubagentExtensionRequired(name: String) = "Subagents require the $name extension."
     override val setAgentVisible = "Visible"
     override val setAgentHidden = "Hidden"
     override val setConnManual = "Manual setup"
@@ -2943,6 +2945,7 @@ object RuStrings : Strings {
     override val setCapabilityGlobalOnly = "только global"
     override val setCapabilityProjectOnly = "только project"
     override val setCapabilityUnavailable = "не поддерживается"
+    override fun setSubagentExtensionRequired(name: String) = "Для субагентов требуется расширение $name."
     override val setAgentVisible = "Виден"
     override val setAgentHidden = "Скрыт"
     override val setConnManual = "Ручная настройка"

@@ -818,11 +818,15 @@ persisted `TargetIndex` continues to index managed instruction regions only; sta
 are indexed by their native destination and `subagent-state.json`, because they are not regions in
 an instruction file.
 
+An adapter may also name an extension the agent needs before it loads the subagent files Ruleblend
+writes (Pi: `pi-subagents`). Support stays unconditional and the extension is never probed; Settings
+marks the capability `◐ Subagents*`, tags the row, and shows the install command as a footnote.
+
 | Agent | Rules | MCP | Skills | Subagents |
 |---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
 | Codex | ✓ | ✓ | ✓ | ✓ |
-| Pi | ✓ | ✓ | ✓ | ✓ |
+| Pi | ✓ | ✓ | ✓ | ✓* |
 | Kimi Code | ✓ | ✓ | ✓ | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✓ |
 

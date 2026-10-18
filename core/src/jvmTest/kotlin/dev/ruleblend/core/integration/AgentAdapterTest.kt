@@ -101,6 +101,8 @@ class AgentAdapterTest {
         assertEquals(SubagentSupport.SUPPORTED, PiAdapter(home).subagentSupport)
         assertEquals(home.resolve(".pi/agent/agents/review.md"), PiAdapter(home).globalSubagentFile("review"))
         assertEquals(project.resolve(".pi/agents/review.md"), PiAdapter(home).projectSubagentFile(project, "review"))
+        assertEquals(AgentExtension("pi-subagents", "pi install npm:pi-subagents"), PiAdapter(home).subagentExtension)
+        assertEquals(null, ClaudeCodeAdapter(home).subagentExtension)
         assertEquals(home.resolve(".pi/agent/skills"), PiAdapter(home).globalSkillsDirectory())
         assertEquals(project.resolve(".pi/skills"), PiAdapter(home).projectSkillsDirectory(project))
         assertEquals(home.resolve(".kimi-code").resolve("AGENTS.md"), KimiCodeAdapter(home).globalFile())

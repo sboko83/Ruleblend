@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +56,7 @@ import dev.ruleblend.app.util.abbreviateHome
 import dev.ruleblend.app.util.copyToClipboard
 import dev.ruleblend.core.integration.AgentAdapter
 import dev.ruleblend.core.integration.AgentCapability
+import dev.ruleblend.core.integration.AgentExtension
 import dev.ruleblend.core.integration.CapabilityLimit
 import dev.ruleblend.core.integration.CapabilityState
 import dev.ruleblend.core.integration.capabilities
@@ -260,8 +262,9 @@ private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean,
                     Capability(strings.setAgentRulesCapability, capabilities.rules, "rules")
                     Capability(strings.setAgentMcpCapability, capabilities.mcp, "mcp")
                     Capability(strings.setAgentSkillsCapability, capabilities.skills, "skills")
-                    Capability(strings.setAgentSubagentsCapability, capabilities.subagents, "subagents")
+                    Capability(strings.setAgentSubagentsCapability, capabilities.subagents, "subagents", footnote = agent.subagentExtension != null)
                 }
+                agent.subagentExtension?.let { ExtensionFootnote(it) }
                 Text(strings.setColMcp, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 ControlRow { Connection(model, agent, operationScope) }
                 if (agent.cli != null) {
@@ -276,12 +279,23 @@ private fun AgentRow(model: SettingsModel, agent: AgentAdapter, narrow: Boolean,
 
 @Composable
 private fun AgentIdentity(model: SettingsModel, agent: AgentAdapter, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(agent.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(agent.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            agent.subagentExtension?.let { extension ->
+                RuleblendTooltip(strings.setSubagentExtensionRequired(extension.name)) {
+                    Text(
+                        "${strings.setAgentSubagentsCapability}*", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.testTag("settings-agent-extension-${agent.id}"),
+                    )
+                }
+            }
+        }
         if (agent.id in model.detectedAgentIds) Text(
             agent.globalFile().abbreviateHome(), style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        ) else Note(LocalStrings.current.setAgentNotDetected)
+        ) else Note(strings.setAgentNotDetected)
     }
 }
 
@@ -499,9 +513,12 @@ private fun ConnectActions(model: SettingsModel, connector: McpConnector, state:
     }
 }
 
-/** What Ruleblend can manage for this agent, including a scope limit rather than an optimistic tick. */
+/**
+ * What Ruleblend can manage for this agent, including a scope limit rather than an optimistic tick.
+ * [footnote] marks a capability that works only once the agent has an extension installed.
+ */
 @Composable
-private fun Capability(label: String, capability: AgentCapability, id: String) {
+private fun Capability(label: String, capability: AgentCapability, id: String, footnote: Boolean = false) {
     val strings = LocalStrings.current
     val shape = MaterialTheme.shapes.extraSmall
     val detail = when (capability.limit) {
@@ -513,12 +530,13 @@ private fun Capability(label: String, capability: AgentCapability, id: String) {
     val text = buildString {
         append(
             when (capability.state) {
-                CapabilityState.SUPPORTED -> "✓"
+                CapabilityState.SUPPORTED -> if (footnote) "◐" else "✓"
                 CapabilityState.PARTIAL -> "◐"
                 CapabilityState.UNSUPPORTED -> "✗"
             },
         )
         append(' ').append(label)
+        if (footnote) append('*')
         detail?.let { append(" · ").append(it) }
     }
     val active = capability.state == CapabilityState.SUPPORTED
@@ -535,6 +553,17 @@ private fun Capability(label: String, capability: AgentCapability, id: String) {
             .padding(horizontal = 6.dp, vertical = 1.dp)
             .testTag("settings-capability-$id"),
     )
+}
+
+/** The footnote behind an asterisked capability: which extension is missing and how to install it. */
+@Composable
+private fun ExtensionFootnote(extension: AgentExtension) {
+    Column(Modifier.testTag("settings-subagent-extension"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Note("* ${LocalStrings.current.setSubagentExtensionRequired(extension.name)}")
+        SelectionContainer {
+            Text(extension.installCommand, style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily))
+        }
+    }
 }
 
 private fun ConnectState.label(strings: Strings): String = when (this) {

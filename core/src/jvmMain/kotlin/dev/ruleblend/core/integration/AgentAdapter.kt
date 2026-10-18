@@ -9,6 +9,16 @@ enum class SubagentSupport {
     UNSUPPORTED,
 }
 
+/**
+ * A package the agent must have installed before it loads the definitions Ruleblend writes. Support
+ * stays unconditional; the requirement is only reported, never probed.
+ */
+data class AgentExtension(
+    val name: String,
+    /** Command the user runs once to install [name]. */
+    val installCommand: String,
+)
+
 /** An agent Ruleblend can install blocks into: where it lives and which files it reads. */
 interface AgentAdapter {
     val id: String
@@ -60,6 +70,9 @@ interface AgentAdapter {
 
     /** Syntax used by the agent's subagent files, or `null` when [subagentSupport] is unsupported. */
     val subagentFormat: SubagentFormat? get() = null
+
+    /** Extension the agent needs to load its subagent files, or `null` when it reads them natively. */
+    val subagentExtension: AgentExtension? get() = null
 
     /** User-level directory of file-backed subagent definitions. */
     fun globalSubagentDirectory(): Path? = null
@@ -217,6 +230,8 @@ class PiAdapter(
     override val subagentSupport = SubagentSupport.SUPPORTED
 
     override val subagentFormat = PiSubagentFormat
+
+    override val subagentExtension = AgentExtension("pi-subagents", "pi install npm:pi-subagents")
 
     override fun globalSubagentDirectory(): Path = paths.pi.resolve("agents")
 
