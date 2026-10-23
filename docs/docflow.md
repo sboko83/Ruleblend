@@ -1,5 +1,5 @@
 ---
-docflow: 1
+docflow: 2
 read_budget: 40000
 start_read: README.md
 start_budget: 4000
