@@ -69,7 +69,10 @@ class BoundedCliProcess(
             readers.forEach { it.join(minOf(timeoutMs, 1000)) }
             if (readers.any { it.isAlive }) fail(ModRuntimeError.TIMEOUT)
             if (overflow.get()) fail(ModRuntimeError.OUTPUT_LIMIT)
-            return CliProcessResult(process.exitValue(), out.toString(Charsets.UTF_8), err.toString(Charsets.UTF_8))
+            val exitCode = process.exitValue()
+            // The Windows wrapper signals an unstartable file with a sentinel POSIX children cannot produce.
+            if (exitCode == WindowsCommand.LAUNCH_FAILED_EXIT) fail(ModRuntimeError.CLI_UNAVAILABLE)
+            return CliProcessResult(exitCode, out.toString(Charsets.UTF_8), err.toString(Charsets.UTF_8))
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
             fail(ModRuntimeError.CANCELLED)

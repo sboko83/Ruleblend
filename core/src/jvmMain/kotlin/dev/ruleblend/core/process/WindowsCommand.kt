@@ -5,6 +5,11 @@ import java.util.Base64
 
 /** Unicode-safe CreateProcessW bridge, independent of Java 17's native ANSI code page. */
 object WindowsCommand {
+    /** Exit code the start script uses when the file cannot be started at all: HRESULT 0x80070002
+     *  (ERROR_FILE_NOT_FOUND), the Win32Exception .NET raises there. Ordinary CLI exit codes are
+     *  small positive numbers, so the caller can treat this as a launch failure, not a CLI result. */
+    const val LAUNCH_FAILED_EXIT = -2147024894
+
     fun powershell(script: String, executable: Path = WindowsExecutables().systemFile("WindowsPowerShell/v1.0/powershell.exe")): List<String> =
         listOf(executable.toString(), "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand",
             Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE)))
@@ -46,7 +51,7 @@ object WindowsCommand {
             appendLine("\$p.Arguments = ${literal(arguments)}")
             directory?.let { appendLine("\$p.WorkingDirectory = ${literal(it.toAbsolutePath().toString())}") }
             appendLine("\$p.UseShellExecute = \$${newWindow.toString().lowercase()}")
-            appendLine("\$child = [System.Diagnostics.Process]::Start(\$p)")
+            appendLine("try { \$child = [System.Diagnostics.Process]::Start(\$p) } catch { exit $LAUNCH_FAILED_EXIT }")
             if (wait) appendLine("\$child.WaitForExit(); exit \$child.ExitCode")
         }
 

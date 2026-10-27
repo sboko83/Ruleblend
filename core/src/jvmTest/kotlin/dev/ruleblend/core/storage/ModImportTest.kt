@@ -57,6 +57,8 @@ class ModImportTest {
         val path = scratch.resolve(name).createDirectories()
         write(path, files)
         Git.init().setDirectory(path.toFile()).call().use { git ->
+            // Machine-wide autocrlf must not decide which bytes the fixture commits.
+            git.preserveFileBytes()
             git.add().addFilepattern(".").call()
             git.commit().setMessage("Fixture").setAuthor("Test", "test@example.com").call()
         }
@@ -64,6 +66,7 @@ class ModImportTest {
     }
 
     private fun commit(path: Path) = Git.open(path.toFile()).use { git ->
+        git.preserveFileBytes()
         git.add().addFilepattern(".").call()
         git.add().addFilepattern(".").setUpdate(true).call()
         git.commit().setMessage("Update fixture").setAuthor("Test", "test@example.com").call()
