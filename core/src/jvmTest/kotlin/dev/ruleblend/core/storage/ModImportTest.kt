@@ -74,6 +74,22 @@ class ModImportTest {
         ImportLibrary(repo, LibraryArchive(scratch.resolve("library"), repo), ConfigStore(scratch.resolve("config")), fetcher)
 
     @Test
+    fun `capture drops OS metadata that git ignores from every folder`() {
+        val withJunk = scratch.resolve("with-junk").createDirectories()
+        write(withJunk, files() + mapOf(
+            ".DS_Store" to "finder",
+            "skills/.DS_Store" to "finder",
+            "agents/Thumbs.db" to "explorer",
+            "commands/desktop.ini" to "explorer",
+        ))
+        val clean = scratch.resolve("clean").createDirectories()
+        write(clean, files())
+        val captured = ModImport.capture(withJunk)
+        assertTrue(captured.files.none { it.path.substringAfterLast('/') in MOD_OS_METADATA_FILES })
+        assertEquals(modTreeFingerprint(ModImport.capture(clean).files), modTreeFingerprint(captured.files))
+    }
+
+    @Test
     fun `root package preview keeps every component and exact Git mode without duplicate definitions`() {
         val source = upstream("upstream", files())
         Git.open(source.toFile()).use { git ->

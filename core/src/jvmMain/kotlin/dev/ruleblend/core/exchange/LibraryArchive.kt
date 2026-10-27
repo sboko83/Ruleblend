@@ -340,11 +340,13 @@ class LibraryArchive(private val root: Path, private val repository: LibraryRepo
 
     /**
      * Folder metadata that macOS and Windows add around a library and its ZIP. Earlier exports
-     * copied it verbatim; a skill's own files are kept byte-exact and never filtered.
+     * copied it verbatim; a skill's own files are kept byte-exact and never filtered, while mod
+     * payload entries are dropped because snapshots are fingerprint-verified and git ignores this
+     * metadata.
      */
-    private fun isOsMetadata(parts: List<String>): Boolean {
-        if (parts.size >= 4 && parts[0] in setOf("skills", "mods") && parts[2] == "files") return false
-        return parts[0] == "__MACOSX" || parts.last() in OS_METADATA_FILES
+    private fun isOsMetadata(parts: List<String>): Boolean = when {
+        parts.size >= 4 && parts[0] == "mods" && parts[2] == "files" -> parts.last() in OS_METADATA_FILES
+        else -> parts[0] == "__MACOSX" || parts.last() in OS_METADATA_FILES
     }
 
     private fun checkedSkillId(id: String): String {

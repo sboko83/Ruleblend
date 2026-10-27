@@ -40,6 +40,10 @@ data class ModImportCandidate(
     }
 }
 
+/** Folder metadata that macOS and Windows add inside a tree. Git ignores it, so a snapshot that
+ *  captured it could never be reproduced by a fresh checkout on another peer. */
+internal val MOD_OS_METADATA_FILES = setOf(".DS_Store", "Thumbs.db", "desktop.ini")
+
 /** Shared structural validator for Git, a local root and a selected external installation. */
 object ModImport {
     fun preview(directory: Path): ModImportCandidate = try {
@@ -70,6 +74,7 @@ object ModImport {
             override fun visitFile(path: Path, attributes: BasicFileAttributes): FileVisitResult {
                 checkEntry(path)
                 if (directory.relativize(path).firstOrNull()?.toString() == ".git") return FileVisitResult.CONTINUE
+                if (path.fileName.toString() in MOD_OS_METADATA_FILES) return FileVisitResult.CONTINUE
                 require(attributes.isRegularFile) { "Mod contains an unsupported file: $path" }
                 require(files.size < SkillTreeLimits.MAX_FILES) { "Mod contains too many files" }
                 val relative = directory.relativize(path).joinToString("/")

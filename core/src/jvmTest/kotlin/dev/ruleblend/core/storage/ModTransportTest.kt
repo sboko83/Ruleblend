@@ -94,6 +94,22 @@ class ModTransportTest {
     }
 
     @Test
+    fun `payload OS metadata does not break verification and a broken entry cannot take down the listing`() {
+        val (repo) = repository("junk")
+        val mod = snapshot()
+        repo.writeMod(mod)
+        val payload = scratch.resolve("junk/mods/demo/files")
+        Files.writeString(payload.resolve(".DS_Store"), "finder")
+        Files.writeString(payload.resolve("assets/Thumbs.db"), "explorer")
+        assertSnapshot(mod, repo.loadModSnapshot("demo"))
+        // A peer deletion can leave a directory holding only git-ignored files and no meta.yaml.
+        val orphan = scratch.resolve("junk/mods/orphan")
+        Files.createDirectories(orphan)
+        Files.writeString(orphan.resolve("notes.txt"), "left behind")
+        assertEquals(listOf("demo"), repo.listMods().map { it.id })
+    }
+
+    @Test
     fun `old library loads defaults and mutation cleans mod membership without altering profiles`() {
         val (repo) = repository("legacy")
         val groupPath = scratch.resolve("legacy/groups/legacy.yaml")

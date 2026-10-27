@@ -31,7 +31,10 @@ internal class ModStorage(private val root: Path, private val git: LibraryGit) {
             !it.name.startsWith('.') && Files.isDirectory(it, NOFOLLOW_LINKS) &&
                 Files.isRegularFile(it.resolve("meta.yaml"), NOFOLLOW_LINKS)
         }
-        .mapNotNull { load(it.name) }.sortedWith(compareBy({ it.mod.name }, { it.mod.id }))
+        // A peer deletion can leave a directory holding only git-ignored files; one unreadable entry
+        // must not take down the whole library listing.
+        .mapNotNull { entry -> runCatching { load(entry.name) }.getOrNull() }
+        .sortedWith(compareBy({ it.mod.name }, { it.mod.id }))
 
     fun load(id: String): ModSnapshot? {
         val target = path(id)
@@ -52,7 +55,8 @@ internal class ModStorage(private val root: Path, private val git: LibraryGit) {
                     (Files.isDirectory(file, NOFOLLOW_LINKS) || Files.isRegularFile(file, NOFOLLOW_LINKS))) {
                     "Unsupported mod entry: $file"
                 }
-            }.filter { Files.isRegularFile(it, NOFOLLOW_LINKS) }.limit(SkillTreeLimits.MAX_FILES + 1L).toList()
+            }.filter { Files.isRegularFile(it, NOFOLLOW_LINKS) && it.fileName.toString() !in MOD_OS_METADATA_FILES }
+                .limit(SkillTreeLimits.MAX_FILES + 1L).toList()
         }
         require(paths.size <= SkillTreeLimits.MAX_FILES) { "Too many mod files" }
         val sizes = paths.map(Files::size)

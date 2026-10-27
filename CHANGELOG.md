@@ -68,6 +68,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   stray files); previously one such entry crashed the app on every start.
 - app: While mods are frozen, the app no longer reads the mods store at all — no source-update
   scan, source check or library totals touch it; the flag previously hid the results only.
+- app: Mod snapshots no longer capture OS folder metadata (.DS_Store, Thumbs.db, desktop.ini);
+  such a file could make a mod fail verification on another computer after a library sync.
 - app: A subagent no longer shows an update on its existing copies when an assistant connected
   later has no copy yet; it is marked "not everywhere" and offers to install the missing one.
 - app: Skills behave the same way: an assistant connected after the install no longer turns every
