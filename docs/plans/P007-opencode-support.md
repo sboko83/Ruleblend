@@ -6,11 +6,12 @@ status: draft
 created: 2026-10-30
 permissions: auto
 gate: ./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests
-executor: pi | strata/swift-1.5-iq3_s | high
-fallback: pi | zai/glm-5.3-flash | high; codex | gpt-6-luna | max; claude | claude-sonnet-5-5 | high
-cheap: pi | strata/swift-1.5-iq3_s | low; pi | zai/glm-5.3-flash | high; codex | gpt-6-luna | high; claude | claude-haiku-5-5 | -
-heavy: pi | zai/glm-5.3 | high; codex | gpt-6.1-sol | high; claude | claude-opus-5-5 | high
-acceptance: claude | claude-opus-5-5 | high; codex | gpt-6.1-sol | high
+executor: pi | strata/swift-1.5-iq3_s | medium
+fallback: pi | opencode-go/deepseek-v4.1-flash | low; pi | zai/glm-5.3-flash | high; codex | gpt-6-luna | medium
+replan: pi | opencode-go/deepseek-v4.1-flash | max; codex | gpt-6.1-sol | medium
+cheap: pi | strata/swift-1.5-iq3_s | low; pi | opencode-go/deepseek-v4.1-flash | low; pi | zai/glm-5.3-flash | low; codex | gpt-6-luna | low
+heavy: pi | opencode-go/deepseek-v4.1-flash | max; pi | zai/glm-5.3 | high; codex | gpt-6.1-sol | medium
+acceptance: pi | opencode-go/deepseek-v4.1-flash | max; codex | gpt-6.1-sol | medium
 ---
 ## Goal
 
