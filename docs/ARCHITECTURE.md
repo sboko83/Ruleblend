@@ -73,9 +73,9 @@ interface the `mcp` module's `McpInstallService` implements. A facade with no MC
 
 ## Data model
 
-- **Terminology** — an `agent` is an external tool (Claude Code, Codex, Pi, Kimi Code or ZCode); a
-  `subagent` is a library item that describes behaviour for that tool. UI headings call the former
-  an AI assistant, while persistent names and MCP contracts keep `agent`.
+- **Terminology** — an `agent` is an external tool (Claude Code, Codex, Pi, Kimi Code, ZCode or
+  OpenCode); a `subagent` is a library item that describes behaviour for that tool. UI headings call
+  the former an AI assistant, while persistent names and MCP contracts keep `agent`.
 - **`Block`** — `id` (slug, also the filename), `name`, `description`, `version` (int,
   auto-incremented on an installable-definition change; new blocks start at 0 with an empty body, so
   the first saved body is v1), `type`, `content`. A `subagent` also carries `variants`: per-assistant
@@ -413,9 +413,11 @@ upstream tree or automatic merge is stored for the fork.
 Library skills install as complete directory trees for agents with a known skill location. Claude
 Code uses `~/.claude/skills/<id>` globally and `<project>/.claude/skills/<id>` per project. Every
 other agent likewise gets exactly one root per scope, its own: `.codex/skills`, `.kimi-code/skills`,
-`.zcode/skills`, and for Pi `~/.pi/agent/skills` globally and `<project>/.pi/skills` per project.
-Ruleblend never writes the cross-agent `.agents/skills` tree, even though Codex, Kimi Code, ZCode and
-Pi also read it: one agent, one root keeps ownership a plain per-agent record, where a shared tree
+`.zcode/skills`, and for Pi `~/.pi/agent/skills` globally and `<project>/.pi/skills` per project;
+OpenCode uses `<root>/skills` globally and `<project>/.opencode/skills` per project.
+Ruleblend never writes the cross-agent `.agents/skills` tree, even though Codex, Kimi Code, ZCode,
+Pi and OpenCode also read it (OpenCode additionally reads `~/.claude/skills`): one agent, one root
+keeps ownership a plain per-agent record, where a shared tree
 had to be reference-counted across agents and targets and its status borrowed from whichever agent
 wrote it last. A project target writes the tree of each enabled agent and skips agents without a
 known skill location.
@@ -722,6 +724,7 @@ An adapter declares a detection path, a global file, a project filename and an o
 | Pi | `~/.pi/agent` | `~/.pi/agent/AGENTS.md` | `AGENTS.md` | — |
 | Kimi Code | `~/.kimi-code` | `~/.kimi-code/AGENTS.md` | `AGENTS.md` | — |
 | ZCode | `~/.zcode` | `~/.zcode/AGENTS.md` | `AGENTS.md` | — |
+| OpenCode | `~/.config/opencode` | `~/.config/opencode/AGENTS.md` | `AGENTS.md` | — |
 
 Global roots are resolved once per integration from the native OS user home and its process
 environment; explicit test homes ignore that environment. Detection, rules, MCP, subagents and the
@@ -730,6 +733,8 @@ WSL homes are a separate environment and are rejected instead of being mapped on
 A rejected override is ignored for its assistant only, logged to stderr and shown in Settings
 diagnostics: one stray variable must not stop the app or the MCP server from starting.
 `HOME`, `APPDATA` and `XDG_CONFIG_HOME` do not relocate ZCode's native `~/.zcode` root.
+OpenCode's `OPENCODE_CONFIG_DIR` names the config directory itself, so no `opencode` segment is
+appended; `XDG_CONFIG_HOME` is a base directory, so `opencode` is appended to it.
 
 | Override | Global root | MCP configuration |
 |---|---|---|
@@ -737,6 +742,8 @@ diagnostics: one stray variable must not stop the app or the MCP server from sta
 | [`CODEX_HOME`](https://learn.chatgpt.com/docs/config-file/config-advanced) | replaces `~/.codex` | `<root>/config.toml` |
 | [`PI_CODING_AGENT_DIR`](https://pi.dev/docs/latest/environment-variables) | replaces `~/.pi/agent` | `mcp.json` in the overridden directory |
 | [`KIMI_CODE_HOME`](https://moonshotai.github.io/kimi-code/en/configuration/config-files.html) | replaces `~/.kimi-code` | `<root>/mcp.json` |
+| `OPENCODE_CONFIG_DIR` | replaces the config directory `~/.config/opencode` | `<root>/opencode.json` |
+| `XDG_CONFIG_HOME` | replaces `~/.config`, with `opencode` appended | `<root>/opencode.json` |
 
 Project roots stay relative to the chosen native checkout. ZCode uses the defaults in the tables;
 its [native skills](https://zcode.z.ai/en/docs/skill) do not move with another agent's override.
@@ -755,6 +762,7 @@ adapter, skill, subagent and MCP sections below; no adapter changes follow from 
 | Pi 1.3.0 (2026-10-18) | [Built-in MCP in 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` and `<project>/.pi/mcp.json`; project trust is required. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Through the pi-subagents extension family: `~/.pi/agent/agents/*.md` and `<project>/.pi/agents/*.md`, Markdown frontmatter; the files stay inert until the user installs one of the extensions. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json` (fall back to `~/.kimi-code/mcp.json`); `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Later files override earlier ones. | `<KIMI_CODE_HOME>/skills/` and `<project>/.kimi-code/skills/`; `.agents/skills/` is also read for shared skills. | `<KIMI_CODE_HOME>/agents/*.md` and `<project>/.kimi-code/agents/*.md`; Markdown frontmatter carries the definition. |
 | ZCode 3.10.1 (2026-10-18) | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | `~/.zcode/agents/*.md` and `<workspace>/.zcode/agents/*.md`, Markdown frontmatter. `~/.zcode/cli/agents/` holds runtime sessions and is never a definition destination. |
+| OpenCode 2.2.3 | Native v2 MCP: `<root>/opencode.json` `mcp.servers`; `<project>/opencode.json`. A sibling `opencode.jsonc` is merged by OpenCode but never read or written by Ruleblend. | Native: `<root>/skills/`, `<project>/.opencode/skills/`. Shared: `~/.claude/skills/`, `~/.agents/skills/`, `<project>/.agents/skills/` are also read. | `<root>/agents/*.md` and `<project>/.opencode/agents/*.md`, Markdown frontmatter; the filename is the agent id. |
 
 A target is an agent global **or** a project folder; a project writes to each enabled agent's file
 (per-project toggles in `config.json`, default = all detected; switched from the project's file
@@ -809,6 +817,14 @@ The definition files are inert until the user installs one of the extensions; Ru
 them either way, so support is unconditional instead of gating on the installed package
 ([P005](archive/P005-pi-subagents.md)).
 
+OpenCode reads its own Markdown shape from `<root>/agents/<id>.md` and
+`<project>/.opencode/agents/<id>.md`: the filename is the agent id, `mode: subagent` keeps it out of
+the primary agent list, and the body becomes the system prompt. Its format declares `model`
+(`provider/model[#variant]`) and hex `color`; `name` is not a supported field and is dropped, and a
+nested `permissions` list is not flat, so neither is carried through a variant. Other flat fields
+survive a parse→render round trip under their native keys
+([P007](archive/P007-opencode-support.md)).
+
 ### Capability matrix
 
 The adapter is the sole source of the capability matrix: it derives a destination at global and
@@ -832,6 +848,7 @@ footnote ([P006](archive/P006-pi-extension-detection.md)).
 | Pi | ✓ | ✓ | ✓ | ✓* |
 | Kimi Code | ✓ | ✓ | ✓ | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✓ |
+| OpenCode | ✓ | ✓ | ✓ | ✓ |
 
 ### Subagent ownership and drift
 
@@ -1463,8 +1480,8 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
 - **Connect to MCP (Settings):** one action per MCP-capable agent, writing both halves of the
   connection. `McpConnector` writes the `ruleblend` entry into each agent's own config — structural
   JSON edit of `~/.claude.json`, line-based section edit of `~/.codex/config.toml`, native JSON edit
-  of `$KIMI_CODE_HOME/mcp.json`, `mcp.servers` edit of `~/.zcode/cli/config.json` for ZCode and
-  compatible JSON edit of
+  of `$KIMI_CODE_HOME/mcp.json`, `mcp.servers` edit of `~/.zcode/cli/config.json` for ZCode,
+  `mcp.servers` edit of `<root>/opencode.json` for OpenCode and compatible JSON edit of
   `$PI_CODING_AGENT_DIR/mcp.json` for Pi (defaults to `~/.pi/agent/mcp.json`). Direct
   file edit rather than the agent CLI: a GUI app's minimal `PATH` makes CLI discovery the fragile
   part. An existing same-name entry is writable only with Ruleblend's version stamp or the older
@@ -1491,8 +1508,9 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
 - **Bundled skill:** `FileSkillInstaller` writes the `SKILL.md` shipped as an app resource to each
   native user-skill location: `~/.claude/skills/ruleblend/SKILL.md` (Claude Code),
   `~/.codex/skills/ruleblend/SKILL.md` (Codex), `~/.pi/agent/skills/ruleblend/SKILL.md` (Pi),
-  `$KIMI_CODE_HOME/skills/ruleblend/SKILL.md` (Kimi Code), and
-  `~/.zcode/skills/ruleblend/SKILL.md` (ZCode). All copies use the same text and
+  `$KIMI_CODE_HOME/skills/ruleblend/SKILL.md` (Kimi Code),
+  `~/.zcode/skills/ruleblend/SKILL.md` (ZCode), and `<root>/skills/ruleblend/SKILL.md` (OpenCode).
+  All copies use the same text and
   marker-based ownership; each installer owns availability detection and its path. The skill is not
   a library block: the user cannot edit or delete it, and an app update replaces the copy on disk.
   Ownership is a marker comment on the last line, giving four states — not installed, installed
@@ -1540,6 +1558,7 @@ Blocks of `type: mcp` describe third-party MCP servers installable into agent MC
   | Codex | `~/.codex/config.toml` `[mcp_servers.<id>]` | `<dir>/.codex/config.toml` (trusted projects only) |
   | Kimi Code | `<KIMI_CODE_HOME>/mcp.json` `mcpServers` | `<dir>/.kimi-code/mcp.json` `mcpServers` |
   | ZCode | `~/.zcode/cli/config.json` `mcp.servers` | `<dir>/.zcode/config.json` `mcp.servers` |
+  | OpenCode | `<root>/opencode.json` `mcp.servers` | `<dir>/opencode.json` `mcp.servers` |
   | Pi 1.0+ | `~/.pi/agent/mcp.json` `mcpServers` | `<dir>/.pi/mcp.json` `mcpServers` (project trust required) |
 
   Claude JSON entries carry an explicit `"type"`. Kimi infers its transport from `command` or
@@ -1550,8 +1569,14 @@ Blocks of `type: mcp` describe third-party MCP servers installable into agent MC
   Codex writes stdio as `command`, `args`, and `env`, and streamable HTTP as `url`
   and static `http_headers`, in the same named table. Pi's adapter tells transports apart by
   `command` / `url` and ignores the Claude `"type"` field, so Pi shares the Claude JSON writer.
+  OpenCode uses its v2 native shape: local entries carry `type: local` with a `command` array and
+  `environment`, remote entries `type: remote` with `url` and `headers`, and `mcp.timeout` is a
+  sibling of `servers` that is never touched. Ruleblend writes `<root>/opencode.json` and never
+  parses or rewrites a sibling `opencode.jsonc`, which OpenCode also merges: the JSON helpers
+  cannot preserve its comments, so a server defined only there is left to OpenCode.
   Edits go through the pure helpers
-  `McpServersJson` / `KimiMcpJson` / `ZCodeMcpJson` / `CodexMcpTable`, preserving foreign content.
+  `McpServersJson` / `KimiMcpJson` / `ZCodeMcpJson` / `OpenCodeMcpJson` / `CodexMcpTable`,
+  preserving foreign content.
 - **ZCode migration:** startup moves unchanged sidecar-owned entries and owned self-registrations
   from the former global `~/.agents/mcp.json` and project `.mcp.json` destinations into native
   configs. A record stores its new `configPath`, preventing a removed native copy from being

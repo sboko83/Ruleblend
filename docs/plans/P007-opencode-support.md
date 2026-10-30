@@ -121,6 +121,7 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - Added OpenCode to the existing shared connector tables (version stamp, Windows path/foreign-preservation, foreign same-name) instead of only dedicated tests — the shared tables are the regression net every format gets and the OpenCode shape fits them without special cases — rejected: dedicated-only coverage that would miss cross-format invariants.
 - Updated EXPECTED_DIGEST instead of relaxing the test — the test is the guard that a changed SKILL.md ships under a new marker version — rejected: stripping the digest assertion.
 - Added an `opencode` CLI stub to the sandbox bin although OpenCode adapter detection depends only on the config directory — the other assistants all get a stub and PATH parity keeps a future CLI lookup from hitting the real binary — rejected: relying on the missing-binary path for OpenCode only.
+- Recorded the OpenCode distribution snapshot as 2.2.3 without a calendar date, because no dated release note was checked in this unit — rejected: inventing a snapshot date.
 
 ## Phase 1: Core surfaces
 
@@ -345,7 +346,7 @@ Handoff:
 
 ## Phase 4: Documentation
 
-### [ ] P007.4.1 Document OpenCode support
+### [x] P007.4.1 Document OpenCode support
 Read:
 - docs/ARCHITECTURE.md:L714-840
 - docs/ARCHITECTURE.md:L1460-1560
@@ -365,6 +366,10 @@ Traps: keep the English docs English and the `ru` copies Russian. Do not add a R
 ROADMAP holds open work only.
 Role: cheap
 Commit: P007.4.1: document OpenCode support
+Handoff:
+- Both architecture files now name the OpenCode global config as `<root>/opencode.json` (`~/.config/opencode/opencode.json` by default), document the `OPENCODE_CONFIG_DIR` / `XDG_CONFIG_HOME` resolution order and state that a sibling `opencode.jsonc` is merged by OpenCode but never read or written by Ruleblend.
+- P007.5.1 should use `<root>` from these docs when checking the live CLI: the same root feeds rules, MCP, skills and subagents, so a temporary `XDG_CONFIG_HOME` must be pointed at the parent and the check must expect an appended `opencode` segment.
+- Unverified: The OpenCode v2 prose (paths, `mcp.servers` shape, subagent fields) is restated from the implementation and earlier unit handoffs, not re-validated against the installed 2.2.3; the live check remains P007.5.1 and `docflow verify` only greps for the name.
 
 ## Phase 5: Acceptance
 

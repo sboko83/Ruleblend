@@ -5,8 +5,8 @@ Library and composer for AI agent instruction blocks.
 ## What
 
 Ruleblend organizes a local library of instruction rules, MCP server configs, subagents and skills
-for coding agents (Claude Code, Codex, Pi, Kimi Code, ZCode). It installs rules and MCP configs into
-agent configs or project folders: rules as managed regions in `CLAUDE.md` / `AGENTS.md`, MCP servers
+for coding agents (Claude Code, Codex, Pi, Kimi Code, ZCode, OpenCode). It installs rules and MCP
+configs into agent configs or project folders: rules as managed regions in `CLAUDE.md` / `AGENTS.md`, MCP servers
 as entries in each agent's own MCP config. It also runs as an MCP server itself, so agents can search
 the library and install rules — into a project or into an agent's global file — without hand-editing
 instruction files. Connecting an agent also installs a built-in skill teaching it that workflow;
@@ -27,8 +27,8 @@ Pi 1.0+ supports MCP natively; no extension is required.
   plugin Git repository, including scripts, references and assets. Git-backed skills update in place;
   editing starts from a separate `changed` copy.
 - **Subagent** — instructions with per-assistant fields, created locally or imported from Git as
-  Codex TOML or Markdown (Claude Code, Kimi Code, ZCode, Pi). Git imports offer a preview and
-  source-assistant choice; updates preserve identity, while editing starts from a separate
+  Codex TOML or Markdown (Claude Code, Kimi Code, ZCode, Pi, OpenCode). Git imports offer a preview
+  and source-assistant choice; updates preserve identity, while editing starts from a separate
   changed copy.
 - **Group** — named set of rules, MCP servers, subagents and skills (e.g. "iOS projects").
 - **Profile** — portable project mode containing objects and flat groups; attach it to a project

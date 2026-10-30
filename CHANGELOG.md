@@ -8,6 +8,9 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ## [Unreleased]
 
 ### Added
+- app: OpenCode v2 is a supported assistant — rules, MCP servers, skills and subagents install into
+  its own global and project locations, Settings can connect its Ruleblend MCP server, and Git
+  import recognizes `.opencode/agents`.
 - app: Subagents install into Pi as well — `~/.pi/agent/agents` and the project's `.pi/agents`,
   with Pi's own model, tools and thinking fields; Git import recognizes `.pi/agents`. Pi loads
   the files through a subagents extension installed separately; until one is installed, Settings

@@ -79,8 +79,8 @@ Compose-модели и MCP-сервер преобразуют ввод в ко
 <a id="data-model"></a>
 ## Модель данных
 
-- **Термины:** `agent` — внешний инструмент (Claude Code, Codex, Pi, Kimi Code или ZCode);
-  `subagent` — элемент библиотеки, описывающий поведение для этого инструмента.
+- **Термины:** `agent` — внешний инструмент (Claude Code, Codex, Pi, Kimi Code, ZCode или
+  OpenCode); `subagent` — элемент библиотеки, описывающий поведение для этого инструмента.
   В заголовках UI первый называется AI-ассистентом; сохранённые имена и MCP-контракты используют `agent`.
 - **`Block`:** `id` (slug и имя файла), `name`, `description`, целочисленный `version`,
   `type`, `content`. Изменение устанавливаемого определения повышает версию.
@@ -418,8 +418,10 @@ id/имя с `-changed`: upstream-update не затрёт локальную п
 Claude Code: глобально `~/.claude/skills/<id>`, в проекте `<project>/.claude/skills/<id>`.
 Остальные агенты тоже получают ровно один корень в каждой области — собственный:
 `.codex/skills`, `.kimi-code/skills`, `.zcode/skills`, а для Pi глобально `~/.pi/agent/skills`,
-в проекте `<project>/.pi/skills`. Общий для агентов `.agents/skills` Ruleblend не пишет никогда,
-хотя Codex, Kimi Code, ZCode и Pi его тоже читают: один агент — один корень, и владение остаётся
+в проекте `<project>/.pi/skills`; OpenCode — `<root>/skills` глобально и
+`<project>/.opencode/skills` в проекте. Общий для агентов `.agents/skills` Ruleblend не пишет никогда,
+хотя Codex, Kimi Code, ZCode, Pi и OpenCode его тоже читают (OpenCode дополнительно читает
+`~/.claude/skills`): один агент — один корень, и владение остаётся
 простой записью на агента, тогда как общее дерево требовало подсчёта владельцев между агентами
 и целями, а его статус брался у агента, записавшего его последним.
 Проект записывает дерево каждого включённого агента, пропуская агентов без пути скиллов.
@@ -721,6 +723,7 @@ Install и Apply update привязаны к показанному fingerprint
 | Pi | `~/.pi/agent` | `~/.pi/agent/AGENTS.md` | `AGENTS.md` | — |
 | Kimi Code | `~/.kimi-code` | `~/.kimi-code/AGENTS.md` | `AGENTS.md` | — |
 | ZCode | `~/.zcode` | `~/.zcode/AGENTS.md` | `AGENTS.md` | — |
+| OpenCode | `~/.config/opencode` | `~/.config/opencode/AGENTS.md` | `AGENTS.md` | — |
 
 Глобальные корни разрешаются один раз на интеграцию из native OS home и окружения процесса;
 явный test home игнорирует окружение. Detection, rules, MCP, subagents и bundled skill
@@ -729,6 +732,8 @@ WSL-home — отдельная среда, он отклоняется, а не
 Неверный override игнорируется только у своего ассистента, пишется в stderr и diagnostics
 Settings: одна переменная не должна останавливать приложение/MCP.
 `HOME`, `APPDATA`, `XDG_CONFIG_HOME` не перемещают родной корень ZCode `~/.zcode`.
+У OpenCode `OPENCODE_CONFIG_DIR` задаёт сам каталог конфига, поэтому сегмент `opencode`
+к нему не добавляется; `XDG_CONFIG_HOME` — базовая директория, поэтому `opencode` добавляется к ней.
 
 | Override | Глобальный корень | MCP-конфигурация |
 |---|---|---|
@@ -736,6 +741,8 @@ Settings: одна переменная не должна останавлива
 | [`CODEX_HOME`](https://learn.chatgpt.com/docs/config-file/config-advanced) | Вместо `~/.codex` | `<root>/config.toml` |
 | [`PI_CODING_AGENT_DIR`](https://pi.dev/docs/latest/environment-variables) | Вместо `~/.pi/agent` | `mcp.json` в переопределённом каталоге |
 | [`KIMI_CODE_HOME`](https://moonshotai.github.io/kimi-code/en/configuration/config-files.html) | Вместо `~/.kimi-code` | `<root>/mcp.json` |
+| `OPENCODE_CONFIG_DIR` | Вместо каталога конфига `~/.config/opencode` | `<root>/opencode.json` |
+| `XDG_CONFIG_HOME` | Вместо `~/.config`, с добавленным `opencode` | `<root>/opencode.json` |
 
 Проектные корни остаются относительно выбранного native checkout.
 ZCode использует значения таблиц; его [native-скиллы](https://zcode.z.ai/en/docs/skill)
@@ -755,6 +762,7 @@ ZCode использует значения таблиц; его [native-ски�
 | Pi 1.3.0 (2026-10-18) | [Встроенный MCP в 1.0+](https://pi.dev/docs/latest/mcp): `~/.pi/agent/mcp.json` и `<project>/.pi/mcp.json`; требуется доверие к проекту. | Native: `~/.pi/agent/skills/`, `<project>/.pi/skills/`. Shared: `~/.agents/skills/`, `<project>/.agents/skills/`. | Через семейство расширений pi-subagents: `~/.pi/agent/agents/*.md` и `<project>/.pi/agents/*.md`, Markdown frontmatter; без установленного расширения файлы инертны. |
 | Kimi Code 0.40.1 | `<KIMI_CODE_HOME>/mcp.json`, иначе `~/.kimi-code/mcp.json`; `<project>/.mcp.json`; `<cwd>/.kimi-code/mcp.json`. Последующие файлы переопределяют предыдущие. | `<KIMI_CODE_HOME>/skills/`, `<project>/.kimi-code/skills/`; общий `.agents/skills/` тоже читается. | `<KIMI_CODE_HOME>/agents/*.md`, `<project>/.kimi-code/agents/*.md`; определение в Markdown frontmatter. |
 | ZCode 3.10.1 (2026-10-18) | Compatibility MCP: `~/.agents/mcp.json`, `<project>/.mcp.json`. Native settings: `~/.zcode/cli/config.json`, `<workspace>/.zcode/config.json`. | Native: `~/.zcode/skills/`, `<workspace>/.zcode/skills/`. Shared: `~/.agents/skills/`, `<workspace>/.agents/skills/`. | `~/.zcode/agents/*.md`, `<workspace>/.zcode/agents/*.md`; Markdown frontmatter. `~/.zcode/cli/agents/` хранит runtime-сессии и не используется для определений. |
+| OpenCode 2.2.3 | Native v2 MCP: `<root>/opencode.json` `mcp.servers`; `<project>/opencode.json`. Соседний `opencode.jsonc` OpenCode тоже сливает, но Ruleblend его никогда не читает и не пишет. | Native: `<root>/skills/`, `<project>/.opencode/skills/`. Shared: `~/.claude/skills/`, `~/.agents/skills/`, `<project>/.agents/skills/` тоже читаются. | `<root>/agents/*.md`, `<project>/.opencode/agents/*.md`; Markdown frontmatter, имя файла — id агента. |
 
 Цель — globals агента **или** каталог проекта. Проект пишет файлы каждого включённого
 агента; переключатели хранятся в `config.json`, по умолчанию включены все обнаруженные.
@@ -805,6 +813,14 @@ Pi читает тот же Markdown-формат из `~/.pi/agent/agents/<id>.
 Ruleblend пишет их независимо от этого, поэтому поддержка безусловна и не зависит от
 установленного пакета ([P005](../archive/P005-pi-subagents.md)).
 
+OpenCode читает собственный Markdown-формат из `<root>/agents/<id>.md` и
+`<project>/.opencode/agents/<id>.md`: имя файла — id агента, `mode: subagent` не даёт
+определению попасть в список primary-агентов, а тело становится system prompt. Формат объявляет
+`model` (`provider/model[#variant]`) и hex `color`; `name` не поддерживается и отбрасывается,
+а вложенный список `permissions` не является плоским полем, поэтому ни то, ни другое не переносится
+через variant. Остальные плоские поля переживают цикл parse→render под native-ключами
+([P007](../archive/P007-opencode-support.md)).
+
 <a id="capability-matrix"></a>
 ### Матрица возможностей
 
@@ -828,6 +844,7 @@ Ruleblend пишет их независимо от этого, поэтому �
 | Pi | ✓ | ✓ | ✓ | ✓* |
 | Kimi Code | ✓ | ✓ | ✓ | ✓ |
 | ZCode | ✓ | ✓ | ✓ | ✓ |
+| OpenCode | ✓ | ✓ | ✓ | ✓ |
 
 <a id="subagent-ownership-and-drift"></a>
 ### Владение субагентами и локальные изменения
@@ -1358,7 +1375,8 @@ Save редактируемой стороны использует обычно
 - **Connect to MCP в Settings:** одно действие записывает обе части подключения.
   `McpConnector` создаёт `ruleblend`: structural JSON в `~/.claude.json`,
   line-based section в `~/.codex/config.toml`, native JSON `$KIMI_CODE_HOME/mcp.json`,
-  `mcp.servers` в `~/.zcode/cli/config.json` ZCode, compatible JSON `$PI_CODING_AGENT_DIR/mcp.json` Pi
+  `mcp.servers` в `~/.zcode/cli/config.json` ZCode, `mcp.servers` в `<root>/opencode.json` OpenCode,
+  compatible JSON `$PI_CODING_AGENT_DIR/mcp.json` Pi
   (по умолчанию `~/.pi/agent/mcp.json`).
   Прямая запись надёжнее agent CLI при минимальном GUI PATH.
   Совпавшее имя writable лишь с Ruleblend version stamp или старым unversioned
@@ -1385,7 +1403,7 @@ Save редактируемой стороны использует обычно
 - **Встроенный скилл:** `FileSkillInstaller` пишет resource `SKILL.md` в native user roots:
   `~/.claude/skills/ruleblend/SKILL.md`, `~/.codex/skills/ruleblend/SKILL.md`,
   `~/.pi/agent/skills/ruleblend/SKILL.md` Pi, `$KIMI_CODE_HOME/skills/ruleblend/SKILL.md`,
-  `~/.zcode/skills/ruleblend/SKILL.md`. Текст/marker ownership общие;
+  `~/.zcode/skills/ruleblend/SKILL.md`, `<root>/skills/ruleblend/SKILL.md` OpenCode. Текст/marker ownership общие;
   каждый installer определяет availability/path. Это не Library block: пользователь
   не редактирует/удаляет его там, app update заменяет on-disk copy.
   Последняя строка ownership comment задаёт not installed, installed (совпадает),
@@ -1427,6 +1445,7 @@ Save редактируемой стороны использует обычно
   | Codex | `~/.codex/config.toml` `[mcp_servers.<id>]` | `<dir>/.codex/config.toml` (только trusted projects) |
   | Kimi Code | `<KIMI_CODE_HOME>/mcp.json` `mcpServers` | `<dir>/.kimi-code/mcp.json` `mcpServers` |
   | ZCode | `~/.zcode/cli/config.json` `mcp.servers` | `<dir>/.zcode/config.json` `mcp.servers` |
+  | OpenCode | `<root>/opencode.json` `mcp.servers` | `<dir>/opencode.json` `mcp.servers` |
   | Pi 1.0+ | `~/.pi/agent/mcp.json` `mcpServers` | `<dir>/.pi/mcp.json` `mcpServers` (требуется доверие к проекту) |
 
   Claude JSON явно пишет `"type"`. Kimi определяет transport по `command`/`url`,
@@ -1437,7 +1456,12 @@ Save редактируемой стороны использует обычно
   и явным transport. Codex пишет stdio как `command`, `args`, `env`, streamable HTTP —
   `url`, static `http_headers` в одной named table.
   Pi различает `command`/`url`, игнорирует Claude `"type"`, поэтому разделяет Claude JSON writer.
-  Pure helpers `McpServersJson` / `KimiMcpJson` / `ZCodeMcpJson` / `CodexMcpTable` сохраняют чужое содержимое.
+  OpenCode использует родную форму v2: local-записи несут `type: local` с массивом `command` и
+  `environment`, remote-записи — `type: remote` с `url` и `headers`, а `mcp.timeout` — сосед
+  `servers`, который никогда не трогается. Ruleblend пишет `<root>/opencode.json` и никогда
+  не разбирает и не переписывает соседний `opencode.jsonc`, который OpenCode тоже сливает:
+  JSON-helpers не сохраняют его комментарии, поэтому сервер только оттуда остаётся OpenCode.
+  Pure helpers `McpServersJson` / `KimiMcpJson` / `ZCodeMcpJson` / `OpenCodeMcpJson` / `CodexMcpTable` сохраняют чужое содержимое.
 - **Миграция ZCode:** при запуске неизменённые записи с sidecar-владением и собственная регистрация
   переезжают из прежних `~/.agents/mcp.json` и проектного `.mcp.json` в родные конфиги.
   Новый `configPath` в sidecar не даёт восстановить уже удалённую родную копию.
