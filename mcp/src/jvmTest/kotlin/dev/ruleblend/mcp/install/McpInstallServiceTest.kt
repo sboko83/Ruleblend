@@ -4,6 +4,7 @@ import dev.ruleblend.core.integration.AgentGlobalTarget
 import dev.ruleblend.core.integration.ClaudeCodeAdapter
 import dev.ruleblend.core.integration.CodexAdapter
 import dev.ruleblend.core.integration.KimiCodeAdapter
+import dev.ruleblend.core.integration.OpenCodeAdapter
 import dev.ruleblend.core.integration.PiAdapter
 import dev.ruleblend.core.integration.ZCodeAdapter
 import dev.ruleblend.core.integration.InstallStatus
@@ -52,6 +53,8 @@ class McpInstallServiceTest {
     private val kimiProjectTarget get() = ProjectTarget(project, listOf(KimiCodeAdapter(home)))
     private val globalZCode get() = AgentGlobalTarget(ZCodeAdapter(home))
     private val zCodeProjectTarget get() = ProjectTarget(project, listOf(ZCodeAdapter(home)))
+    private val globalOpenCode get() = AgentGlobalTarget(OpenCodeAdapter(home))
+    private val openCodeProjectTarget get() = ProjectTarget(project, listOf(OpenCodeAdapter(home)))
     private val projectTarget get() = ProjectTarget(project, listOf(ClaudeCodeAdapter(home), CodexAdapter(home)))
 
     private fun mcpBlock(id: String, config: McpServerConfig, version: Int = 1) = Block(
@@ -70,8 +73,9 @@ class McpInstallServiceTest {
         home.resolve(".codex").createDirectories()
         home.resolve(".kimi-code").createDirectories()
         home.resolve(".zcode").createDirectories()
+        home.resolve(".config/opencode").createDirectories()
         service = McpInstallService(
-            installers = listOf(ClaudeCodeMcpInstaller(home), CodexMcpInstaller(home), KimiCodeMcpInstaller(home), ZCodeMcpInstaller(home), PiMcpInstaller(home)),
+            installers = listOf(ClaudeCodeMcpInstaller(home), CodexMcpInstaller(home), KimiCodeMcpInstaller(home), ZCodeMcpInstaller(home), PiMcpInstaller(home), OpenCodeMcpInstaller(home)),
             state = McpStateStore(home.resolve(".ruleblend")),
         )
     }
@@ -418,6 +422,43 @@ class McpInstallServiceTest {
         assertNull(service.status(zCodeProjectTarget, renamed))
         assertEquals(McpStatus(InstallStatus.UPDATE_AVAILABLE, conflict = false), service.status(shared, renamed))
         assertFalse(project.resolve(".zcode/config.json").exists())
+    }
+
+    @Test
+    fun `OpenCode installs global and project native MCP`() {
+        service.install(globalOpenCode, stdioBlock)
+        service.install(openCodeProjectTarget, httpBlock)
+
+        val global = home.resolve(".config/opencode/opencode.json").readText()
+        val projectConfig = project.resolve("opencode.json").readText()
+        assertFalse(home.resolve(".opencode").exists())
+        assertFalse(project.resolve(".mcp.json").exists())
+        assertTrue("\"type\": \"local\"" in global)
+        assertTrue("\"type\": \"remote\"" in projectConfig)
+        assertFalse("\"enabled\"" in global)
+        assertEquals(McpStatus(InstallStatus.SYNCED, conflict = false), service.status(globalOpenCode, stdioBlock))
+        assertEquals(McpStatus(InstallStatus.SYNCED, conflict = false), service.status(openCodeProjectTarget, httpBlock))
+
+        service.remove(openCodeProjectTarget, httpBlock)
+        assertFalse("remote" in project.resolve("opencode.json").readText())
+        service.remove(globalOpenCode, stdioBlock)
+        assertFalse("context7" in home.resolve(".config/opencode/opencode.json").readText())
+        assertNull(service.status(globalOpenCode, stdioBlock))
+    }
+
+    @Test
+    fun `OpenCode install keeps the sibling mcp timeout and foreign servers`() {
+        val file = home.resolve(".config/opencode/opencode.json")
+        file.writeText(
+            """{"mcp":{"timeout":5000,"servers":{"theirs":{"type":"remote","url":"https://example.invalid"}}}}""",
+        )
+
+        service.install(globalOpenCode, stdioBlock)
+
+        val text = file.readText()
+        assertTrue("\"timeout\": 5000" in text)
+        assertTrue("theirs" in text)
+        assertEquals(McpStatus(InstallStatus.SYNCED, conflict = false), service.status(globalOpenCode, stdioBlock))
     }
 
     // --- safe writes protect a hand-edited or foreign entry ---

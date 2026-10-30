@@ -50,6 +50,7 @@ fun shippedMcpInstallers(coordinator: TargetMutationCoordinator = TargetMutation
     KimiCodeMcpInstaller(coordinator = coordinator),
     ZCodeMcpInstaller(coordinator = coordinator),
     PiMcpInstaller(coordinator = coordinator),
+    OpenCodeMcpInstaller(coordinator = coordinator),
 )
 
 /** Global `~/.claude.json`, project `.mcp.json` — both hold a top-level `mcpServers` object. */
@@ -207,6 +208,44 @@ class ZCodeMcpInstaller(
 
     override fun installed(target: Target, name: String): McpServerConfig? =
         ZCodeMcpJson.read(FileReadScope.text(configFile(target)), name)?.let(McpServersJson::parseEntry)
+}
+
+/**
+ * OpenCode v2 reads `mcp.servers` in its global `<config root>/opencode.json` and in
+ * `<project>/opencode.json`. A sibling `opencode.jsonc` stays untouched: OpenCode merges both and
+ * the JSON writer cannot preserve comments.
+ */
+class OpenCodeMcpInstaller(
+    home: Path? = null,
+    private val coordinator: TargetMutationCoordinator = TargetMutationCoordinator(),
+    private val paths: AssistantPaths = AssistantPaths.forHome(home),
+) : McpAgentInstaller {
+
+    override val agentId: String = "opencode"
+
+    override fun supports(config: McpServerConfig): Boolean = true
+
+    override fun configFile(target: Target): Path = when (target) {
+        is AgentGlobalTarget -> paths.openCode.resolve("opencode.json")
+        is ProjectTarget -> target.dir.resolve("opencode.json")
+    }
+
+    override fun names(text: String): List<String> = OpenCodeMcpJson.names(text)
+
+    override fun entryText(text: String, name: String): String? = OpenCodeMcpJson.entryText(text, name)
+
+    override fun install(target: Target, name: String, config: McpServerConfig) {
+        coordinator.rewrite(configFile(target), missing = "") { text ->
+            OpenCodeMcpJson.upsert(text, name, OpenCodeMcpJson.renderEntry(config))
+        }
+    }
+
+    override fun remove(target: Target, name: String) {
+        coordinator.rewrite(configFile(target)) { text -> OpenCodeMcpJson.remove(text, name).takeIf { it != text } }
+    }
+
+    override fun installed(target: Target, name: String): McpServerConfig? =
+        OpenCodeMcpJson.read(FileReadScope.text(configFile(target)), name)?.let(OpenCodeMcpJson::parseEntry)
 }
 
 /** Pi 1.0+ reads native MCP files; project servers require project trust. */

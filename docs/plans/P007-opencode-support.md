@@ -114,6 +114,9 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - Стиль темы читается в createDefaultStyle() через поле mySettingsProvider суперкласса — супер-конструктор вызывает хук раньше, чем присваиваются поля подкласса, поэтому захваченный в поле цвет был бы null — отклонено: мутировать StyleState.setDefaultStyle() после конструирования и статический/ThreadLocal держатель.
 - Resolve XDG_CONFIG_HOME through the existing override() helper and append opencode to it, while OPENCODE_CONFIG_DIR is used verbatim — one shared validation path keeps WSL/relative rejection and its one-time stderr report — rejected: a separate silent parse of XDG_CONFIG_HOME that could leave a second, inconsistent rejection rule.
 - Always overwrite draft.name with the file stem instead of only when the parsed name is null — OpenCodeSubagentFormat.parse strips name unconditionally, so a null-check would be dead code — rejected: conditional assignment that implies a frontmatter name could ever be preserved.
+- Kept OpenCodeMcpJson standalone instead of generalizing the mcp.servers envelope out of ZCodeMcpJson — the entry shapes already differ and touching ZCode widens this unit — rejected: a shared McpSectionJson helper used by both.
+- parseEntry recognizes only the v2 local/remote shapes (plus type inference when the discriminator is absent) — a v1 flat `command` string stays unparsed and is shown as an unknown entry rather than silently reinterpreted as stdio — rejected: accepting the v1 string command for reading older configs.
+- A local entry needs a non-blank executable as the first command element; an empty array parses to null (unparsable) instead of Stdio("") that would read as a permanently modified entry — rejected: mapping an empty array to an empty command.
 
 ## Phase 1: Core surfaces
 
@@ -223,7 +226,7 @@ Handoff:
 
 ## Phase 2: MCP integration
 
-### [ ] P007.2.1 Install OpenCode MCP servers
+### [x] P007.2.1 Install OpenCode MCP servers
 Read:
 - mcp/src/jvmMain/kotlin/dev/ruleblend/mcp/install/McpServersJson.kt:L1-130
 - mcp/src/jvmMain/kotlin/dev/ruleblend/mcp/install/ZCodeMcpJson.kt:L1-80
@@ -247,6 +250,14 @@ existing JSON outside the edited entry intact. The entry is enabled by default, 
 `enabled` field.
 Role: heavy
 Commit: P007.2.1: install OpenCode MCP servers
+Handoff:
+- OpenCodeMcpJson is now the shape authority for P007.2.2: local entries render `command` as [binary, ...args] and parse back to command + args, so a ruleblend entry written with args ["--mcp"] reads back as args == ["--mcp"] for the shared ownership check; remote entries carry url + headers.
+- OpenCodeMcpInstaller resolves its global file through AssistantPaths.openCode (AssistantPaths.forHome(home)), so OpenCodeConnector/OpenCodeSkillInstaller must use the same injection (home: Path? = null + paths) instead of re-deriving XDG_CONFIG_HOME or appending an extra `opencode` segment.
+- McpInstallServiceTest.setUp now includes OpenCodeMcpInstaller(home) and pre-creates home/.config/opencode; targets are built as AgentGlobalTarget(OpenCodeAdapter(home)) and ProjectTarget(project, listOf(OpenCodeAdapter(home))). A malformed opencode.json (`mcp`/`servers` not an object, invalid JSON) throws IllegalArgumentException on upsert/remove instead of being replaced, matching ZCodeMcpJson.
+- Nothing under a sibling opencode.jsonc is ever read: servers defined only there are invisible to names()/entries(), so any test or acceptance assertion about OpenCode MCP listing must target opencode.json.
+- Unverified: The written shape has not been checked against the installed OpenCode 2.2.3 (`opencode debug config` with a temporary XDG_CONFIG_HOME) — only unit round trips; the live confirmation is P007.5.1.
+- Unverified: No mcp test asserts that OpenCodeMcpInstaller picks opencode.json under OPENCODE_CONFIG_DIR / XDG_CONFIG_HOME overrides; that resolution is covered only by core's AssistantPathsTest, not through the installer.
+- Unverified: When a project holds both opencode.json and opencode.jsonc, only opencode.json servers are enumerated and jsonc-only servers never surface in Place; no test covers that visible behaviour, including the Place/MCP tab rendering of such a project.
 
 ### [ ] P007.2.2 Connect OpenCode and install its bundled skill
 Read:
