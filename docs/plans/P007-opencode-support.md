@@ -113,6 +113,7 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - OpenCode parse выбрасывает name так же, как mode — иначе распарсенное значение попадает в SubagentVariant и показывается редактором как настраиваемое поле, которое OpenCode не читает и рендер не пишет — отклонено: хранить name как необъявленное плоское поле.
 - Стиль темы читается в createDefaultStyle() через поле mySettingsProvider суперкласса — супер-конструктор вызывает хук раньше, чем присваиваются поля подкласса, поэтому захваченный в поле цвет был бы null — отклонено: мутировать StyleState.setDefaultStyle() после конструирования и статический/ThreadLocal держатель.
 - Resolve XDG_CONFIG_HOME through the existing override() helper and append opencode to it, while OPENCODE_CONFIG_DIR is used verbatim — one shared validation path keeps WSL/relative rejection and its one-time stderr report — rejected: a separate silent parse of XDG_CONFIG_HOME that could leave a second, inconsistent rejection rule.
+- Always overwrite draft.name with the file stem instead of only when the parsed name is null — OpenCodeSubagentFormat.parse strips name unconditionally, so a null-check would be dead code — rejected: conditional assignment that implies a frontmatter name could ever be preserved.
 
 ## Phase 1: Core surfaces
 
@@ -195,7 +196,7 @@ Handoff:
 - Unverified: No test covers an invalid OPENCODE_CONFIG_DIR or XDG_CONFIG_HOME falling back to ~/.config/opencode and being recorded in rejectedOverrides; only the precedence of valid values is tested.
 - Unverified: No test covers the OpenCode CLI descriptor being usable for launching/resuming a real OpenCode session (`opencode --continue`); unit tests deliberately avoid a live binary and acceptance is a later unit.
 
-### [ ] P007.1.3 Import OpenCode subagents from Git
+### [x] P007.1.3 Import OpenCode subagents from Git
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/storage/GitSubagentDiscovery.kt:L1-170
 - core/src/jvmTest/kotlin/dev/ruleblend/core/storage/GitRepositoryImporterTest.kt:L55-110
@@ -213,6 +214,12 @@ Traps: `looksLikeMarkdownAgent` requires `name`, which OpenCode files do not hav
 for the explicit `.opencode/agents` hint. Do not relax validation for arbitrary Markdown.
 Role: cheap
 Commit: P007.1.3: import OpenCode subagents
+Handoff:
+- GitSubagentDiscovery declares GitAgentRoot(".opencode/agents", "opencode") in the built-in root list, so imports from that directory arrive with sourceAssistant == "opencode" and a single drafts["opencode"] entry; later subagent-import/read units must key off that id rather than re-deriving the path.
+- The OpenCode branch sits before the generic Markdown branch and bypasses looksLikeMarkdownAgent/validateMarkdownFields entirely; any future validation change to the generic branch does not reach OpenCode files, and a parity change must be made in both places.
+- The candidate name is always overwritten with the file stem because OpenCodeSubagentFormat.parse (P007.1.1) drops both name and mode — a frontmatter name can never survive into the draft, so no editing UI will show it as configurable.
+- Unverified: A `.toml` file under `.opencode/agents` now surfaces a per-file import error (the TOML branch requires the codex hint) instead of being ignored; no test covers a foreign repo with TOML in that directory, and Verify only runs the fixture-based suite.
+- Unverified: Nested OpenCode agents (`.opencode/agents/<sub>/x.md`) are matched by the prefix rule but untested; only the flat `review.md` case is asserted.
 
 ## Phase 2: MCP integration
 

@@ -95,6 +95,20 @@ class GitRepositoryImporterTest {
     }
 
     @Test
+    fun `OpenCode agents take the file stem as the name and ignore a README`() {
+        val upstream = repository(mapOf(
+            ".opencode/agents/review.md" to "---\ndescription: Reviews changes\nmode: subagent\n---\n\nReview safely.\n",
+            ".opencode/agents/README.md" to "# Documentation\n",
+        ))
+        val plan = GitRepositoryImporter().fetch(upstream.toString())
+        assertTrue(plan.errors.isEmpty())
+        val candidate = plan.subagents.single()
+        assertEquals("opencode", candidate.sourceAssistant)
+        assertEquals("review", candidate.draftFor("opencode").name)
+        assertEquals("Reviews changes", candidate.draftFor("opencode").description)
+    }
+
+    @Test
     fun `documentation and arbitrary Markdown never become agents`() {
         val upstream = repository(mapOf(
             "categories/reviewer.toml" to codex(),

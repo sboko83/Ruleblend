@@ -7,6 +7,7 @@ import com.charleskorn.kaml.YamlScalar
 import dev.ruleblend.core.integration.ClaudeCodeSubagentFormat
 import dev.ruleblend.core.integration.CodexSubagentFormat
 import dev.ruleblend.core.integration.KimiCodeSubagentFormat
+import dev.ruleblend.core.integration.OpenCodeSubagentFormat
 import dev.ruleblend.core.integration.PiSubagentFormat
 import dev.ruleblend.core.integration.SubagentDraft
 import dev.ruleblend.core.integration.ZCodeSubagentFormat
@@ -57,6 +58,7 @@ internal fun discoverGitSubagents(
         GitAgentRoot(".kimi-code/agents", "kimi-code"),
         GitAgentRoot(".zcode/agents", "zcode"),
         GitAgentRoot(".pi/agents", "pi"),
+        GitAgentRoot(".opencode/agents", "opencode"),
         GitAgentRoot("agents", null),
         GitAgentRoot("subagents", null),
         GitAgentRoot("categories", null),
@@ -86,6 +88,12 @@ internal fun discoverGitSubagents(
                 val draft = CodexSubagentFormat.parse(source) ?: error("Missing Codex instructions")
                 requireDefinition(draft)
                 candidates.add(GitSubagentCandidate(path, "codex", mapOf("codex" to draft), source))
+            } else if (hint == "opencode") {
+                // OpenCode names an agent after its file and does not require a `name` field.
+                val draft = OpenCodeSubagentFormat.parse(source) ?: error("Invalid Markdown subagent")
+                val name = path.substringAfterLast('/').substringBeforeLast('.')
+                requireDefinition(draft.copy(name = name))
+                candidates.add(GitSubagentCandidate(path, "opencode", mapOf("opencode" to draft.copy(name = name)), source))
             } else {
                 // Documentation, including frontmatter with title/tags, is not an agent definition.
                 if (!looksLikeMarkdownAgent(source)) continue
