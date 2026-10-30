@@ -116,6 +116,7 @@ import dev.ruleblend.core.storage.RemoteSyncConflictKind
 import dev.ruleblend.mcp.ClaudeCodeConnector
 import dev.ruleblend.mcp.CodexConnector
 import dev.ruleblend.mcp.KimiCodeConnector
+import dev.ruleblend.mcp.OpenCodeConnector
 import dev.ruleblend.mcp.PiConnector
 import dev.ruleblend.mcp.ZCodeConnector
 import dev.ruleblend.mcp.install.shippedMcpInstallers
@@ -128,6 +129,7 @@ import dev.ruleblend.mcp.runRuleblendServer
 import dev.ruleblend.mcp.skill.ClaudeCodeSkillInstaller
 import dev.ruleblend.mcp.skill.CodexSkillInstaller
 import dev.ruleblend.mcp.skill.KimiCodeSkillInstaller
+import dev.ruleblend.mcp.skill.OpenCodeSkillInstaller
 import dev.ruleblend.mcp.skill.PiSkillInstaller
 import dev.ruleblend.mcp.skill.ZCodeSkillInstaller
 import java.nio.file.Path
@@ -383,6 +385,7 @@ internal fun App(
             CodexConnector(coordinator = targetCoordinator),
             KimiCodeConnector(coordinator = targetCoordinator),
             ZCodeConnector(coordinator = targetCoordinator),
+            OpenCodeConnector(coordinator = targetCoordinator),
             PiConnector(coordinator = targetCoordinator),
         )
     }
@@ -392,6 +395,7 @@ internal fun App(
             CodexSkillInstaller(),
             KimiCodeSkillInstaller(),
             ZCodeSkillInstaller(),
+            OpenCodeSkillInstaller(),
             PiSkillInstaller(),
         )
     }

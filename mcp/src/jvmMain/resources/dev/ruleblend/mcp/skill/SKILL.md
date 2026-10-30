@@ -27,8 +27,8 @@ Never hand-edit the installed managed content.
   Global rules can be installed into either kind; a project-scoped rule only into its own project.
   Installing changes files on disk; it does not add the instructions to the current conversation.
 
-Skills and MCP configs install for Claude Code, Codex, Kimi Code, ZCode and Pi. Pi 1.0+ reads MCP
-configs natively. Subagents install for Claude Code, Codex, Kimi Code, ZCode and Pi at both scopes;
+Skills and MCP configs install for Claude Code, Codex, Kimi Code, ZCode, OpenCode and Pi. Pi 1.0+ reads
+MCP configs natively. Subagents install for Claude Code, Codex, Kimi Code, ZCode, OpenCode and Pi at both scopes;
 Pi loads them only through a subagents extension such as pi-subagents, which the user installs
 separately.
 A project target may cover several enabled assistants. Unsupported destinations are skipped and
@@ -310,4 +310,4 @@ actual installation rechecks the state rather than relying on this advisory resu
 
 Do not work around GUI-only actions by modifying managed files.
 
-<!-- ruleblend-managed skill v14 -->
+<!-- ruleblend-managed skill v15 -->

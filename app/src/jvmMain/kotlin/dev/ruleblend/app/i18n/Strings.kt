@@ -1760,7 +1760,7 @@ object EnStrings : Strings {
     }
     override val intAdoptScanImportsHeader = { n: Int -> "$n @import${if (n == 1) "" else "s"} found" }
     override val intAdoptScanImportsHint =
-        "Only Claude Code expands @imports. Codex, Pi, Kimi Code and ZCode keep them as plain text."
+        "Only Claude Code expands @imports. Codex, Pi, Kimi Code, ZCode and OpenCode keep them as plain text."
     override val intAdoptScanBrokenHeader = { n: Int -> "$n unresolved link${if (n == 1) "" else "s"}" }
     override val intAdoptScanBrokenHint =
         "These paths do not exist relative to the source file, so they will not resolve when the block is installed elsewhere either."
@@ -2785,7 +2785,7 @@ object RuStrings : Strings {
     }
     override val intAdoptScanImportsHeader = { n: Int -> "Найдено $n @import${plural(n, "", "а", "ов")}" }
     override val intAdoptScanImportsHint =
-        "@imports раскрывает только Claude Code. Codex, Pi, Kimi Code и ZCode оставляют их как обычный текст."
+        "@imports раскрывает только Claude Code. Codex, Pi, Kimi Code, ZCode и OpenCode оставляют их как обычный текст."
     override val intAdoptScanBrokenHeader = { n: Int ->
         "$n ${plural(n, "нерезолвящаяся ссылка", "нерезолвящиеся ссылки", "нерезолвящихся ссылок")}"
     }

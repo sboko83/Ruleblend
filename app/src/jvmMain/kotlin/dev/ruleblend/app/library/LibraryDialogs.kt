@@ -420,6 +420,7 @@ private fun gitAssistantName(id: String): String = when (id) {
     "codex" -> "Codex"
     "claude-code" -> "Claude Code"
     "kimi-code" -> "Kimi Code"
+    "opencode" -> "OpenCode"
     else -> id
 }
 

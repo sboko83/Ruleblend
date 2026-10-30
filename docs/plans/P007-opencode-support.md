@@ -119,6 +119,7 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - A local entry needs a non-blank executable as the first command element; an empty array parses to null (unparsable) instead of Stdio("") that would read as a permanently modified entry — rejected: mapping an empty array to an empty command.
 - No legacy-address cleanup in OpenCodeConnector, unlike ZCodeConnector — OpenCode shipped only the v2 native address, so a legacy branch would be untestable dead code — rejected: copying ZCodeConnector's kitbash retirement verbatim.
 - Added OpenCode to the existing shared connector tables (version stamp, Windows path/foreign-preservation, foreign same-name) instead of only dedicated tests — the shared tables are the regression net every format gets and the OpenCode shape fits them without special cases — rejected: dedicated-only coverage that would miss cross-format invariants.
+- Updated EXPECTED_DIGEST instead of relaxing the test — the test is the guard that a changed SKILL.md ships under a new marker version — rejected: stripping the digest assertion.
 
 ## Phase 1: Core surfaces
 
@@ -288,7 +289,7 @@ Handoff:
 
 ## Phase 3: App wiring and e2e sandbox
 
-### [ ] P007.3.1 Wire OpenCode into the app and update the bundled skill
+### [x] P007.3.1 Wire OpenCode into the app and update the bundled skill
 Read:
 - app/src/jvmMain/kotlin/dev/ruleblend/app/Main.kt:L375-405
 - app/src/jvmMain/kotlin/dev/ruleblend/app/library/LibraryDialogs.kt:L415-425
@@ -308,6 +309,12 @@ Traps: changing `SKILL.md` requires the marker bump and makes connected assistan
 update; that is expected. Do not raise `appVersion`. Do not bump the marker twice in later units.
 Role: cheap
 Commit: P007.3.1: wire OpenCode into the app
+Handoff:
+- SKILL.md digest is pinned in mcp/src/jvmTest/kotlin/dev/ruleblend/mcp/skill/BundledSkillTest.kt (EXPECTED_DIGEST); any later edit of SKILL.md fails that test and prints the new digest to paste in.
+- OpenCode is inserted between ZCode and Pi in both connector and skill-installer lists in Main.kt, so the UI order follows that list.
+- appBuild is now 300; P007.3.2 must not raise it again.
+- Unverified: No app-level test renders Settings/Place/Coverage for OpenCode: that the new connectors appear with the expected names and states on a running desktop app is checked only by P007.3.2's e2e sandbox.
+- Unverified: Connected assistants will report a bundled-skill update from v14 to v15; the actual upgrade prompt in a real OpenCode session is not exercised by unit tests.
 
 ### [ ] P007.3.2 Cover OpenCode in UI e2e
 Read:
