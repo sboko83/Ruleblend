@@ -120,6 +120,7 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - No legacy-address cleanup in OpenCodeConnector, unlike ZCodeConnector — OpenCode shipped only the v2 native address, so a legacy branch would be untestable dead code — rejected: copying ZCodeConnector's kitbash retirement verbatim.
 - Added OpenCode to the existing shared connector tables (version stamp, Windows path/foreign-preservation, foreign same-name) instead of only dedicated tests — the shared tables are the regression net every format gets and the OpenCode shape fits them without special cases — rejected: dedicated-only coverage that would miss cross-format invariants.
 - Updated EXPECTED_DIGEST instead of relaxing the test — the test is the guard that a changed SKILL.md ships under a new marker version — rejected: stripping the digest assertion.
+- Added an `opencode` CLI stub to the sandbox bin although OpenCode adapter detection depends only on the config directory — the other assistants all get a stub and PATH parity keeps a future CLI lookup from hitting the real binary — rejected: relying on the missing-binary path for OpenCode only.
 
 ## Phase 1: Core surfaces
 
@@ -316,7 +317,7 @@ Handoff:
 - Unverified: No app-level test renders Settings/Place/Coverage for OpenCode: that the new connectors appear with the expected names and states on a running desktop app is checked only by P007.3.2's e2e sandbox.
 - Unverified: Connected assistants will report a bundled-skill update from v14 to v15; the actual upgrade prompt in a real OpenCode session is not exercised by unit tests.
 
-### [ ] P007.3.2 Cover OpenCode in UI e2e
+### [x] P007.3.2 Cover OpenCode in UI e2e
 Read:
 - tools/ui_e2e.py:L80-120
 - tools/ui_e2e.py:L285-300
@@ -335,6 +336,12 @@ Traps: `XDG_CONFIG_HOME` already points at `home/.config`; the `opencode` child 
 the app starts. The e2e gate must not require a real OpenCode installation.
 Role: cheap
 Commit: P007.3.2: cover OpenCode in UI e2e
+Handoff:
+- Sandbox now pre-creates home/.config/opencode in tools/ui_e2e.py prepare(), so the OpenCode adapter and skill installer are detected; the opencode CLI stub in bin/ is only for PATH parity, the e2e gate never needs a real OpenCode binary.
+- Phase1Test P12's 'restart' stage fails at createFour() (library-editor-block-description missing) on every commit tried, including f01dff8 before OpenCode was shipped — treat it as a pre-existing harness defect, not an OpenCode regression; P12 'first' stage is the OpenCode global-target evidence.
+- Real-home fingerprint list in tools/ui_e2e.py now includes .config/opencode, so run_desktop/cleanup sandbox probes will flag any write into the developer's real OpenCode config.
+- Unverified: The new global OpenCode assertions in P12 run only in the 'first' stage: the 'restart' stage that would re-check .config/opencode/AGENTS.md, opencode.json, skills and agents after a cold restart cannot execute because of the pre-existing createFour failure.
+- Unverified: The desktop sandbox probe (run_desktop) with the added .config/opencode fingerprint entry was not executed here; only the compile/unit gate and the Gradle UI e2e sandbox were run.
 
 ## Phase 4: Documentation
 

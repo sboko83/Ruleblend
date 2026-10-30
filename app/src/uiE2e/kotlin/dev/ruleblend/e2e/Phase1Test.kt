@@ -318,8 +318,10 @@ class Phase1Test {
         assertTrue(Files.exists(project.resolve(".kimi-code/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".zcode/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".pi/skills/e2e-skill/SKILL.md")))
+        assertTrue(Files.exists(project.resolve(".opencode/skills/e2e-skill/SKILL.md")))
         assertTrue(Files.exists(project.resolve(".kimi-code/agents/e2e-agent.md")))
         assertTrue(Files.exists(project.resolve(".codex/agents/e2e-agent.toml")))
+        assertTrue(Files.exists(project.resolve(".opencode/agents/e2e-agent.md")))
         for (adapter in shippedAgentAdapters()) {
             val file = adapter.projectSubagentFile(project, "e2e-agent") ?: continue
             assertTrue(Files.exists(file), "${adapter.name} subagent missing: $file")
@@ -327,6 +329,7 @@ class Phase1Test {
         assertTrue(project.resolve(".codex/config.toml").readText().contains("e2e-server"))
         assertTrue(project.resolve(".kimi-code/mcp.json").readText().contains("e2e-server"))
         assertTrue(project.resolve(".pi/mcp.json").readText().contains("e2e-server"))
+        assertTrue(project.resolve("opencode.json").readText().contains("e2e-server"))
         assertTrue(home.resolve(".ruleblend/skill-state.json").readText().contains("e2e-skill"))
         assertTrue(home.resolve(".ruleblend/subagent-state.json").readText().contains("e2e-agent"))
         assertTrue(home.resolve(".ruleblend/mcp-state.json").readText().contains("e2e-server"))
@@ -614,8 +617,12 @@ class Phase1Test {
         assertTrue(home.resolve(".zcode/AGENTS.md").readText().contains("E2E rule v1"))
         assertTrue(home.resolve(".pi/agent/AGENTS.md").readText().contains("E2E rule v1"))
         assertTrue(Files.exists(home.resolve(".pi/agent/skills/e2e-skill/SKILL.md")))
+        assertTrue(home.resolve(".config/opencode/AGENTS.md").readText().contains("E2E rule v1"))
+        assertTrue(Files.exists(home.resolve(".config/opencode/skills/e2e-skill/SKILL.md")))
+        assertTrue(Files.exists(home.resolve(".config/opencode/agents/e2e-agent.md")))
         assertFalse(Files.exists(home.resolve(".agents/skills")))
-        for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".zcode/cli/config.json", ".pi/agent/mcp.json")) {
+        for (file in listOf(".claude/.claude.json", ".codex/config.toml", ".kimi/mcp.json", ".zcode/cli/config.json",
+                ".pi/agent/mcp.json", ".config/opencode/opencode.json")) {
             assertTrue(home.resolve(file).readText().contains("e2e-server"), file)
         }
         assertFalse(Files.exists(project.resolve("AGENTS.md")))

@@ -83,14 +83,15 @@ def prepare():
     root = Path(tempfile.mkdtemp(prefix='ruleblend-e2e-')).resolve()
     (root / MARKER).write_text(root.name, encoding='utf-8', newline='\n')
     for relative in ('home/.ruleblend', 'home/.claude', 'home/.codex', 'home/.kimi',
-                     'home/.pi/agent', 'home/.zcode', 'home/.agents', 'home/.config', 'work', 'tmp',
+                     'home/.pi/agent', 'home/.zcode', 'home/.agents', 'home/.config/opencode',
+                     'work', 'tmp',
                      'projects/Проект A', 'projects/B', 'archives', 'upstream', 'remote', 'bin', 'artifacts'):
         (root / relative).mkdir(parents=True, exist_ok=True)
     (root / 'home/.gitconfig').write_text('[credential]\n\thelper =\n[user]\n\tname = E2E Fixture\n\temail = fixture@example.invalid\n', encoding='utf-8', newline='\n')
     (root / 'home/.netrc').write_text('', encoding='utf-8', newline='\n')
     (root / 'neighbor.txt').write_bytes(b'unchanged synthetic neighbor\n')
     # Safe executable fixtures: no user shell rc files and no real assistant process.
-    for name in ('claude', 'codex', 'kimi', 'pi', 'zcode', 'rb-translate', 'shell', 'ruleblend-mcp'):
+    for name in ('claude', 'codex', 'kimi', 'pi', 'zcode', 'opencode', 'rb-translate', 'shell', 'ruleblend-mcp'):
         stub = root / 'bin' / (name + ('.cmd' if os.name == 'nt' else ''))
         stub.write_text('@exit /b 0\n' if os.name == 'nt' else
                         '#!/bin/sh\nprintf "%s\\n" "$0" "$PWD" "$@" >> "' + str(root / 'artifacts/cli.log') + '"\nexit 0\n',
@@ -292,7 +293,7 @@ def real_fingerprints():
     paths = [home / name for name in ('.ruleblend', '.kitbash', '.claude/CLAUDE.md', '.claude/settings.json',
              '.claude/skills', '.claude/agents', '.claude.json', '.codex/AGENTS.md', '.codex/config.toml',
              '.codex/skills', '.codex/agents', '.kimi', '.pi/agent/AGENTS.md', '.pi/agent/skills',
-             '.zcode', '.agents/skills')]
+             '.zcode', '.config/opencode', '.agents/skills')]
     override = os.environ.get('KIMI_CODE_HOME')
     if override:
         paths.append(Path(override))
