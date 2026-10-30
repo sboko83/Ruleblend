@@ -5,6 +5,7 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class AssistantPathsTest {
@@ -17,9 +18,15 @@ class AssistantPathsTest {
             "CLAUDE_CONFIG_DIR" to home.resolve("Клод").toString(),
             "PI_CODING_AGENT_DIR" to "~/pi-custom",
             "KIMI_CODE_HOME" to home.resolve("kimi-custom").toString(),
+            "OPENCODE_CONFIG_DIR" to home.resolve("opencode-custom").toString(),
             "HOME" to "/home/wsl-user", "APPDATA" to home.resolve("Roaming").toString(),
         ))
-        listOf(paths.codex, paths.claude, paths.pi, paths.kimi).forEach(Files::createDirectories)
+        listOf(paths.codex, paths.claude, paths.pi, paths.kimi, paths.openCode).forEach(Files::createDirectories)
+        val openCode = OpenCodeAdapter(paths = paths)
+        assertTrue(openCode.isAvailable())
+        assertEquals(paths.openCode.resolve("AGENTS.md"), openCode.globalFile())
+        assertEquals(paths.openCode.resolve("skills"), openCode.globalSkillsDirectory())
+        assertEquals(paths.openCode.resolve("agents"), openCode.globalSubagentDirectory())
         val codex = CodexAdapter(paths = paths)
         val claude = ClaudeCodeAdapter(paths = paths)
         val pi = PiAdapter(paths = paths)
@@ -44,7 +51,31 @@ class AssistantPathsTest {
         assertEquals(home.resolve(".claude.json"), paths.claudeConfig)
         assertEquals(home.resolve(".pi/agent"), paths.pi)
         assertEquals(home.resolve(".kimi-code"), paths.kimi)
+        assertEquals(home.resolve(".config/opencode"), paths.openCode)
         assertEquals(home.resolve(".codex/AGENTS.md"), CodexAdapter(home).globalFile())
+    }
+
+    @Test fun openCodeRootPrefersItsOwnDirectoryThenXdgThenTheDefault() {
+        val own = home.resolve("own-opencode")
+        val xdg = home.resolve("xdg")
+
+        assertEquals(own, AssistantPaths(home, mapOf(
+            "OPENCODE_CONFIG_DIR" to own.toString(),
+            "XDG_CONFIG_HOME" to xdg.toString(),
+        )).openCode)
+        assertEquals(xdg.resolve("opencode"), AssistantPaths(home, mapOf(
+            "XDG_CONFIG_HOME" to xdg.toString(),
+        )).openCode)
+        assertEquals(home.resolve(".config/opencode"), AssistantPaths(home).openCode)
+    }
+
+    @Test fun openCodeConfigDirIsNotTreatedAsAnXdgBase() {
+        val own = home.resolve("own-opencode")
+
+        val resolved = AssistantPaths(home, mapOf("OPENCODE_CONFIG_DIR" to own.toString())).openCode
+
+        assertEquals(own, resolved)
+        assertNotEquals(own.resolve("opencode"), resolved)
     }
 
     @Test fun foreignOrRelativeOverridesAreIgnoredWithoutAffectingOtherAssistants() {

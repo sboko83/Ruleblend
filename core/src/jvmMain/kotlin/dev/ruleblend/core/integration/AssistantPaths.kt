@@ -22,6 +22,11 @@ class AssistantPaths(
     val pi: Path = override("PI_CODING_AGENT_DIR") ?: userHome.resolve(".pi").resolve("agent")
     val kimi: Path = override("KIMI_CODE_HOME") ?: userHome.resolve(".kimi-code")
 
+    /** `OPENCODE_CONFIG_DIR` is the config directory itself; `XDG_CONFIG_HOME` is its parent. */
+    val openCode: Path = override("OPENCODE_CONFIG_DIR")
+        ?: override("XDG_CONFIG_HOME")?.resolve("opencode")
+        ?: userHome.resolve(".config").resolve("opencode")
+
     private fun override(name: String, report: Boolean = true): Path? {
         val value = environment[name]?.takeIf { it.isNotBlank() } ?: return null
         val expanded = when {

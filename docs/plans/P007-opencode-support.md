@@ -112,6 +112,7 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - Replan changed check: P007.1.1 Verify: `./gradlew -PwarningsAsErrors=true :core:allTests` -> `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests`
 - OpenCode parse выбрасывает name так же, как mode — иначе распарсенное значение попадает в SubagentVariant и показывается редактором как настраиваемое поле, которое OpenCode не читает и рендер не пишет — отклонено: хранить name как необъявленное плоское поле.
 - Стиль темы читается в createDefaultStyle() через поле mySettingsProvider суперкласса — супер-конструктор вызывает хук раньше, чем присваиваются поля подкласса, поэтому захваченный в поле цвет был бы null — отклонено: мутировать StyleState.setDefaultStyle() после конструирования и статический/ThreadLocal держатель.
+- Resolve XDG_CONFIG_HOME through the existing override() helper and append opencode to it, while OPENCODE_CONFIG_DIR is used verbatim — one shared validation path keeps WSL/relative rejection and its one-time stderr report — rejected: a separate silent parse of XDG_CONFIG_HOME that could leave a second, inconsistent rejection rule.
 
 ## Phase 1: Core surfaces
 
@@ -163,7 +164,7 @@ Handoff:
 - Unverified: Виджет не покрыт постоянным тестом: цвета после SGR-сброса у AssistanceTerminalWidget.createDefaultStyle() подтверждены только разовым тестом на реальном виджете, который удалён; регрессию в этом переопределении Verify (проверяет лишь styleState()) не поймает.
 - Unverified: Визуальный результат в живом приложении (цвет текста после сброса на реальной сессии PTY) не наблюдался — проверено только на уровне StyleState, скриншот/UI-прогон не делался.
 
-### [ ] P007.1.2 Add OpenCode adapter and config root
+### [x] P007.1.2 Add OpenCode adapter and config root
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/AssistantPaths.kt:L1-80
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/AgentAdapter.kt:L1-260
@@ -185,6 +186,14 @@ Traps: do not append `opencode` to `OPENCODE_CONFIG_DIR`; OpenCode reads `AGENTS
 project, so no `CLAUDE.md`-style pointer is needed. The format object comes from P007.1.1.
 Role: cheap
 Commit: P007.1.2: add OpenCode adapter
+Handoff:
+- AssistantPaths.openCode is now the single global root for OpenCode: it resolves OPENCODE_CONFIG_DIR (full dir), else XDG_CONFIG_HOME/opencode, else ~/.config/opencode, through the same override() validation as the other assistants, so later MCP/skill/subagent units must read it rather than reimplementing the order.
+- OpenCodeAdapter is inserted into shippedAgentAdapters() right after CodexAdapter and uses AssistantPaths.forHome(home) with a nullable home, so a UI/e2e process with XDG_CONFIG_HOME set is detected without touching the code.
+- The adapter points subagentFormat at OpenCodeSubagentFormat from P007.1.1, so the format is now bound to an adapter; subagent read/write and .opencode/agents import remain for their own units.
+- OpenCode detection is purely by the config directory existing (no CLI probe, no AGENTS.md requirement), matching the other adapters.
+- Unverified: No test asserts that shippedAgentAdapters() contains OpenCode in the expected position; a wrong order or a forgotten list entry would only show up in the Settings/Place/Coverage UI, which this unit does not exercise.
+- Unverified: No test covers an invalid OPENCODE_CONFIG_DIR or XDG_CONFIG_HOME falling back to ~/.config/opencode and being recorded in rejectedOverrides; only the precedence of valid values is tested.
+- Unverified: No test covers the OpenCode CLI descriptor being usable for launching/resuming a real OpenCode session (`opencode --continue`); unit tests deliberately avoid a live binary and acceptance is a later unit.
 
 ### [ ] P007.1.3 Import OpenCode subagents from Git
 Read:

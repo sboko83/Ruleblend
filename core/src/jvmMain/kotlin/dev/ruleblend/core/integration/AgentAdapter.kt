@@ -154,6 +154,36 @@ class CodexAdapter(
     override fun projectSubagentDirectory(projectDir: Path): Path = projectDir.resolve(".codex").resolve("agents")
 }
 
+/**
+ * OpenCode reads `AGENTS.md` both globally and in a project, so no redirect is needed. Its global
+ * root follows `OPENCODE_CONFIG_DIR`, then `XDG_CONFIG_HOME/opencode`, then `~/.config/opencode`.
+ */
+class OpenCodeAdapter(
+    home: Path? = null,
+    private val paths: AssistantPaths = AssistantPaths.forHome(home),
+) : AgentAdapter {
+    override val id: String = "opencode"
+    override val name: String = "OpenCode"
+    override val cli = AgentCli("opencode", resumeArguments = listOf("--continue"))
+
+    override fun isAvailable(): Boolean = paths.openCode.exists()
+
+    override fun globalFile(): Path = paths.openCode.resolve("AGENTS.md")
+
+    override fun projectFile(projectDir: Path): Path = projectDir.resolve("AGENTS.md")
+
+    override fun globalSkillsDirectory(): Path = paths.openCode.resolve("skills")
+
+    override fun projectSkillsDirectory(projectDir: Path): Path = projectDir.resolve(".opencode").resolve("skills")
+
+    override val subagentSupport = SubagentSupport.SUPPORTED
+    override val subagentFormat = OpenCodeSubagentFormat
+
+    override fun globalSubagentDirectory(): Path = paths.openCode.resolve("agents")
+
+    override fun projectSubagentDirectory(projectDir: Path): Path = projectDir.resolve(".opencode").resolve("agents")
+}
+
 class KimiCodeAdapter(home: KimiCodeHome = KimiCodeHome.current()) : AgentAdapter {
     /** [home] is the OS home; Kimi's directory is `.kimi-code` under it, see [KimiCodeHome.under]. */
     constructor(home: Path) : this(KimiCodeHome.under(home))
@@ -246,4 +276,4 @@ class PiAdapter(
 
 /** Every agent Ruleblend ships an integration for, in the order the UI lists them. */
 fun shippedAgentAdapters(): List<AgentAdapter> =
-    listOf(ClaudeCodeAdapter(), CodexAdapter(), PiAdapter(), KimiCodeAdapter(), ZCodeAdapter())
+    listOf(ClaudeCodeAdapter(), CodexAdapter(), OpenCodeAdapter(), PiAdapter(), KimiCodeAdapter(), ZCodeAdapter())

@@ -2,6 +2,7 @@ package dev.ruleblend.core.integration
 
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.createDirectories
 import kotlin.io.path.createDirectory
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -39,6 +40,15 @@ class AgentAdapterTest {
 
         assertFalse(adapter.isAvailable())
         home.resolve(".codex").createDirectory()
+        assertTrue(adapter.isAvailable())
+    }
+
+    @Test
+    fun openCodeIsAvailableOnlyWithItsConfigDir() {
+        val adapter = OpenCodeAdapter(home)
+
+        assertFalse(adapter.isAvailable())
+        home.resolve(".config").resolve("opencode").createDirectories()
         assertTrue(adapter.isAvailable())
     }
 
@@ -119,6 +129,17 @@ class AgentAdapterTest {
         assertEquals(project.resolve(".zcode/agents/review.md"), ZCodeAdapter(home).projectSubagentFile(project, "review"))
         assertEquals(home.resolve(".zcode/skills"), ZCodeAdapter(home).globalSkillsDirectory())
         assertEquals(project.resolve(".zcode/skills"), ZCodeAdapter(home).projectSkillsDirectory(project))
+        assertEquals(home.resolve(".config/opencode").resolve("AGENTS.md"), OpenCodeAdapter(home).globalFile())
+        assertEquals(project.resolve("AGENTS.md"), OpenCodeAdapter(home).projectFile(project))
+        assertEquals(null, OpenCodeAdapter(home).projectRedirectFile(project))
+        assertEquals(SubagentSupport.SUPPORTED, OpenCodeAdapter(home).subagentSupport)
+        assertEquals(home.resolve(".config/opencode/agents/review.md"), OpenCodeAdapter(home).globalSubagentFile("review"))
+        assertEquals(project.resolve(".opencode/agents/review.md"), OpenCodeAdapter(home).projectSubagentFile(project, "review"))
+        assertEquals(home.resolve(".config/opencode/skills"), OpenCodeAdapter(home).globalSkillsDirectory())
+        assertEquals(project.resolve(".opencode/skills"), OpenCodeAdapter(home).projectSkillsDirectory(project))
+        assertEquals("opencode", OpenCodeAdapter(home).id)
+        assertEquals("OpenCode", OpenCodeAdapter(home).name)
+        assertEquals(AgentCli("opencode", resumeArguments = listOf("--continue")), OpenCodeAdapter(home).cli)
     }
 
     @Test
