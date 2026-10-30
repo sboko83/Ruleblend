@@ -2,6 +2,7 @@ package dev.ruleblend.app.assistance
 
 import com.jediterm.core.util.TermSize
 import com.jediterm.terminal.ProcessTtyConnector
+import com.jediterm.terminal.model.StyleState
 import com.jediterm.terminal.ui.JediTermWidget
 import com.jediterm.terminal.ui.settings.DefaultSettingsProvider
 import com.pty4j.PtyProcess
@@ -54,15 +55,7 @@ fun startAssistanceTerminal(launch: AssistanceLaunch): PtyAssistanceTerminal {
     var widget: JediTermWidget? = null
     try {
         SwingUtilities.invokeAndWait {
-            widget = JediTermWidget(90, 24, object : DefaultSettingsProvider() {
-                // JediTerm reads these when the widget is created; a later change does not repaint it.
-                override fun getBufferMaxLinesCount(): Int = 2_000
-                override fun getDefaultForeground() = requireNotNull(launch.colors.defaultStyle().foreground)
-                override fun getDefaultBackground() = requireNotNull(launch.colors.defaultStyle().background)
-                override fun getDefaultStyle() = launch.colors.defaultStyle()
-                override fun getSelectionColor() = launch.colors.selectionStyle()
-                override fun getTerminalColorPalette() = launch.colors.palette()
-            }).apply {
+            widget = AssistanceTerminalWidget(AssistanceTerminalSettings(launch.colors)).apply {
                 createTerminalSession(AssistanceConnector(child, spawnedAt))
                 start()
             }
@@ -73,6 +66,35 @@ fun startAssistanceTerminal(launch: AssistanceLaunch): PtyAssistanceTerminal {
         runCatching { SwingUtilities.invokeAndWait { widget?.close() } }.exceptionOrNull()?.let(failure::addSuppressed)
         throw failure
     }
+}
+
+/**
+ * The theme values jediterm reads while it builds the widget. `getDefaultStyle()` stays uninherited:
+ * it is deprecated, and the widget takes the terminal's default style from [AssistanceTerminalColors.styleState].
+ */
+private class AssistanceTerminalSettings(
+    private val colors: AssistanceTerminalColors,
+) : DefaultSettingsProvider() {
+    // JediTerm reads these when the widget is created; a later change does not repaint it.
+    override fun getBufferMaxLinesCount(): Int = 2_000
+    override fun getDefaultForeground() = requireNotNull(colors.defaultStyle().foreground)
+    override fun getDefaultBackground() = requireNotNull(colors.defaultStyle().background)
+    override fun getSelectionColor() = colors.selectionStyle()
+    override fun getTerminalColorPalette() = colors.palette()
+
+    fun defaultStyleState(): StyleState = colors.styleState()
+}
+
+/**
+ * `JediTerminal` resets its style state on SGR 0, and the inherited default is black-on-white, so the
+ * theme style comes from the one hook the widget offers for it.
+ */
+private class AssistanceTerminalWidget(
+    settings: AssistanceTerminalSettings,
+) : JediTermWidget(90, 24, settings) {
+    // The superclass stores the settings provider before it asks for the style state.
+    override fun createDefaultStyle(): StyleState =
+        (mySettingsProvider as AssistanceTerminalSettings).defaultStyleState()
 }
 
 private fun stopAssistanceProcess(child: PtyProcess) {

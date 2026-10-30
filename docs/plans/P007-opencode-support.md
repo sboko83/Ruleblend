@@ -110,10 +110,12 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - P007.1.1 touches shipped app code without raising `appBuild`: the single bump stays in P007.3.1
   and both changes ship in the same release.
 - Replan changed check: P007.1.1 Verify: `./gradlew -PwarningsAsErrors=true :core:allTests` -> `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests`
+- OpenCode parse выбрасывает name так же, как mode — иначе распарсенное значение попадает в SubagentVariant и показывается редактором как настраиваемое поле, которое OpenCode не читает и рендер не пишет — отклонено: хранить name как необъявленное плоское поле.
+- Стиль темы читается в createDefaultStyle() через поле mySettingsProvider суперкласса — супер-конструктор вызывает хук раньше, чем присваиваются поля подкласса, поэтому захваченный в поле цвет был бы null — отклонено: мутировать StyleState.setDefaultStyle() после конструирования и статический/ThreadLocal держатель.
 
 ## Phase 1: Core surfaces
 
-### [~] P007.1.1 Add OpenCode subagent format
+### [x] P007.1.1 Add OpenCode subagent format
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/SubagentFormat.kt:L1-260
 - core/src/commonMain/kotlin/dev/ruleblend/core/model/YamlFrontmatter.kt:L1-120
@@ -153,6 +155,13 @@ Role: heavy
 Commit: P007.1.1: add OpenCode subagent format
 Handoff:
 - Blocked (plan): Unit work is complete and its own Verify passed (`./gradlew -PwarningsAsErrors=true :core:allTests`, SubagentFormatTest 21 tests / 0 failures, 4 new OpenCode tests). The plan's gate `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests` fails at :app:compileKotlinJvm on a pre-existing -Werror diagnostic unrelated to this unit: app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/PtyAssistanceTerminal.kt:62:30 overrides UserSettingsProvider.getDefaultStyle(), deprecated in jediterm-ui 3.76; reproduced on clean HEAD 010e9e4 in a detached worktree with the same command. The plan needs a fix: a prerequisite unit dropping that override (the supported getDefaultForeground/getDefaultBackground pair is already overridden on lines 60-61) and checking terminal colors, or an explicit decision on the gate. Until then the gate fails for every P007 unit whose core change forces app recompilation. Replan: a separate prerequisite unit cannot run first, so this unit now carries the terminal fix in its `Do:`; deleting the override alone is rejected — `createDefaultStyle()` carries the terminal default style (see `## Decisions`).
+- OpenCodeSubagentFormat живёт в core, но пока ни к одному адаптеру не привязан (subagentFormat в OpenCode-адаптере и импорт .opencode/agents — более поздние юниты) и в generic Markdown-мапу добавлять его не нужно.
+- Терминальный гейт закрыт: в app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/PtyAssistanceTerminal.kt теперь приватные AssistanceTerminalSettings и AssistanceTerminalWidget; переопределять deprecated UserSettingsProvider.getDefaultStyle() больше нельзя, стиль идёт через createDefaultStyle().
+- JediTermWidget вызывает createDefaultStyle() из своего конструктора до присваивания полей подкласса, поэтому цвета читаются обратно через защищённое mySettingsProvider, а не через поле виджета; перенос цветов в поле виджета сломает стиль (null).
+- OpenCode-парсер выбрасывает и mode, и name: иначе чужой name стал бы фантомным тюнаблом в SubagentVariantsForm (форма показывает необъявленные поля варианта), а записан он всё равно не был бы.
+- appBuild всё ещё не поднят — единственный бамп остаётся в P007.3.1.
+- Unverified: Виджет не покрыт постоянным тестом: цвета после SGR-сброса у AssistanceTerminalWidget.createDefaultStyle() подтверждены только разовым тестом на реальном виджете, который удалён; регрессию в этом переопределении Verify (проверяет лишь styleState()) не поймает.
+- Unverified: Визуальный результат в живом приложении (цвет текста после сброса на реальной сессии PTY) не наблюдался — проверено только на уровне StyleState, скриншот/UI-прогон не делался.
 
 ### [ ] P007.1.2 Add OpenCode adapter and config root
 Read:

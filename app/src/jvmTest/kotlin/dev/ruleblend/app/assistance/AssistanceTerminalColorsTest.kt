@@ -1,5 +1,6 @@
 package dev.ruleblend.app.assistance
 
+import com.jediterm.terminal.TerminalColor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -43,6 +44,13 @@ class AssistanceTerminalColorsTest {
         assertEquals(0x141218, colors.background)
         assertNotEquals(colors.background, colors.selection)
         assertEquals(16, colors.ansi.size)
+    }
+
+    @Test fun `style state resets to the theme foreground and background`() {
+        val colors = assistanceTerminalColors(0x141218, 0xE6E0E9)
+        val styleState = colors.styleState().apply { reset() }
+        assertEquals(TerminalColor.rgb(0xE6, 0xE0, 0xE9), styleState.current.foreground)
+        assertEquals(TerminalColor.rgb(0x14, 0x12, 0x18), styleState.current.background)
     }
 
     @Test fun `palette serves the 16 ANSI indexes`() {

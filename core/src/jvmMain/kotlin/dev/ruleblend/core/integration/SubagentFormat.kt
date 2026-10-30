@@ -107,6 +107,62 @@ object ZCodeSubagentFormat : SubagentFormat by MarkdownSubagentFormat(
     ),
 )
 
+/**
+ * OpenCode names an agent after its file, so `name` is not a field it recognises; `mode: subagent`
+ * is what keeps the definition out of its primary agent list. Its `model` is
+ * `provider/model[#variant]` and its `color` is a hex value, so neither offers completions.
+ */
+object OpenCodeSubagentFormat : SubagentFormat {
+    override val extension: String = "md"
+
+    override val fields: List<SubagentFieldSpec> = listOf(
+        SubagentFieldSpec(SUBAGENT_FIELD_MODEL),
+        SubagentFieldSpec("color"),
+    )
+
+    override fun parse(text: String): SubagentDraft? {
+        val split = splitYamlFrontmatter(text) ?: return null
+        val header = split.meta.ifBlank { return SubagentDraft(content = split.body) }
+        val node = runCatching { Yaml.default.parseToYamlNode(header) }.getOrNull() as? YamlMap ?: return null
+        val values = linkedMapOf<String, String>()
+        node.entries.forEach { (key, value) ->
+            value.flatText()?.let { values[key.content] = it }
+        }
+        values.remove(OPEN_CODE_MODE_KEY)
+        values.remove(OPEN_CODE_NAME_KEY)
+        return SubagentDraft(
+            description = values.remove("description"),
+            fields = values.canonicalize(fields),
+            content = split.body,
+        )
+    }
+
+    override fun render(subagent: Block, variant: SubagentVariant): String {
+        subagent.requireSubagent()
+        return buildString {
+            appendLine("---")
+            append("description: ").append(yamlString(subagent.description)).appendLine()
+            append(OPEN_CODE_MODE_KEY).append(": ").append(OPEN_CODE_SUBAGENT_MODE).appendLine()
+            variant.nativeEntries(fields)
+                .filterNot { (key, _) -> key == OPEN_CODE_MODE_KEY || key == OPEN_CODE_NAME_KEY }
+                .forEach { (key, value) ->
+                    append(key).append(": ").append(yamlString(value)).appendLine()
+                }
+            appendLine("---")
+            appendLine()
+            append(subagent.content)
+        }
+    }
+}
+
+/** `mode` decides whether OpenCode treats a definition as a primary agent or a subagent. */
+private const val OPEN_CODE_MODE_KEY = "mode"
+
+private const val OPEN_CODE_SUBAGENT_MODE = "subagent"
+
+/** OpenCode derives an agent id from the filename and does not read a `name` field. */
+private const val OPEN_CODE_NAME_KEY = "name"
+
 /** Codex reads TOML agents; their Markdown body becomes `developer_instructions`. */
 object CodexSubagentFormat : SubagentFormat {
     override val extension: String = "toml"

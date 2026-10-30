@@ -6,6 +6,7 @@ import com.jediterm.core.Color
 import com.jediterm.terminal.TerminalColor
 import com.jediterm.terminal.TextStyle
 import com.jediterm.terminal.emulator.ColorPalette
+import com.jediterm.terminal.model.StyleState
 
 /** Terminal colors as plain RGB data, so the PTY start needs nothing from the composition. */
 data class AssistanceTerminalColors(
@@ -60,6 +61,9 @@ private fun terminalColor(rgb: Int) = TerminalColor(Color(channel(rgb, 16), chan
 internal fun AssistanceTerminalColors.defaultStyle() = TextStyle(terminalColor(foreground), terminalColor(background))
 
 internal fun AssistanceTerminalColors.selectionStyle() = TextStyle(terminalColor(foreground), terminalColor(selection))
+
+/** What jediterm falls back to after an SGR reset, so it carries the theme colors. */
+internal fun AssistanceTerminalColors.styleState() = StyleState().apply { setDefaultStyle(defaultStyle()) }
 
 // JediTerm resolves the 256-color cube and grays itself; the palette covers only indexes 0..15.
 internal fun AssistanceTerminalColors.palette(): ColorPalette = object : ColorPalette() {

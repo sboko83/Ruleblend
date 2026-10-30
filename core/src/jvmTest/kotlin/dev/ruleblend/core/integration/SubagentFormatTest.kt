@@ -90,6 +90,34 @@ class SubagentFormatTest {
     }
 
     @Test
+    fun `OpenCode renders its own mode and never a name`() {
+        val variant = SubagentVariant(
+            linkedMapOf(
+                "mode" to "primary",
+                "name" to "Foreign reviewer",
+                "color" to "#ff8800",
+                "model" to "anthropic/claude-sonnet-4-5#high",
+            ),
+        )
+
+        assertEquals(
+            """
+            ---
+            description: "Reviews Kotlin\nchanges"
+            mode: subagent
+            model: "anthropic/claude-sonnet-4-5#high"
+            color: "#ff8800"
+            ---
+
+            # Review
+
+            Check \ paths.
+            """.trimIndent() + "\n",
+            OpenCodeSubagentFormat.render(subagent, variant),
+        )
+    }
+
+    @Test
     fun `Pi renders model, tools and thinking`() {
         val variant = SubagentVariant(
             linkedMapOf(
@@ -238,6 +266,57 @@ class SubagentFormatTest {
         )
 
         assertEquals(mapOf("model" to "zai/glm-5.3", "thoughtLevel" to "high"), parsed?.fields)
+    }
+
+    @Test
+    fun `OpenCode parses its own render`() {
+        val variant = SubagentVariant(
+            linkedMapOf("model" to "anthropic/claude-sonnet-4-5", "color" to "#ff8800"),
+        )
+
+        assertEquals(
+            SubagentDraft(
+                description = subagent.description,
+                fields = mapOf("model" to "anthropic/claude-sonnet-4-5", "color" to "#ff8800"),
+                content = subagent.content,
+            ),
+            OpenCodeSubagentFormat.parse(OpenCodeSubagentFormat.render(subagent, variant)),
+        )
+    }
+
+    @Test
+    fun `OpenCode parse drops the mode and the name and keeps an unmodelled flat field`() {
+        val parsed = OpenCodeSubagentFormat.parse(
+            """
+            ---
+            name: Foreign reviewer
+            description: Reviews changes
+            mode: primary
+            model: anthropic/claude-sonnet-4-5
+            temperature: "0.2"
+            ---
+
+            body
+            """.trimIndent() + "\n",
+        )
+
+        assertEquals(
+            SubagentDraft(
+                description = "Reviews changes",
+                fields = linkedMapOf("model" to "anthropic/claude-sonnet-4-5", "temperature" to "0.2"),
+                content = "body\n",
+            ),
+            parsed,
+        )
+    }
+
+    @Test
+    fun `OpenCode ignores a nested permissions field`() {
+        val parsed = OpenCodeSubagentFormat.parse(
+            "---\ndescription: Reviews changes\npermissions:\n  edit: ask\nmodel: openai/gpt-5#high\n---\n\nbody\n",
+        )
+
+        assertEquals(mapOf("model" to "openai/gpt-5#high"), parsed?.fields)
     }
 
     @Test
