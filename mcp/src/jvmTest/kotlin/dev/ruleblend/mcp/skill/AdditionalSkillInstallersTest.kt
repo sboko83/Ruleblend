@@ -10,6 +10,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 
 class AdditionalSkillInstallersTest {
     private val home: Path = Files.createTempDirectory("ruleblend-additional-skill-home")
@@ -41,6 +42,34 @@ class AdditionalSkillInstallersTest {
         val skill = home.resolve(".zcode/skills/ruleblend/SKILL.md")
         assertEquals(BundledSkill.text, skill.readText())
         assertEquals(SkillStatus.INSTALLED, installer.status())
+    }
+
+    @Test
+    fun `OpenCode installs the bundled skill in its native directory`() {
+        home.resolve(".config/opencode").createDirectories()
+        val installer = OpenCodeSkillInstaller(home)
+
+        installer.install()
+
+        val skill = home.resolve(".config/opencode/skills/ruleblend/SKILL.md")
+        assertEquals(BundledSkill.text, skill.readText())
+        assertEquals(SkillStatus.INSTALLED, installer.status())
+
+        installer.uninstall()
+        assertFalse(skill.exists())
+    }
+
+    @Test
+    fun `OpenCode leaves a foreign skill alone`() {
+        home.resolve(".config/opencode").createDirectories()
+        val skill = home.resolve(".config/opencode/skills/ruleblend/SKILL.md")
+            .also { it.parent.createDirectories() }
+        skill.writeText("# Someone else's ruleblend skill\n")
+        val installer = OpenCodeSkillInstaller(home)
+
+        assertEquals(SkillStatus.FOREIGN, installer.status())
+        assertFailsWith<IllegalStateException> { installer.install() }
+        assertEquals("# Someone else's ruleblend skill\n", skill.readText())
     }
 
     @Test

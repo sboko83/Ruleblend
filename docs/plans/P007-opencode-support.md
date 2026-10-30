@@ -117,6 +117,8 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - Kept OpenCodeMcpJson standalone instead of generalizing the mcp.servers envelope out of ZCodeMcpJson — the entry shapes already differ and touching ZCode widens this unit — rejected: a shared McpSectionJson helper used by both.
 - parseEntry recognizes only the v2 local/remote shapes (plus type inference when the discriminator is absent) — a v1 flat `command` string stays unparsed and is shown as an unknown entry rather than silently reinterpreted as stdio — rejected: accepting the v1 string command for reading older configs.
 - A local entry needs a non-blank executable as the first command element; an empty array parses to null (unparsable) instead of Stdio("") that would read as a permanently modified entry — rejected: mapping an empty array to an empty command.
+- No legacy-address cleanup in OpenCodeConnector, unlike ZCodeConnector — OpenCode shipped only the v2 native address, so a legacy branch would be untestable dead code — rejected: copying ZCodeConnector's kitbash retirement verbatim.
+- Added OpenCode to the existing shared connector tables (version stamp, Windows path/foreign-preservation, foreign same-name) instead of only dedicated tests — the shared tables are the regression net every format gets and the OpenCode shape fits them without special cases — rejected: dedicated-only coverage that would miss cross-format invariants.
 
 ## Phase 1: Core surfaces
 
@@ -259,7 +261,7 @@ Handoff:
 - Unverified: No mcp test asserts that OpenCodeMcpInstaller picks opencode.json under OPENCODE_CONFIG_DIR / XDG_CONFIG_HOME overrides; that resolution is covered only by core's AssistantPathsTest, not through the installer.
 - Unverified: When a project holds both opencode.json and opencode.jsonc, only opencode.json servers are enumerated and jsonc-only servers never surface in Place; no test covers that visible behaviour, including the Place/MCP tab rendering of such a project.
 
-### [ ] P007.2.2 Connect OpenCode and install its bundled skill
+### [x] P007.2.2 Connect OpenCode and install its bundled skill
 Read:
 - mcp/src/jvmMain/kotlin/dev/ruleblend/mcp/McpConnector.kt:L1-140
 - mcp/src/jvmMain/kotlin/dev/ruleblend/mcp/McpServersJsonConnector.kt:L1-120
@@ -277,6 +279,12 @@ Traps: ownership rides in `environment.RULEBLEND_ENTRY`; parsing the command arr
 `args == ["--mcp"]` for the shared ownership check. Do not bump `MCP_ENTRY_VERSION`.
 Role: cheap
 Commit: P007.2.2: connect OpenCode
+Handoff:
+- OpenCodeConnector lives at mcp/src/jvmMain/kotlin/dev/ruleblend/mcp/OpenCodeConnector.kt with agentId "opencode" and resolves <root>/opencode.json through AssistantPaths.openCode, so P007.3.1 only has to add OpenCodeConnector(coordinator = targetCoordinator) and OpenCodeSkillInstaller() to the two lists in Main.kt.
+- The connector has no legacy-registration cleanup (unlike ZCodeConnector): OpenCode never had a pre-rename or kitbash-era address, so there is nothing to retire on register/unregister.
+- Ownership round trip works because OpenCodeMcpJson renders env under `environment` and parseEntry reads it back into env, so isOwnedRuleblendEntry sees args == ["--mcp"] and RULEBLEND_ENTRY; a future change to either side of that mapping silently turns every OpenCode registration FOREIGN.
+- OpenCodeConnector.isAvailable() is paths.openCode.exists() — a sandbox must have .config/opencode created before the app starts (already noted for the e2e sandbox).
+- Unverified: Neither OpenCodeConnector nor OpenCodeSkillInstaller is reachable from the app until P007.3.1 adds them to Main.kt, so Settings, Coverage and the bundled-skill surfaces show nothing for OpenCode yet; no app-level test exercises them.
 
 ## Phase 3: App wiring and e2e sandbox
 

@@ -4,6 +4,7 @@ import java.nio.file.Files
 import dev.ruleblend.core.model.McpServerConfig
 import dev.ruleblend.mcp.install.CodexMcpTable
 import dev.ruleblend.mcp.install.KimiMcpJson
+import dev.ruleblend.mcp.install.OpenCodeMcpJson
 import dev.ruleblend.mcp.install.ZCodeMcpJson
 import dev.ruleblend.mcp.install.McpServersJson
 import kotlinx.serialization.json.JsonPrimitive
@@ -19,6 +20,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -353,6 +355,48 @@ class McpConnectorTest {
         assertTrue("ruleblend" in servers)
     }
 
+    // --- OpenCode ---
+
+    @Test
+    fun `opencode registers in its native MCP config and preserves other settings`() {
+        val config = home.resolve(".config/opencode/opencode.json").also { it.parent.createDirectories() }
+        config.writeText(
+            """{"mcp":{"servers":{"other":{"type":"local","command":["/bin/other"]}},"timeout":30},"theme":"dark"}""",
+        )
+        val connector = OpenCodeConnector(home)
+        assertEquals(McpRegistration.NOT_REGISTERED, connector.status(binary))
+
+        connector.register(binary)
+
+        val root = Json.parseToJsonElement(config.readText()).jsonObject
+        val servers = root["mcp"]!!.jsonObject["servers"]!!.jsonObject
+        assertEquals("/bin/other", servers["other"]!!.jsonObject["command"]!!.jsonArray[0].jsonPrimitive.content)
+        assertEquals(binary.toString(), servers["ruleblend"]!!.jsonObject["command"]!!.jsonArray[0].jsonPrimitive.content)
+        assertEquals("30", root["mcp"]!!.jsonObject["timeout"]!!.jsonPrimitive.content)
+        assertEquals("dark", root["theme"]!!.jsonPrimitive.content)
+        assertEquals(McpRegistration.REGISTERED, connector.status(binary))
+        assertEquals(MCP_ENTRY_VERSION, connector.installedEntryVersion())
+
+        connector.unregister()
+
+        assertFalse("ruleblend" in Json.parseToJsonElement(config.readText())
+            .jsonObject["mcp"]!!.jsonObject["servers"]!!.jsonObject)
+        assertEquals(McpRegistration.NOT_REGISTERED, connector.status(binary))
+        assertEquals(null, connector.installedEntryVersion())
+    }
+
+    @Test
+    fun `opencode reads a ruleblend entry opening with a moved binary as a path problem`() {
+        home.resolve(".config/opencode").createDirectories()
+        val connector = OpenCodeConnector(home)
+        connector.register(movedBinary)
+
+        assertEquals(McpRegistration.STALE_PATH, connector.status(binary))
+
+        connector.register(binary)
+        assertEquals(McpRegistration.REGISTERED, connector.status(binary))
+    }
+
     // --- Entry version ---
 
     @Test
@@ -367,17 +411,20 @@ class McpConnectorTest {
             home.resolve(".kimi-code/mcp.json") to KimiCodeConnector(home),
             home.resolve(".zcode/cli/config.json") to ZCodeConnector(home),
             home.resolve(".pi/agent/mcp.json") to PiConnector(home),
+            home.resolve(".config/opencode/opencode.json") to OpenCodeConnector(home),
         )
         for ((file, connector) in entries) {
             fun upsert(text: String, name: String, config: McpServerConfig): String = when (connector) {
                 is CodexConnector -> CodexMcpTable.upsert(text, name, config)
                 is KimiCodeConnector -> KimiMcpJson.upsert(text, name, config)
                 is ZCodeConnector -> ZCodeMcpJson.upsert(text, name, McpServersJson.renderEntry(config))
+                is OpenCodeConnector -> OpenCodeMcpJson.upsert(text, name, OpenCodeMcpJson.renderEntry(config))
                 else -> McpServersJson.upsert(text, name, McpServersJson.renderEntry(config))
             }
             fun read(name: String): McpServerConfig? = when (connector) {
                 is CodexConnector -> CodexMcpTable.read(file.readText(), name)
                 is ZCodeConnector -> ZCodeMcpJson.read(file.readText(), name)?.let(McpServersJson::parseEntry)
+                is OpenCodeConnector -> OpenCodeMcpJson.read(file.readText(), name)?.let(OpenCodeMcpJson::parseEntry)
                 else -> McpServersJson.read(file.readText(), name)?.let(McpServersJson::parseEntry)
             }
             file.parent.createDirectories()
@@ -412,6 +459,7 @@ class McpConnectorTest {
             ZCodeConnector(home),
             KimiCodeConnector(home),
             PiConnector(home),
+            OpenCodeConnector(home),
         )
 
         connectors.forEach { connector ->
@@ -463,6 +511,8 @@ class McpConnectorTest {
                 """{"mcp":{"servers":{"ruleblend":{"type":"stdio","command":"/bin/foreign","args":["--serve"]}}}}"""),
             Triple(home.resolve(".pi/agent/mcp.json"), PiConnector(home),
                 """{"mcpServers":{"ruleblend":{"type":"stdio","command":"/bin/foreign","args":["--serve"]}}}"""),
+            Triple(home.resolve(".config/opencode/opencode.json"), OpenCodeConnector(home),
+                """{"mcp":{"servers":{"ruleblend":{"type":"local","command":["/bin/foreign","--serve"]}}}}"""),
         )
         for ((path, connector, original) in entries) {
             Files.createDirectories(path.parent)
