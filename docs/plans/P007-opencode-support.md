@@ -2,7 +2,7 @@
 id: P007
 title: OpenCode support
 type: feature
-status: draft
+status: active
 created: 2026-10-30
 permissions: auto
 gate: ./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests
@@ -79,6 +79,10 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - `docs/docflow.md` is in format 2 while the installed docflow expects 3. Run `docflow migrate`
   before `docflow new`.
 - The Gradle daemon needs the configured 3 GB heap; do not lower `kotlin.daemon.jvmargs`.
+- The base commit fails the plan gate: `app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/
+  PtyAssistanceTerminal.kt` overrides the JediTerm 3.76 deprecated `UserSettingsProvider.
+  getDefaultStyle()`, which `-Werror` turns into an `:app:compileKotlinJvm` failure whenever the app
+  is recompiled. P007.1.1 clears it; until it is committed, the gate fails for every unit.
 
 ## Decisions
 
@@ -95,14 +99,28 @@ the agent id, `name` is not a supported field, and the body becomes the system p
   MCP, skills and subagents.
 - No `MCP_ENTRY_VERSION` bump; the bundled skill version goes from v14 to v15 because its text
   changes.
+- Clear the pre-existing `-Werror` failure inside P007.1.1, not in a unit of its own: a fresh unit
+  gets the next id but runs last in Phase 1, while the runner always resumes the `[~]` unit first, so
+  a separate prerequisite would never run before the unit that needs it — rejected: a new
+  `P007.1.4` prerequisite placed before P007.1.1.
+- Fix the terminal by overriding `JediTermWidget.createDefaultStyle()` and dropping the deprecated
+  `getDefaultStyle()` override — `createDefaultStyle()` is the supported hook and the default style
+  must keep the theme colors — rejected: `@Suppress`/`@Deprecated` on the override, which keeps the
+  deprecated call and breaks when jediterm removes the method.
+- P007.1.1 touches shipped app code without raising `appBuild`: the single bump stays in P007.3.1
+  and both changes ship in the same release.
+- Replan changed check: P007.1.1 Verify: `./gradlew -PwarningsAsErrors=true :core:allTests` -> `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests`
 
 ## Phase 1: Core surfaces
 
-### [ ] P007.1.1 Add OpenCode subagent format
+### [~] P007.1.1 Add OpenCode subagent format
 Read:
 - core/src/jvmMain/kotlin/dev/ruleblend/core/integration/SubagentFormat.kt:L1-260
 - core/src/commonMain/kotlin/dev/ruleblend/core/model/YamlFrontmatter.kt:L1-120
 - core/src/jvmTest/kotlin/dev/ruleblend/core/integration/SubagentFormatTest.kt:L1-160
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/PtyAssistanceTerminal.kt:L1-75
+- app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/AssistanceTerminalColors.kt:L55-72
+- app/src/jvmTest/kotlin/dev/ruleblend/app/assistance/AssistanceTerminalColorsTest.kt:L1-20
 Do:
 - Add `OpenCodeSubagentFormat` with its own Markdown implementation: render `description`, a fixed
   `mode: subagent`, declared flat fields `model` and `color`, then the body; never write `name`.
@@ -113,11 +131,28 @@ Do:
 - Add tests: rendered text has no `name`, has `mode: subagent` and the body; parsing a rendered
   definition round-trips; an unknown flat field survives; a nested `permissions` value does not
   throw.
-Verify: `./gradlew -PwarningsAsErrors=true :core:allTests`
+- Clear the gate failure that blocked this unit, in the same commit: add
+  `internal fun AssistanceTerminalColors.styleState()` next to `defaultStyle()` carrying the same
+  `TextStyle` as the `StyleState` default, create the widget in `PtyAssistanceTerminal.kt` through a
+  private `JediTermWidget` subclass that overrides the protected `createDefaultStyle()` with it, drop
+  the deprecated `getDefaultStyle()` override from the anonymous `DefaultSettingsProvider` while
+  keeping `getDefaultForeground()`/`getDefaultBackground()`, and assert in
+  `AssistanceTerminalColorsTest` that `styleState()` holds the theme foreground and background as
+  `TerminalColor.rgb(...)` values.
+Verify: `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests`
 Traps: OpenCode v2 treats the body as `system`, and `mode` is a format-owned constant, not a
-variant field; a foreign `mode: primary` must not leak into the rendered file.
+variant field; a foreign `mode: primary` must not leak into the rendered file. The terminal fix is
+not optional and not a plain deletion: `JediTerminal` calls `StyleState.reset()` on SGR 0
+(jediterm-core `JediTerminal.java`, `resetAttributes` and `reset`), so the terminal's default style
+comes from `JediTermWidget.createDefaultStyle()`, and the inherited
+`UserSettingsProvider.getDefaultStyle()` is black-on-white; text after a reset would lose the theme
+colors. `getDefaultForeground()`/`getDefaultBackground()` only feed
+`TerminalPanel.getWindowForeground()`/`getWindowBackground()`. Do not silence the diagnostic with
+`@Suppress` or `@Deprecated`, and do not raise `appBuild` here: P007.3.1 raises it once.
 Role: heavy
 Commit: P007.1.1: add OpenCode subagent format
+Handoff:
+- Blocked (plan): Unit work is complete and its own Verify passed (`./gradlew -PwarningsAsErrors=true :core:allTests`, SubagentFormatTest 21 tests / 0 failures, 4 new OpenCode tests). The plan's gate `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests` fails at :app:compileKotlinJvm on a pre-existing -Werror diagnostic unrelated to this unit: app/src/jvmMain/kotlin/dev/ruleblend/app/assistance/PtyAssistanceTerminal.kt:62:30 overrides UserSettingsProvider.getDefaultStyle(), deprecated in jediterm-ui 3.76; reproduced on clean HEAD 010e9e4 in a detached worktree with the same command. The plan needs a fix: a prerequisite unit dropping that override (the supported getDefaultForeground/getDefaultBackground pair is already overridden on lines 60-61) and checking terminal colors, or an explicit decision on the gate. Until then the gate fails for every P007 unit whose core change forces app recompilation. Replan: a separate prerequisite unit cannot run first, so this unit now carries the terminal fix in its `Do:`; deleting the override alone is rejected — `createDefaultStyle()` carries the terminal default style (see `## Decisions`).
 
 ### [ ] P007.1.2 Add OpenCode adapter and config root
 Read:
