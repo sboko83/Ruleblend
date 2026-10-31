@@ -122,6 +122,7 @@ the agent id, `name` is not a supported field, and the body becomes the system p
 - Updated EXPECTED_DIGEST instead of relaxing the test — the test is the guard that a changed SKILL.md ships under a new marker version — rejected: stripping the digest assertion.
 - Added an `opencode` CLI stub to the sandbox bin although OpenCode adapter detection depends only on the config directory — the other assistants all get a stub and PATH parity keeps a future CLI lookup from hitting the real binary — rejected: relying on the missing-binary path for OpenCode only.
 - Recorded the OpenCode distribution snapshot as 2.2.3 without a calendar date, because no dated release note was checked in this unit — rejected: inventing a snapshot date.
+- Manual replan of P007.5.1 changes the acceptance `Verify:` and the live-check `Do:` step, which a replan otherwise leaves alone: the original command `python3 -B tools/ui_e2e.py ui --tests '*Phase1Test*'` could never pass, because `Phase1Test` is written for one method per sandbox (`Phase1Test.kt:58`, `docs/UI_E2E.md:L137`) and the broad pattern runs all 12 in one home — 3 passed, 9 failed on state left behind by other methods (`.git/docflow/run/P007.5.1.verify.log`), while `projects` runs P-01…P-12 on independent roots and is the documented Phase-1 suite; the live check named a command OpenCode 2.2.3 does not have (`opencode agent` is not a subcommand, `opencode debug --help` lists `agents`, and `debug config` needs `--standalone` when the developer's own service owns the port) — rejected: changing `tools/ui_e2e.py` so a broad `--tests` pattern is split into per-scenario sandboxes, which would break the one-method-per-sandbox contract every suite is built on, and `--skip`ping the e2e step, which would drop the only check of the acceptance Goal.
 
 ## Phase 1: Core surfaces
 
@@ -373,26 +374,41 @@ Handoff:
 
 ## Phase 5: Acceptance
 
-### [ ] P007.5.1 Accept OpenCode end to end
+### [x] P007.5.1 Accept OpenCode end to end
 Read:
 - app/src/uiE2e/kotlin/dev/ruleblend/e2e/Phase1Test.kt:L300-340
 - app/src/uiE2e/kotlin/dev/ruleblend/e2e/Phase1Test.kt:L580-625
 - tools/ui_e2e.py:L80-120
+- tools/ui_e2e.py:L193-260
+- tools/ui_e2e.py:L787-800
 - docs/UI_E2E.md:L100-170
 Do:
 - Run the complete unit suite.
-- Run the Phase 1 UI e2e suite on a fresh sandbox and confirm that a rule, skill, subagent and MCP
-  server reach every OpenCode global and project destination while foreign files stay untouched.
+- Run the Phase 1 UI e2e suite as `python3 -B tools/ui_e2e.py projects`, which gives P-01…P-12
+  their own sandbox each, and confirm that a rule, skill, subagent and MCP server reach every
+  OpenCode global and project destination while foreign files stay untouched.
 - From a temporary `XDG_CONFIG_HOME`, write the Ruleblend MCP entry and an OpenCode subagent
-  through the fixtures, then run `opencode debug config` and `opencode agent list` with the
-  installed OpenCode 2.2.3; confirm the `ruleblend` server and the agent are listed.
+  through the fixtures, then run `opencode debug config --standalone` and
+  `opencode debug agents --standalone` with the installed OpenCode 2.2.3; confirm the `ruleblend`
+  server and the agent are listed.
 - Close every `Unverified:` item from earlier Handoffs by a test, an `Accepted:` note or a concrete
   failing scenario. Record the live CLI output in the Handoff.
-Verify: `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests :app:compileUiE2eKotlinJvm && python3 -B tools/ui_e2e.py ui --tests '*Phase1Test*'`
-Traps: the UI e2e runs only under its temporary root; never point it at the real home. The live
+Verify: `./gradlew -PwarningsAsErrors=true :core:allTests :mcp:allTests :app:allTests :app:compileUiE2eKotlinJvm && python3 -B tools/ui_e2e.py projects`
+Traps: `Phase1Test` runs one method per sandbox, so a broad `ui --tests '*Phase1Test*'` puts all 12 in one home and most fail on state left by another method; only the `projects` suite gives each P-scenario its own root and the cold restarts of P-03, P-07 and P-10. The UI e2e runs only under its temporary root; never point it at the real home. The live
 OpenCode check must use a temporary `XDG_CONFIG_HOME`, otherwise it reads the developer's own
 config. If `opencode` is missing from PATH, block the unit as a human issue instead of skipping it
 silently. The exact file shape is asserted by unit tests; the live run is a confirmation.
 Depends: P007.1.1, P007.1.2, P007.1.3, P007.2.1, P007.2.2, P007.3.1, P007.3.2, P007.4.1
 Role: acceptance
 Commit: P007.5.1: accept OpenCode support
+Handoff:
+- Blocked (plan): Plan expects Verify to end with `python3 -B tools/ui_e2e.py ui --tests '*Phase1Test*'`; that runs all 12 Phase1Test methods in one sandbox, but the class is written and documented for one method per sandbox (Phase1Test.kt:58). In the fresh sandbox 9/12 fail on shared home state, not on OpenCode: P01 sees a project left by P11, P02 sees P11's Same Name projects, P05/P07/P09/P10/P12 fail in createFour because the library already holds e2e-rule etc. The supported Phase-1 suite is `python3 -B tools/ui_e2e.py projects`: it ran P01..P12 on independent roots and all 12 passed, including P03/P07/P10 cold restarts; P12 asserts the OpenCode global rule/skill/subagent/MCP install, update and removal at `.config/opencode`, P07/P08 assert project `.opencode/skills`, `.opencode/agents` and `opencode.json` with foreign AGENTS.md/notes.txt untouched. Replan: replace the e2e step in Verify with `python3 -B tools/ui_e2e.py projects`; the full `docflow verify` failure log is .git/docflow/run/P007.5.1.verify.log. Also fix the Do wording: `opencode agent list` does not exist in 2.2.3 (`opencode agent` shows the main help); the v2 command is `opencode debug agents`, and `opencode debug config` needs `--standalone` when the developer's background service owns the port. Done and verified: unit suite green (core 958, mcp 307, app 589 tests, 0 failures, app forced rerun); live OpenCode 2.2.3 from a temporary XDG_CONFIG_HOME: `opencode debug paths` reports config <tmp>/xdg/opencode, `opencode debug config --standalone` lists mcp.servers.ruleblend = type local, command [<bin>, --mcp], environment RULEBLEND_ENTRY 5, and `opencode debug agents --standalone` lists live-review as mode subagent, model anthropic/claude-sonnet-4-5, color #FF8800. Unverified closures are six new test methods in four test files in the working tree (adapter order incl. OpenCode; invalid OPENCODE_CONFIG_DIR/XDG_CONFIG_HOME fallback and rejectedOverrides; nested .opencode/agents and the .toml per-file error; installer override resolution; jsonc-only project invisibility) — keep them. Accepted, not tested: terminal default-style hook (private widget; AssistanceTerminalColorsTest covers post-reset StyleState), live PTY visual reset, opencode --continue resume, OpenCode global state after a cold restart, Settings/Coverage OpenCode rendering (P12 covers Place), bundled-skill v14 to v15 prompt in a real session, desktop run_desktop fingerprint probe.
+- Done and verified with the replanned Verify: unit suite core 958 / mcp 307 / app 589 tests, 0 failures; `python3 -B tools/ui_e2e.py projects` ran P-01…P-12 in 12 separate sandboxes and all passed, with cold restarts on P-03, P-07 and P-10 (12 run blocks in .git/docflow/run/P007.5.1.verify.log, stages first+restart exactly on those three).
+- In the same 12-run suite the OpenCode Goal holds end to end: P12 checks the global rule, skill, subagent and opencode.json under .config/opencode, P07/P08 check project .opencode/skills, .opencode/agents and opencode.json, and the foreign AGENTS.md/notes.txt next to them stay byte-identical.
+- Live OpenCode 2.2.3 re-confirmed from a temporary root (HOME and XDG_CONFIG_HOME both under it): `opencode debug paths` reports config <tmp>/xdg/opencode; `opencode debug config --standalone` lists mcp.servers.ruleblend = type local, command [Ruleblend.app/Contents/MacOS/Ruleblend, --mcp], environment RULEBLEND_ENTRY 5, keeps a foreign remote server untouched and mcp.timeout as a sibling of servers; `opencode debug agents --standalone` lists live-review as mode subagent, model providerID anthropic / id claude-sonnet-4-5, color #FF8800, and leaves a foreign `mode: primary` agent as it was. `opencode agent list` does not exist in 2.2.3 — the plan text was corrected in the replan.
+- Closed by test, committed with this unit (six methods in four files): shippedAgentAdapters order incl. OpenCode; invalid OPENCODE_CONFIG_DIR and XDG_CONFIG_HOME falling back to ~/.config/opencode with both rejections in rejectedOverrides; nested .opencode/agents/<sub>/x.md named by the file stem; the per-file TOML error under .opencode/agents; OpenCodeMcpInstaller honouring OPENCODE_CONFIG_DIR over XDG_CONFIG_HOME; a sibling opencode.jsonc left unread and unmodified by project install.
+- Accepted: terminal default-style hook plus the live PTY reset — AssistanceTerminalColorsTest pins styleState() to the theme colors, the widget override only forwards it (the change deletes a deprecated override, it adds no color logic), and the visual check needs an interactive PTY session this suite cannot own.
+- Accepted: Settings and Coverage rendering of OpenCode — Place is asserted end to end by P12 from the same shippedAgentAdapters()/connectors lists, and no unit of this plan touched view code, so a break limited to Settings or Coverage is not a risk this plan introduces.
+- Accepted: opencode --continue resume and the bundled-skill v14→v15 prompt in a live session — both are assistant-side behaviour outside Ruleblend's surface; the marker and the SKILL.md digest are pinned by BundledSkillTest, and the CLI descriptor is shared adapter data this plan did not change.
+- Accepted: P12 'restart' stage — it fails in createFour on a pre-existing harness defect reproducible before OpenCode shipped, and P12's 'first' stage is the OpenCode global evidence; cold-restart behaviour is still covered by the P-03/P-07/P-10 restarts, so the gap is the OpenCode global re-read after a cold start only, on files written atomically in the first stage.
+- Accepted: the desktop run_desktop fingerprint probe was not executed — it needs a packaged build and Accessibility; the added .config/opencode entry only extends the compare list in tools/ui_e2e.py, and the projects suite that did run reports no write outside its own root.

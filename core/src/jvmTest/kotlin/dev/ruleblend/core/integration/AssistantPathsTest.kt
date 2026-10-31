@@ -69,6 +69,18 @@ class AssistantPathsTest {
         assertEquals(home.resolve(".config/opencode"), AssistantPaths(home).openCode)
     }
 
+    @Test fun invalidOpenCodeOverridesFallBackToTheDefaultAndAreReported() {
+        val paths = AssistantPaths(home, mapOf(
+            "OPENCODE_CONFIG_DIR" to "relative/opencode",
+            "XDG_CONFIG_HOME" to "relative/xdg",
+        ))
+
+        assertEquals(home.resolve(".config/opencode"), paths.openCode)
+        assertEquals(2, paths.rejectedOverrides.size)
+        assertTrue(paths.rejectedOverrides.any { it.startsWith("OPENCODE_CONFIG_DIR ") })
+        assertTrue(paths.rejectedOverrides.any { it.startsWith("XDG_CONFIG_HOME ") })
+    }
+
     @Test fun openCodeConfigDirIsNotTreatedAsAnXdgBase() {
         val own = home.resolve("own-opencode")
 

@@ -44,6 +44,14 @@ class AgentAdapterTest {
     }
 
     @Test
+    fun shippedAdaptersPlaceOpenCodeRightAfterCodex() {
+        assertEquals(
+            listOf("claude-code", "codex", "opencode", "pi", "kimi-code", "zcode"),
+            shippedAgentAdapters().map { it.id },
+        )
+    }
+
+    @Test
     fun openCodeIsAvailableOnlyWithItsConfigDir() {
         val adapter = OpenCodeAdapter(home)
 

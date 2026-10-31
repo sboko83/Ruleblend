@@ -29,6 +29,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -319,6 +320,38 @@ class GitSubagentImportTest {
         assertEquals("kimi-code", agent.source?.assistant)
         assertEquals("fast", agent.variant("kimi-code")["model"])
         assertTrue(agent.variant("claude-code").isEmpty)
+    }
+
+    @Test
+    fun `OpenCode definitions are found in nested directories and named by the file stem`() {
+        val path = ".opencode/agents/team/reader.md"
+        upstream.resolve(path).parent.createDirectories().resolve("reader.md").writeText(
+            "---\ndescription: Nested reader\nmode: subagent\nname: ignored\n---\n\nRead carefully.\n",
+        )
+        commit()
+
+        val candidate = imports.fetch(url).subagents.single { it.path == path }
+
+        assertEquals("opencode", candidate.sourceAssistant)
+        assertFalse(candidate.requiresAssistantSelection)
+        val draft = candidate.draftFor("opencode")
+        assertEquals("reader", draft.name)
+        assertEquals("Nested reader", draft.description)
+        assertEquals("Read carefully.\n", draft.content)
+    }
+
+    @Test
+    fun `OpenCode accepts Markdown only and reports a TOML file in its root`() {
+        val path = ".opencode/agents/tool.toml"
+        upstream.resolve(path).parent.createDirectories().resolve("tool.toml")
+            .writeText("name = \"tool\"\ndescription = \"Tool\"\ndeveloper_instructions = \"Work.\"\n")
+        commit()
+
+        val plan = imports.fetch(url)
+
+        assertTrue(plan.subagents.none { it.path == path })
+        val error = plan.errors.single { it.path == path }
+        assertTrue("TOML is only supported for Codex subagents" in error.message, error.message)
     }
 
     private fun importAgent(): Block {

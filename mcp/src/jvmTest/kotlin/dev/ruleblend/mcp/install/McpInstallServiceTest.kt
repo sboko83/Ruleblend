@@ -1,6 +1,7 @@
 package dev.ruleblend.mcp.install
 
 import dev.ruleblend.core.integration.AgentGlobalTarget
+import dev.ruleblend.core.integration.AssistantPaths
 import dev.ruleblend.core.integration.ClaudeCodeAdapter
 import dev.ruleblend.core.integration.CodexAdapter
 import dev.ruleblend.core.integration.KimiCodeAdapter
@@ -459,6 +460,50 @@ class McpInstallServiceTest {
         assertTrue("\"timeout\": 5000" in text)
         assertTrue("theirs" in text)
         assertEquals(McpStatus(InstallStatus.SYNCED, conflict = false), service.status(globalOpenCode, stdioBlock))
+    }
+
+    @Test
+    fun `OpenCode global file follows the environment override order`() {
+        val own = home.resolve("own-opencode").createDirectories()
+        val xdg = home.resolve("xdg").createDirectories()
+        val ownPaths = AssistantPaths(home, mapOf(
+            "OPENCODE_CONFIG_DIR" to own.toString(),
+            "XDG_CONFIG_HOME" to xdg.toString(),
+        ))
+        val ownService = McpInstallService(
+            installers = listOf(OpenCodeMcpInstaller(paths = ownPaths)),
+            state = McpStateStore(home.resolve(".ruleblend-own")),
+        )
+
+        ownService.install(AgentGlobalTarget(OpenCodeAdapter(paths = ownPaths)), stdioBlock)
+
+        assertTrue(own.resolve("opencode.json").exists())
+        assertFalse(xdg.resolve("opencode/opencode.json").exists())
+
+        val xdgPaths = AssistantPaths(home, mapOf("XDG_CONFIG_HOME" to xdg.toString()))
+        val xdgService = McpInstallService(
+            installers = listOf(OpenCodeMcpInstaller(paths = xdgPaths)),
+            state = McpStateStore(home.resolve(".ruleblend-xdg")),
+        )
+
+        xdgService.install(AgentGlobalTarget(OpenCodeAdapter(paths = xdgPaths)), stdioBlock)
+
+        assertTrue(xdg.resolve("opencode/opencode.json").exists())
+    }
+
+    @Test
+    fun `OpenCode project ignores a sibling opencode jsonc`() {
+        val jsonc = project.resolve("opencode.jsonc")
+        val original = """{"mcp":{"servers":{"jsonc-only":{"type":"remote","url":"https://jsonc.invalid"}}}}"""
+        jsonc.writeText(original)
+
+        assertEquals(emptyList(), service.entries(openCodeProjectTarget))
+
+        service.install(openCodeProjectTarget, stdioBlock)
+
+        assertEquals(listOf("context7"), service.entries(openCodeProjectTarget).map { it.name })
+        assertFalse("jsonc-only" in project.resolve("opencode.json").readText())
+        assertEquals(original, jsonc.readText())
     }
 
     // --- safe writes protect a hand-edited or foreign entry ---
