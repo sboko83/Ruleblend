@@ -22,6 +22,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -591,6 +592,11 @@ class Phase5Test {
             compose.waitUntil(15_000) { "claude-code" !in openConfigStore().load().hiddenAgents }
             compose.onNodeWithTag("settings-visible-claude-code").performClick()
             compose.waitUntil(15_000) { "claude-code" in openConfigStore().load().hiddenAgents }
+            // Every shipped assistant owns its own row, so the OpenCode row has to answer for opencode.
+            compose.onNodeWithTag("settings-visible-opencode").performScrollTo().performClick()
+            compose.waitUntil(15_000) { "opencode" in openConfigStore().load().hiddenAgents }
+            compose.onNodeWithTag("settings-visible-opencode").performClick()
+            compose.waitUntil(15_000) { "opencode" !in openConfigStore().load().hiddenAgents }
         } else {
             assertTrue("claude-code" in openConfigStore().load().hiddenAgents)
             val before = Files.readAllBytes(project.resolve("AGENTS.md")).toList()
@@ -598,6 +604,8 @@ class Phase5Test {
             compose.onNodeWithTag("coverage-agents-panel").performClick()
             compose.onNodeWithTag("coverage-agent-claude-code").performClick()
             compose.waitUntil(15_000) { "claude-code" !in openConfigStore().load().hiddenAgents }
+            // OpenCode keeps its place in the same panel, visible by default like the rest.
+            compose.onNodeWithTag("coverage-agent-opencode").assertIsOn()
             homeScan()
             // Home offers to hide the returned assistant again: every surface reads the same list.
             compose.waitUntil(15_000) { compose.onAllNodesWithText(EnStrings.homeHideAgent).fetchSemanticsNodes().isNotEmpty() }
