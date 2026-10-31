@@ -990,6 +990,9 @@ with the terminal instead of reclaiming it through the Compose focus tree.
 PTY launch and bounded termination run off EDT, Swing work runs on EDT, and launch failure cleans
 up any created child. The CLI inherits the normal environment with the detected PATH and terminal
 type. JediTerm/Pty4J live in `app`; their native libraries and license notices ship with the runtime.
+The terminal's default style — what `JediTerminal` falls back to after an SGR 0 reset — comes from
+`JediTermWidget.createDefaultStyle()` with the app theme colors; the deprecated
+`getDefaultStyle()` override is gone ([P007](archive/P007-opencode-support.md)).
 
 Compose Desktop uses a shared collapsible navigation sidebar and 44 dp top bar over typed application
 routes. The sidebar animates between 204 dp and 68 dp without swapping layouts: icons keep one column,
@@ -1576,7 +1579,7 @@ Blocks of `type: mcp` describe third-party MCP servers installable into agent MC
   cannot preserve its comments, so a server defined only there is left to OpenCode.
   Edits go through the pure helpers
   `McpServersJson` / `KimiMcpJson` / `ZCodeMcpJson` / `OpenCodeMcpJson` / `CodexMcpTable`,
-  preserving foreign content.
+  preserving foreign content ([P007](archive/P007-opencode-support.md)).
 - **ZCode migration:** startup moves unchanged sidecar-owned entries and owned self-registrations
   from the former global `~/.agents/mcp.json` and project `.mcp.json` destinations into native
   configs. A record stores its new `configPath`, preventing a removed native copy from being
