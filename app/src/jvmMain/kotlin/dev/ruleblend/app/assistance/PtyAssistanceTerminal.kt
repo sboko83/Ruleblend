@@ -72,7 +72,7 @@ fun startAssistanceTerminal(launch: AssistanceLaunch): PtyAssistanceTerminal {
  * The theme values jediterm reads while it builds the widget. `getDefaultStyle()` stays uninherited:
  * it is deprecated, and the widget takes the terminal's default style from [AssistanceTerminalColors.styleState].
  */
-private class AssistanceTerminalSettings(
+internal class AssistanceTerminalSettings(
     private val colors: AssistanceTerminalColors,
 ) : DefaultSettingsProvider() {
     // JediTerm reads these when the widget is created; a later change does not repaint it.
@@ -89,7 +89,7 @@ private class AssistanceTerminalSettings(
  * `JediTerminal` resets its style state on SGR 0, and the inherited default is black-on-white, so the
  * theme style comes from the one hook the widget offers for it.
  */
-private class AssistanceTerminalWidget(
+internal class AssistanceTerminalWidget(
     settings: AssistanceTerminalSettings,
 ) : JediTermWidget(90, 24, settings) {
     // The superclass stores the settings provider before it asks for the style state.
