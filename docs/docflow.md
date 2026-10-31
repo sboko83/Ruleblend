@@ -7,7 +7,6 @@ start_budget: 4000
 ## Queue
 
 ## Frozen
-- P002 — building mods into the app is premature (user, 2026-10-16)
 
 ## Backlog
 - Run the embedded AI help terminal on macOS x64 and Windows, including paths with Unicode and
