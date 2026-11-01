@@ -27,7 +27,10 @@ internal class ModStorage(private val root: Path, private val git: LibraryGit) {
     }
 
     fun list(): List<ModSnapshot> = if (!directory.exists()) emptyList() else directory.listDirectoryEntries()
-        .filter { !it.name.startsWith('.') }
+        .filter {
+            !it.name.startsWith('.') && Files.isDirectory(it, NOFOLLOW_LINKS) &&
+                Files.isRegularFile(it.resolve("meta.yaml"), NOFOLLOW_LINKS)
+        }
         .mapNotNull { load(it.name) }.sortedWith(compareBy({ it.mod.name }, { it.mod.id }))
 
     fun load(id: String): ModSnapshot? {

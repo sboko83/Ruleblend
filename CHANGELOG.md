@@ -59,6 +59,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   move to the assistant's folder or are removed; copies edited by hand stay where they are.
 
 ### Fixed
+- app: The library ignores leftover debris in its mods folder (a directory without `meta.yaml`,
+  stray files); previously one such entry crashed the app on every start.
 - app: A subagent no longer shows an update on its existing copies when an assistant connected
   later has no copy yet; it is marked "not everywhere" and offers to install the missing one.
 - app: Skills behave the same way: an assistant connected after the install no longer turns every
