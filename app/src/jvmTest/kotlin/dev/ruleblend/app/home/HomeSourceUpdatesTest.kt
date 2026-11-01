@@ -1,10 +1,14 @@
 package dev.ruleblend.app.home
 
 import dev.ruleblend.app.library.LibraryUsageSource
+import dev.ruleblend.app.library.ModsFeature
 import dev.ruleblend.core.config.AppConfig
 import dev.ruleblend.core.config.ConfigStore
 import dev.ruleblend.core.config.SourceCheckMode
 import dev.ruleblend.core.model.GitSkillSource
+import dev.ruleblend.core.model.Mod
+import dev.ruleblend.core.model.ModSnapshot
+import dev.ruleblend.core.model.ModSource
 import dev.ruleblend.core.model.Skill
 import dev.ruleblend.core.model.SkillFile
 import dev.ruleblend.core.model.SkillSnapshot
@@ -19,6 +23,8 @@ import dev.ruleblend.core.usecase.toSourcesState
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
+import kotlin.io.path.createDirectories
+import kotlin.io.path.writeText
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -42,7 +48,33 @@ class HomeSourceUpdatesTest {
 
     @AfterTest
     fun tearDown() {
+        ModsFeature.enabled = false
         root.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `frozen mods stay unread and invisible`() = runBlocking {
+        repository.writeMod(
+            ModSnapshot(
+                mod = Mod(id = "demo", name = "Demo", manifestName = "demo", source = ModSource(REPOSITORY, "0123456789abcdef0123456789abcdef01234567", ".")),
+                files = listOf(
+                    SkillFile(".claude-plugin/plugin.json", """{"name":"demo"}""".encodeToByteArray(), false),
+                ),
+            ),
+        )
+        val debris = root.resolve("library").resolve("mods").resolve("half-copied")
+        debris.resolve("files/hooks").createDirectories()
+        debris.resolve("files/hooks/register.js").writeText("export {}\n")
+
+        ModsFeature.enabled = false
+        val frozen = model()
+        frozen.refreshSourceUpdates()
+        assertTrue(frozen.sourceUpdates.modNames.isEmpty())
+
+        ModsFeature.enabled = true
+        val unfrozen = model()
+        unfrozen.refreshSourceUpdates()
+        assertEquals("Demo", unfrozen.sourceUpdates.modNames["demo"])
     }
 
     @Test

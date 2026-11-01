@@ -211,7 +211,7 @@ class LibraryModel(
             repository.init()
             val read = repository.listBlocks()
             repository.syncAllGroup()
-            Loaded(read, repository.listGroups(), repository.listProfiles(), repository.listSkills(), configStore.load(), stamp, repository.listMods())
+            Loaded(read, repository.listGroups(), repository.listProfiles(), repository.listSkills(), configStore.load(), stamp, if (ModsFeature.enabled) repository.listMods() else emptyList())
         }
     }
 

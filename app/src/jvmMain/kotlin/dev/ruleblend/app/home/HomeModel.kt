@@ -8,6 +8,7 @@ import dev.ruleblend.app.library.LibraryPlaceUsage
 import dev.ruleblend.app.library.LibraryUsageSource
 import dev.ruleblend.app.library.LibraryObjectKey
 import dev.ruleblend.app.library.LibraryObjectKind
+import dev.ruleblend.app.library.ModsFeature
 import dev.ruleblend.app.library.sourceUpdateId
 import dev.ruleblend.core.storage.FileReadScope
 import dev.ruleblend.core.config.AppConfig
@@ -179,7 +180,7 @@ class HomeModel(
         val loaded = withContext(Dispatchers.IO) {
             val imported = repository.listSkills().filter { it.source != null }
             val subagents = repository.listBlocks().filter { it.source != null }
-            val mods = repository.listMods().filter { it.source != null }
+            val mods = if (ModsFeature.enabled) repository.listMods().filter { it.source != null } else emptyList()
             val state = sourceStateStore?.load()
             val cached = state?.cachedSourceCheck(repository)
             val byRepository = state?.sources.orEmpty().associateBy { it.repository }
@@ -253,7 +254,7 @@ class HomeModel(
             sourceUpdates = sourceUpdates.copy(
                 skillNames = names,
                 subagentNames = subagentNames,
-                modNames = withContext(Dispatchers.IO) { repository.listMods().filter { it.source != null }.associate { it.id to it.name } },
+                modNames = withContext(Dispatchers.IO) { if (ModsFeature.enabled) repository.listMods().filter { it.source != null }.associate { it.id to it.name } else emptyMap() },
                 sources = report.perRepo.map { source ->
                     HomeSkillSource(
                         repository = source.repository,
@@ -301,7 +302,7 @@ class HomeModel(
             }
             sourceUpdates = sourceUpdates.copy(
                 skillNames = names,
-                modNames = withContext(Dispatchers.IO) { repository.listMods().filter { it.source != null }.associate { it.id to it.name } },
+                modNames = withContext(Dispatchers.IO) { if (ModsFeature.enabled) repository.listMods().filter { it.source != null }.associate { it.id to it.name } else emptyMap() },
                 subagentNames = withContext(Dispatchers.IO) {
                     repository.listBlocks().filter { it.source != null }.associate { it.id to it.name }
                 },
@@ -461,7 +462,7 @@ class HomeModel(
             library = LibraryTotals(
                 rules = blocks.count { it.type == BlockType.RULE },
                 skills = skills.size,
-                mods = repository.listMods().size,
+                mods = if (ModsFeature.enabled) repository.listMods().size else 0,
                 mcpServers = blocks.count { it.type == BlockType.MCP },
                 groups = repository.listGroups().count { it.id != ALL_GROUP_ID },
             ),
