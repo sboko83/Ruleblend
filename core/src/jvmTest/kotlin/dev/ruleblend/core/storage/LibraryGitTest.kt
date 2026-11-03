@@ -8,6 +8,7 @@ import dev.ruleblend.core.model.BlockType
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.FutureTask
+import kotlin.concurrent.thread
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.test.AfterTest
@@ -15,10 +16,12 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.api.errors.JGitInternalException
 import org.eclipse.jgit.transport.RemoteRefUpdate
 
 class LibraryGitTest {
@@ -84,6 +87,54 @@ class LibraryGitTest {
         assertTrue(isRetryablePushFailure(RemoteRefUpdate.Status.REJECTED_NONFASTFORWARD, null))
         assertTrue(isRetryablePushFailure(RemoteRefUpdate.Status.REJECTED_OTHER_REASON, "failed to lock refs/heads/main"))
         assertFalse(isRetryablePushFailure(RemoteRefUpdate.Status.REJECTED_OTHER_REASON, "permission denied"))
+    }
+
+    @Test
+    fun `a stale index lock left by a dead process is recovered`() {
+        val git = LibraryGit(root, lockWaitMillis = 100, staleLockMillis = 1_000)
+        git.init()
+        commitFile(git, "blocks/one.md", "one")
+        val headBefore = Git.open(root.toFile()).use { it.repository.resolve("HEAD") }
+
+        val stale = root.resolve(".git/index.lock").toFile().apply {
+            writeText("")
+            setLastModified(System.currentTimeMillis() - 60_000)
+        }
+
+        commitFile(git, "blocks/two.md", "two")
+
+        assertFalse(stale.exists())
+        assertNotEquals(headBefore, Git.open(root.toFile()).use { it.repository.resolve("HEAD") })
+    }
+
+    @Test
+    fun `a young index lock from a live foreign client is waited out, not deleted`() {
+        val git = LibraryGit(root, lockWaitMillis = 100, staleLockMillis = 60_000)
+        git.init()
+        commitFile(git, "blocks/one.md", "one")
+
+        val young = root.resolve(".git/index.lock").toFile().apply { writeText("") }
+
+        assertFailsWith<JGitInternalException> { commitFile(git, "blocks/two.md", "two") }
+        assertTrue(young.exists())
+    }
+
+    @Test
+    fun `an index lock released during the wait is retried`() {
+        val git = LibraryGit(root, lockWaitMillis = 5_000, staleLockMillis = 60_000)
+        git.init()
+        commitFile(git, "blocks/one.md", "one")
+
+        val foreign = root.resolve(".git/index.lock").toFile().apply { writeText("") }
+        thread(isDaemon = true, start = true) {
+            Thread.sleep(200)
+            foreign.delete()
+        }
+
+        commitFile(git, "blocks/two.md", "two")
+
+        assertFalse(foreign.exists())
+        assertEquals("two", root.resolve("blocks/two.md").toFile().readText())
     }
 
     @Test

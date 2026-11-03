@@ -59,6 +59,11 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   move to the assistant's folder or are removed; copies edited by hand stay where they are.
 
 ### Fixed
+- app: A library `.git/index.lock` left behind by a crashed or killed process no longer fails every
+  subsequent save: the lock is waited out when a live foreign git client may hold it and cleared as
+  stale otherwise, so the next save proceeds instead of crashing.
+- app: Uncaught exceptions are recorded to `~/.ruleblend/logs/app.log` (and stderr) instead of
+  ending the process without a trace.
 - app: The library ignores leftover debris in its mods folder (a directory without `meta.yaml`,
   stray files); previously one such entry crashed the app on every start.
 - app: While mods are frozen, the app no longer reads the mods store at all — no source-update

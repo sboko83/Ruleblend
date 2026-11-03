@@ -132,7 +132,12 @@ import dev.ruleblend.mcp.skill.KimiCodeSkillInstaller
 import dev.ruleblend.mcp.skill.OpenCodeSkillInstaller
 import dev.ruleblend.mcp.skill.PiSkillInstaller
 import dev.ruleblend.mcp.skill.ZCodeSkillInstaller
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -199,7 +204,38 @@ private fun applyMacOsIdentity() {
     }
 }
 
+/** Rotating cap for the uncaught-exception log; overflowing content moves to `app.log.1`. */
+private const val MaxUncaughtLogBytes = 2_000_000L
+
+/**
+ * An uncaught exception anywhere — an AWT event, a coroutine without a handler — must leave evidence
+ * instead of silently ending the process: a JVM that dies while jgit holds a `.git/index.lock`
+ * leaves the lock behind, and every later library write fails until it is removed by hand. The
+ * handler only records; the failing thread still dies its own death, so the runtime decides how
+ * much of the app survives.
+ */
+private fun installUncaughtExceptionLog() {
+    val logsDir = USER_HOME.resolve(".ruleblend/logs")
+    val logFile = logsDir.resolve("app.log")
+    Thread.setDefaultUncaughtExceptionHandler { thread, failure ->
+        val report = buildString {
+            append(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(OffsetDateTime.now()))
+            append(" [").append(thread.name).append("] ").append(failure).append('\n')
+            append(failure.stackTraceToString())
+        }
+        runCatching {
+            Files.createDirectories(logsDir)
+            if (Files.exists(logFile) && Files.size(logFile) > MaxUncaughtLogBytes) {
+                Files.move(logFile, logsDir.resolve("app.log.1"), StandardCopyOption.REPLACE_EXISTING)
+            }
+            Files.writeString(logFile, report, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+        }
+        System.err.print(report)
+    }
+}
+
 fun main(args: Array<String>) {
+    installUncaughtExceptionLog()
     migrateLegacyHome()
     // MCP mode: the same binary is the stdio MCP server. Must branch before any AWT/Compose touch —
     // stdout belongs to the protocol and no window may open.

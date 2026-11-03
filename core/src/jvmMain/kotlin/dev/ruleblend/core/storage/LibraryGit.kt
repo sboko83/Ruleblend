@@ -6,6 +6,7 @@ import dev.ruleblend.core.model.ALL_GROUP_ID
 import dev.ruleblend.core.model.Group
 import dev.ruleblend.core.model.Profile
 import dev.ruleblend.core.model.LineEnding
+import java.io.File
 import java.net.InetAddress
 import java.nio.file.Files
 import java.nio.file.Path
@@ -21,6 +22,7 @@ import kotlin.io.path.exists
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.MergeCommand
 import org.eclipse.jgit.api.errors.TransportException
+import org.eclipse.jgit.errors.LockFailedException
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.revwalk.RevCommit
@@ -49,6 +51,8 @@ open class LibraryGit(
     private val remoteConfig: () -> RemoteGitConfig? = { null },
     private val hostname: () -> String = ::localHostname,
     private val lineEnding: () -> LineEnding = { LineEnding.LF },
+    private val lockWaitMillis: Long = 5_000,
+    private val staleLockMillis: Long = 30_000,
 ) {
     private val lineEndings = LibraryLineEndings(root)
 
@@ -105,8 +109,57 @@ open class LibraryGit(
     private var lastFocusSyncRequestAtMillis = Long.MIN_VALUE
 
     fun <T> withLock(body: () -> T): T = lock.withLock {
-        interProcessLock?.withLock(body) ?: body()
+        val guarded = { withStaleLockRecovery(body) }
+        interProcessLock?.withLock(guarded) ?: guarded()
     }
+
+    /**
+     * jgit's `.lock` files are existence-based: a process killed mid operation leaves the file
+     * behind, the OS releases nothing when the holder dies, and every later operation on the same
+     * target fails with [LockFailedException] until the file is deleted. With the [ReentrantLock]
+     * and the [InterProcessLock] held, no Ruleblend process can be mid-write, so a surviving lock
+     * belongs either to a foreign git client (waited out briefly) or to a dead process (deleted once
+     * when older than [staleLockMillis]). A still-young lock after the wait is reported as-is rather
+     * than deleted while its owner may be live. Everything runs under the write lock, so the grace
+     * wait only delays other writers, it cannot race them.
+     */
+    private fun <T> withStaleLockRecovery(body: () -> T): T =
+        try {
+            body()
+        } catch (failure: Exception) {
+            failure.lockFailure()?.let { recoverStaleLock(it, body) } ?: throw failure
+        }
+
+    /** Runs [body] once more after clearing a lock abandoned by its dead holder. */
+    private fun <T> recoverStaleLock(failure: LockFailedException, body: () -> T): T {
+        val lockFile = orphanLockCandidate(failure)
+        if (!lockFile.exists()) return body() // released between the throw and this check
+        val age = System.currentTimeMillis() - Files.getLastModifiedTime(lockFile.toPath()).toMillis()
+        return if (age > staleLockMillis) {
+            runCatching { Files.delete(lockFile.toPath()) }
+            body()
+        } else {
+            val deadline = System.currentTimeMillis() + lockWaitMillis
+            while (lockFile.exists() && System.currentTimeMillis() < deadline) Thread.sleep(100)
+            body()
+        }
+    }
+
+    /**
+     * The `.lock` file jgit refused to take. The exception names the guarded file, and the lock
+     * candidate is its sibling with the `.lock` suffix; a lock-shaped name is taken literally, and
+     * the library's index lock is the fallback when the exception carries nothing usable.
+     */
+    private fun orphanLockCandidate(failure: LockFailedException): File {
+        val locked = failure.file ?: return root.resolve(".git/index.lock").toFile()
+        val name = locked.name
+        return if (name.endsWith(".lock")) locked else locked.resolveSibling("$name.lock")
+    }
+
+    private fun Throwable.lockFailure(): LockFailedException? =
+        generateSequence<Throwable>(this) { previous -> previous.cause?.takeUnless { it === previous } }
+            .filterIsInstance<LockFailedException>()
+            .firstOrNull()
 
     fun init() {
         withLock {
