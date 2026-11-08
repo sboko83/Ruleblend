@@ -245,7 +245,15 @@ fun main(args: Array<String>) {
             require(index + 1 < args.size && args[index + 1].isNotBlank()) { "--library requires a path" }
             Path.of(args[index + 1])
         }
-        runRuleblendServer(BuildInfo.VERSION, libraryPath)
+        try {
+            runRuleblendServer(BuildInfo.VERSION, libraryPath)
+        } catch (failure: Exception) {
+            // Returning an exception to jpackage opens a misleading "Failed to launch JVM" dialog.
+            // MCP clients need a failing exit status and diagnostics on stderr instead.
+            System.err.println("Ruleblend MCP failed: ${failure.message}")
+            failure.printStackTrace(System.err)
+            kotlin.system.exitProcess(1)
+        }
         return
     }
     applyMacOsIdentity()

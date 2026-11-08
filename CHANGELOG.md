@@ -59,6 +59,8 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   move to the assistant's folder or are removed; copies edited by hand stay where they are.
 
 ### Fixed
+- app: MCP failures report their cause to the assistant and exit without a misleading Windows
+  "Failed to launch JVM" dialog.
 - app: A library `.git/index.lock` left behind by a crashed or killed process no longer fails every
   subsequent save: the lock is waited out when a live foreign git client may hold it and cleared as
   stale otherwise, so the next save proceeds instead of crashing.

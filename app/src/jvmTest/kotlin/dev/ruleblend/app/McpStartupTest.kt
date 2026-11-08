@@ -14,6 +14,46 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class McpStartupTest {
     @Test
+    fun `MCP startup failure exits without a native launcher dialog`() {
+        val root = Files.createTempDirectory("ruleblend-failed-mcp")
+        try {
+            val library = root.resolve("library")
+            Files.createDirectories(library)
+            dev.ruleblend.core.storage.LibraryGit(library).init()
+            val indexLock = library.resolve(".git/index.lock")
+            Files.writeString(indexLock, "")
+            val launch = McpLauncher(root.resolve("bin/ruleblend-mcp"),
+                "dev.ruleblend.app.MainKt", appPath = null).resolve()
+            val stderr = root.resolve("stderr.log")
+            val stdout = root.resolve("stdout.log")
+            val builder = ProcessBuilder(listOf(launch.command.toString()) + launch.args +
+                listOf("--library", library.toString()))
+                .redirectError(stderr.toFile()).redirectOutput(stdout.toFile())
+            builder.environment().apply {
+                remove("JDK_JAVA_OPTIONS")
+                remove("_JAVA_OPTIONS")
+                remove("RULEBLEND_LIBRARY")
+                put("JAVA_TOOL_OPTIONS", "-Duser.home=\"$root\" -Djava.awt.headless=true")
+            }
+            val process = builder.start()
+            try {
+                assertTrue(process.waitFor(15, TimeUnit.SECONDS), "MCP failure must exit without a dialog")
+                assertEquals(1, process.exitValue())
+                assertEquals("", Files.readString(stdout))
+                val error = Files.readString(stderr)
+                assertTrue(error.contains("Ruleblend MCP failed:"), error)
+                assertTrue(error.contains("Cannot lock"), error)
+                assertTrue(error.contains("index.lock"), error)
+                assertTrue(Files.exists(indexLock), "A lock owned by another writer must be preserved")
+            } finally {
+                if (process.isAlive) process.destroyForcibly().waitFor()
+            }
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `IDE launcher starts the actual app as a headless MCP server`() {
         val root = Files.createTempDirectory("ruleblend-ide-mcp")
         val executor = Executors.newSingleThreadExecutor()

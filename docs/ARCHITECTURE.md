@@ -1404,7 +1404,9 @@ Agents work with the library directly instead of hand-editing instruction files.
   distribution artifact rather than a separate jar; unpackaged, the development launcher described below.
   Branches
   before any AWT/Compose init; stdout belongs to the protocol (the kotlin-logging banner is
-  suppressed); exits on stdin EOF. SDK: `io.modelcontextprotocol:kotlin-sdk-server` 0.15.0.
+  suppressed); exits on stdin EOF. Server failures print diagnostics to stderr and explicitly exit
+  with status 1, keeping the Windows native launcher from opening a JVM error dialog.
+  SDK: `io.modelcontextprotocol:kotlin-sdk-server` 0.15.0.
 - **Cross-process safety:** GUI and server may write concurrently. An advisory OS lock
   (`~/.ruleblend/ruleblend.lock`, reentrant, 10 s timeout) is taken at the outermost `LibraryGit.withLock`
   frame and in `ConfigStore.update`. Reads need no lock — repositories re-read disk per call and all
