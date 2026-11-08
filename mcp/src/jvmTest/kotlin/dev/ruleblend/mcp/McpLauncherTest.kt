@@ -8,6 +8,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.Assume
 
 /** Re-launched by the generated script, to prove it starts a JVM and forwards its arguments. */
 object LauncherProbe {
@@ -38,6 +39,11 @@ class McpLauncherTest {
         McpLauncher(script, mainClass = LauncherProbe::class.java.name, appPath = null, classPath = classPath,
             workingDir = workingDir, windows = false)
 
+    /** These tests pin the POSIX launcher branch, which needs an executable bit and direct script exec. */
+    private fun posixOnly() {
+        Assume.assumeFalse(System.getProperty("os.name").startsWith("Windows"))
+    }
+
     private fun run(launch: McpLaunch): String {
         val process = ProcessBuilder(listOf(launch.command.toString()) + launch.args).redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().readText()
@@ -47,6 +53,7 @@ class McpLauncherTest {
 
     @Test
     fun `installed app hands agents the shared script, which re-launches the bundle`() {
+        posixOnly()
         val launch = installed().resolve()
 
         assertEquals(script, launch.command)
@@ -57,6 +64,7 @@ class McpLauncherTest {
 
     @Test
     fun `a dev-owned script survives an installed start until the installed app claims it`() {
+        posixOnly()
         dev().resolve()
 
         val started = installed().resolve()
@@ -71,6 +79,7 @@ class McpLauncherTest {
 
     @Test
     fun `an installed-owned script survives a dev start`() {
+        posixOnly()
         installed().resolve()
 
         val started = dev().resolve()
@@ -80,6 +89,7 @@ class McpLauncherTest {
 
     @Test
     fun `a dev-owned script follows every dev start`() {
+        posixOnly()
         dev().resolve()
 
         val rebuilt = dev(workingDir = "/work/worktree").resolve()
@@ -88,6 +98,7 @@ class McpLauncherTest {
 
     @Test
     fun `a dev build whose files vanished is taken over on the next installed start`() {
+        posixOnly()
         val gone = tempDir.resolve("gone.jar").also { Files.writeString(it, "") }
         dev(classPath = "$gone${java.io.File.pathSeparator}${System.getProperty("java.class.path")}").resolve()
         Files.delete(gone)
@@ -97,6 +108,7 @@ class McpLauncherTest {
 
     @Test
     fun `a script written before ownership existed is taken over`() {
+        posixOnly()
         Files.createDirectories(script.parent)
         Files.writeString(script, "#!/bin/sh\nexec '/old/java' -cp '/old' Main \"$@\"\n")
 
@@ -105,6 +117,7 @@ class McpLauncherTest {
 
     @Test
     fun `dev run writes an executable script that re-launches this build with the arguments`() {
+        posixOnly()
         val launch = dev().resolve()
 
         assertTrue(launch.fromDevBuild)
