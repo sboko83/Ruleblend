@@ -211,6 +211,17 @@ class McpLauncher(
             appendLine("${MARKER}owner: ${build.marker}")
             appendLine("${MARKER}source: $source")
             requires.forEach { appendLine("${MARKER}requires: $it") }
+            // A build can be deleted after it claimed the script (a `clean`, an uninstalled app). Say
+            // which path is gone instead of leaving the agent with a bare exec failure.
+            appendLine("missing=''")
+            requires.forEach { path ->
+                appendLine("if [ ! -e ${shellQuote(path)} ]; then missing=\"${'$'}missing ${shellQuote(path)}\"; fi")
+            }
+            appendLine("if [ -n \"${'$'}missing\" ]; then")
+            appendLine("  echo \"Ruleblend MCP: launcher target is gone:${'$'}missing\" >&2")
+            appendLine("  echo \"Start Ruleblend or rebuild it so it repoints ~/.ruleblend/bin/ruleblend-mcp.\" >&2")
+            appendLine("  exit 1")
+            appendLine("fi")
             appendLine("$exec $args")
         }
     }

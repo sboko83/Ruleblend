@@ -59,6 +59,9 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   move to the assistant's folder or are removed; copies edited by hand stay where they are.
 
 ### Fixed
+- app: When the build an assistant's Ruleblend MCP entry points at is gone, the assistant now shows
+  which path is missing and that starting or rebuilding Ruleblend restores the connection, instead
+  of an opaque launch error.
 - app: MCP failures report their cause to the assistant and exit without a misleading Windows
   "Failed to launch JVM" dialog.
 - app: A library `.git/index.lock` left behind by a crashed or killed process no longer fails every

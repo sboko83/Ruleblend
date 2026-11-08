@@ -78,6 +78,21 @@ class McpLauncherTest {
     }
 
     @Test
+    fun `a launcher whose target was deleted names the missing path instead of a bare exec error`() {
+        posixOnly()
+        val launch = installed().resolve()
+        Files.delete(app)
+
+        val process = ProcessBuilder(listOf(launch.command.toString()) + launch.args).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().readText()
+
+        assertEquals(1, process.waitFor(), output)
+        assertContains(output, "Ruleblend MCP: launcher target is gone")
+        assertContains(output, app.toString())
+        assertFalse(output.contains("No such file or directory"), output)
+    }
+
+    @Test
     fun `an installed-owned script survives a dev start`() {
         posixOnly()
         installed().resolve()

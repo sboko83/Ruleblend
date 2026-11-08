@@ -1498,7 +1498,9 @@ agent id, with `model` as a shortcut applied to every assistant that supports su
   script, never an agent config. Marker lines record the owner (`installed`/`dev`), its source and the
   paths it needs. On start a build rewrites the script only when it is missing, unmarked, owned by
   the same kind of build or needs a path that is gone, so a dev run that owns it follows every
-  rebuild and an installed start does not take it back. Settings → Agents shows the owner and
+  rebuild and an installed start does not take it back. If a required path is gone before any next
+  app start, the script names every missing path and says to start or rebuild Ruleblend, so the
+  assistant reports a cause instead of a bare exec failure. Settings → Agents shows the owner and
   switches it explicitly; running agent sessions keep their process. On Windows the installed binary
   is registered directly from its fixed install path, and a dev run registers `ruleblend-mcp.exe`,
   generated from the running JDK's GUI jpackage launcher; switching there requires reconnecting.
