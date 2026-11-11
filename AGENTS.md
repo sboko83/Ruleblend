@@ -1,4 +1,3 @@
-<!-- rb1 owned ba66aa15 ruleblend@1:376 version@1:212 commit@2:104 docs@3:632 rules@2:722 — managed by Ruleblend; edits are overwritten -->
 # Ruleblend
 
 Desktop app (KMP + Compose Desktop) managing AI-agent instruction blocks and MCP server configs.

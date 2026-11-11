@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "pins": [
+    {
+      "kind": "rule",
+      "name": "commit",
+      "version": 1,
+      "assistant": "codex",
+      "scope": "project",
+      "mode": "section",
+      "target": "AGENTS.md",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "32ef2a2e230034580d22095fb11ca5911775154a374f476cab68079d1b64ebc2"
+        }
+      ]
+    },
+    {
+      "kind": "rule",
+      "name": "docs",
+      "version": 1,
+      "assistant": "codex",
+      "scope": "project",
+      "mode": "section",
+      "target": "AGENTS.md",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "eb638835f5325119836a32018a60da05d63f55c5a522db1b0a5afe9b5a5e9aa5"
+        }
+      ]
+    },
+    {
+      "kind": "rule",
+      "name": "ruleblend",
+      "version": 1,
+      "assistant": "codex",
+      "scope": "project",
+      "mode": "section",
+      "target": "AGENTS.md",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "a9c2bd1b3baa3dd26a0bded6dd1a7326e16ee005e291fd1c39ad3c4ea90d7444"
+        }
+      ]
+    },
+    {
+      "kind": "rule",
+      "name": "rules",
+      "version": 1,
+      "assistant": "codex",
+      "scope": "project",
+      "mode": "section",
+      "target": "AGENTS.md",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "b44c74fb0b0505d9b859ef48799c0ccdcaac5746dbbf1d13c4ee2fc1c251d184"
+        }
+      ]
+    },
+    {
+      "kind": "rule",
+      "name": "version",
+      "version": 1,
+      "assistant": "codex",
+      "scope": "project",
+      "mode": "section",
+      "target": "AGENTS.md",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "9bcc6eac8dbf4130f673ff4f3c24b22157851fe0701b71a89e0572c54049adb0"
+        }
+      ]
+    }
+  ]
+}
